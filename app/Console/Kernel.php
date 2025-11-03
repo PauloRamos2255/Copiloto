@@ -7,17 +7,20 @@ use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 
 class Kernel extends ConsoleKernel
 {
+   
     protected function schedule(Schedule $schedule)
     {
         $schedule->command('app:sincronizar-segmentos')
-             ->everyMinute()        // 🔹 ahora se ejecuta cada minuto
-             ->withoutOverlapping() // 🔹 evita solapamiento si tarda mucho
-             ->runInBackground();   // 🔹 opcional: ejecuta en segundo plano
+                 ->everyMinute()
+                 ->withoutOverlapping()
+                 ->runInBackground();
     }
 
+   
     protected function commands()
     {
-        $this->load(__DIR__.'/Commands');
+        $this->load(__DIR__ . '/Commands');
+
         require base_path('routes/console.php');
     }
 }

@@ -24,7 +24,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/zona', fn() => Inertia::render('ZonaComponent'))->name('zona');
     Route::get('/mapa', fn() => Inertia::render('MapaComponent'))->name('mapa');
     Route::get('/listasegmento', fn() => Inertia::render('TablaSegmento'))->name('segmento');
+    Route::get('/usuarios', fn() => Inertia::render('TablaUsuarios'))->name('usuarios');
 });
 
 // 🔹 Configuración adicional
-require __DIR__ . '/settings.php';
+require __DIR__.'/settings.php';

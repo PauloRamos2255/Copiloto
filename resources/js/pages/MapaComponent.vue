@@ -656,15 +656,12 @@ export default defineComponent({
       colorChange(color) {
         // Cambiar color temporal en el polígono y puntos
         this.segmentoEditado.color = color;
-
-        // Actualizar círculos si ya se dibujaron
         this.poligonosMarcadores.forEach(c => {
           if (c.segmentoId === this.segmentoEditado.id) {
             c.setOptions({ strokeColor: color, fillColor: color });
           }
         });
 
-        // Actualizar polígonos principales si quieres
         this.poligonos.forEach(p => {
           if (p.segmentoId === this.segmentoEditado.id) {
             p.setOptions({ fillColor: color });

@@ -1,11 +1,4 @@
 <template>
-    <link
-    rel="stylesheet"
-    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
-    integrity="sha512-Fo3rlrZj/k7ujTTXRN1E0Yx1U9vC5O5Ebxk6A0UQp6L7A5U4rQbslcmvW7xR9g0QKjYbq/yZHB6PZ9F4p6XfKw=="
-    crossorigin="anonymous"
-    referrerpolicy="no-referrer"
-  />
   <div id="mapa-page" class="relative h-screen w-full overflow-hidden">
     <!-- Header -->
     <header class="bg-gray-700 text-white flex items-center justify-between px-4 py-2 shadow-md z-20">
@@ -14,606 +7,245 @@
           <img src="/logo.png" alt="Logo" class="h-6" />
           <span class="text-lg font-semibold">Copiloto</span>
         </div>
-
         <nav class="flex items-center space-x-5 text-sm">
           <button class="flex items-center space-x-1 hover:text-blue-400">
-            <i class="fas fa-chart-line"></i><span>Dashboard</span>
+            <i class="fas fa-chart-line"></i>
+            <span>Dashboard</span>
           </button>
           <button class="flex items-center space-x-1 hover:text-blue-400" @click="togglePanel">
-            <i class="fas fa-globe"></i><span>Segmentos</span>
+            <i class="fas fa-globe"></i>
+            <span>Segmentos</span>
           </button>
           <button class="flex items-center space-x-1 hover:text-blue-400" @click="verUsuarios">
-            <i class="fas fa-user"></i><span>Usuarios</span>
+            <i class="fas fa-user"></i>
+            <span>Usuarios</span>
           </button>
         </nav>
       </div>
-
       <div class="flex items-center space-x-4 relative">
         <span class="text-sm text-gray-300">{{ nombreUsuario }}</span>
         <button @click="toggleMenuUsuario" class="focus:outline-none">
           <i class="fas fa-ellipsis-v"></i>
         </button>
-
         <transition name="fade">
-          <ul
-            v-if="menuUsuarioAbierto"
-            class="absolute right-0 top-10 bg-white text-gray-800 rounded-lg shadow-lg w-40"
-          >
-            <li @click="cerrarSesion" class="px-4 py-2 hover:bg-gray-100 cursor-pointer">
-              Cerrar sesión
-            </li>
+          <ul v-if="menuUsuarioAbierto" class="absolute right-0 top-10 bg-white text-gray-800 rounded-lg shadow-lg w-40 z-50">
+            <li @click="cerrarSesion" class="px-4 py-2 hover:bg-gray-100 cursor-pointer">Cerrar sesión</li>
           </ul>
         </transition>
       </div>
     </header>
 
-    <!-- Sidebar Segmentos -->
+    <!-- Panel lateral izquierdo -->
     <transition name="slide">
-  <aside
-    v-if="panelAbierto"
-    class="fixed left-0 top-12 bg-white w-80 shadow-lg z-30 overflow-y-auto"
-    style="height: calc(100%);"
-  >
-    <!-- Encabezado fijo -->
-    <div class="sticky top-0 bg-white z-10 border-b">
-      <div class="flex justify-between items-center mb-4">
-  <h2 class="text-lg font-semibold text-gray-800">Segmentos</h2>
-  <button
-    @click="actualizarSegmentos"
-    :disabled="loadingActualizar"
-    class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-lg text-sm flex items-center space-x-1"
-  >
-    <i class="fas fa-sync-alt" :class="{ 'animate-spin': loadingActualizar }"></i>
-    <span>{{ loadingActualizar ? 'Actualizando...' : 'Actualizar' }}</span>
-  </button>
-</div>
-
-
-      <!-- Barra de búsqueda -->
-      <div class="flex items-center px-4 pb-3 space-x-2">
-        <i class="fas fa-search text-gray-400"></i>
-        <input
-          type="text"
-          v-model="busqueda"
-          placeholder="Buscar segmento..."
-          class="w-full border rounded px-2 py-1 focus:outline-none focus:ring focus:ring-blue-300"
-        />
-      </div>
-    </div>
-
-    <!-- Lista de segmentos -->
-    <div class="p-4">
-      <div
-        v-for="segmento in segmentosFiltrados"
-        :key="segmento.id"
-        class="flex justify-between items-center p-2 hover:bg-gray-100 rounded cursor-pointer"
-        @click="centrarMapa(segmento)"
-      >
-        <div class="flex items-center space-x-2">
-          <i class="fas fa-draw-polygon"></i>
-          <span>{{ segmento.nombre }}</span>
-        </div>
-
-        <div class="flex items-center space-x-4 text-gray-600">
-          <div class="flex items-center space-x-1">
-            <i class="fas fa-bus"></i>
-            <span>{{ segmento.unidades }}</span>
+      <aside v-if="panelAbierto" class="fixed left-0 top-12 bg-white w-96 shadow-lg z-30 overflow-hidden" style="height: calc(100% - 3rem);">
+        <!-- Lista de segmentos -->
+        <div v-if="!propiedadesAbiertas" class="h-full flex flex-col">
+          <div class="sticky top-0 bg-white z-10 border-b p-4">
+            <div class="flex justify-between items-center mb-4">
+              <h2 class="text-lg font-semibold text-gray-800">Segmentos</h2>
+              <button @click="actualizarSegmentos" :disabled="loadingActualizar" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-lg text-sm flex items-center space-x-1">
+                <i class="fas fa-sync-alt" :class="{ 'animate-spin': loadingActualizar }"></i>
+                <span>{{ loadingActualizar ? 'Actualizando...' : 'Actualizar' }}</span>
+              </button>
+            </div>
+            <div class="flex items-center space-x-2">
+              <i class="fas fa-search text-gray-400"></i>
+              <input type="text" v-model="busqueda" placeholder="Buscar segmento..." class="w-full border rounded px-2 py-1 focus:outline-none focus:ring focus:ring-blue-300" />
+            </div>
           </div>
-          <i class="fas fa-wrench cursor-pointer"></i>
+          <div class="flex-1 overflow-y-auto p-4">
+            <div v-for="segmento in segmentosFiltrados" :key="segmento.id" class="flex justify-between items-center p-2 hover:bg-gray-100 rounded cursor-pointer mb-2" @click="centrarMapa(segmento)">
+              <div class="flex items-center space-x-2">
+                <div class="w-4 h-4 rounded border border-gray-300" :style="{ backgroundColor: segmento.color || '#4d0000' }"></div>
+                <span class="text-sm">{{ segmento.nombre }}</span>
+              </div>
+              <div class="flex items-center space-x-3 text-gray-600">
+                <i class="fas fa-wrench cursor-pointer hover:text-blue-600" @click.stop="abrirPropiedades(segmento)" @click="centrarMapa(segmento)" title="Editar propiedades"></i>
+                <i class="fas fa-times text-red-500 hover:text-red-700 cursor-pointer" title="Eliminar geocerca" @click.stop="eliminarGeocerca(segmento)"></i>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
-  </aside>
-</transition>
 
-<div
-  v-if="notificacion"
-  class="fixed bottom-6 right-6 px-4 py-3 rounded-lg shadow-lg text-white transition"
-  :class="{
-    'bg-green-500': notificacion.tipo === 'exito',
-    'bg-red-500': notificacion.tipo === 'error',
-    'bg-blue-500': notificacion.tipo === 'info'
-  }"
->
-  {{ notificacion.mensaje }}
-</div>
+        <!-- Formulario de propiedades -->
+        <div v-else class="h-full flex flex-col">
+          <!-- Header del formulario -->
+          <div class="bg-gray-50 border-b p-4">
+            <div class="flex items-center justify-between mb-3">
+              <button @click="cerrarPropiedades" class="text-gray-600 hover:text-gray-800 flex items-center space-x-2">
+                <i class="fas fa-arrow-left"></i>
+                <span class="text-sm">Volver</span>
+              </button>
+              <h3 class="text-lg font-semibold text-gray-800">Propiedades</h3>
+              <button @click="cerrarPropiedades" class="text-gray-400 hover:text-gray-600">
+                <i class="fas fa-times text-xl"></i>
+              </button>
+            </div>
+          </div>
 
+          <!-- Formulario con scroll -->
+          <div class="flex-1 overflow-y-auto p-4">
+            <form @submit.prevent="guardarPropiedades" class="space-y-4">
+              <!-- ID -->
+              <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">ID</label>
+                <input :value="segmentoEditado.codsegmento || segmentoEditado.id" type="text" readonly class="w-full border border-gray-300 rounded px-3 py-2 text-sm bg-gray-100 text-gray-600" />
+              </div>
 
+              <!-- Nombre y Color -->
+              <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">Nombre <span class="text-red-500">*</span></label>
+                <div class="flex gap-2">
+                  <input v-model="segmentoEditado.nombre" type="text" required class="flex-1 border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  <input v-model="segmentoEditado.color" type="color" class="w-14 h-10 cursor-pointer border border-gray-300 rounded" />
+                </div>
+              </div>
+
+              <!-- Velocidad -->
+              <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">Velocidad permitida</label>
+                <div class="flex gap-2 items-center">
+                  <input v-model.number="segmentoEditado.velocidad" type="number" min="0" max="200" step="1" placeholder="0" class="flex-1 border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  <span class="text-sm text-gray-500">km/h</span>
+                </div>
+              </div>
+
+              <!-- Mensaje -->
+              <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">Mensaje</label>
+                <textarea v-model="segmentoEditado.mensaje" rows="3" maxlength="500" class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Mensaje de notificación al entrar/salir"></textarea>
+                <div class="text-xs text-gray-400 mt-1 text-right">{{ (segmentoEditado.mensaje || '').length }}/500</div>
+              </div>
+
+              <!-- Estado -->
+              <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">Estado</label>
+                <div class="flex items-center gap-3">
+                  <select v-model="segmentoEditado.estado" class="flex-1 border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="1">Activo</option>
+                    <option value="0">Inactivo</option>
+                  </select>
+                  <span :class="['px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap', segmentoEditado.estado == 1 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800']">
+                    {{ segmentoEditado.estado == 1 ? '● Activo' : '● Inactivo' }}
+                  </span>
+                </div>
+              </div>
+
+              <!-- Coordenadas -->
+              <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">Coordenadas ({{ segmentoEditado.coordenadas.length }} puntos)</label>
+                <div class="bg-gray-50 border border-gray-300 rounded p-3 max-h-32 overflow-y-auto">
+                  <div v-if="segmentoEditado.coordenadas.length > 0" class="space-y-1">
+                    <div v-for="(coord, idx) in coordenadasVisibles" :key="idx" class="text-xs text-gray-600 font-mono">
+                      {{ idx + 1 }}. {{ coord.y?.toFixed(6) }}, {{ coord.x?.toFixed(6) }}
+                    </div>
+                    <div v-if="segmentoEditado.coordenadas.length > 3" class="text-xs text-blue-600 italic cursor-pointer mt-1 hover:underline" @click="mostrarMas">
+                      <span v-if="!verMas">... y {{ segmentoEditado.coordenadas.length - 3 }} más</span>
+                      <span v-else>ver menos</span>
+                    </div>
+                  </div>
+                  <div v-else class="text-xs text-gray-400 italic">Sin coordenadas</div>
+                </div>
+              </div>
+
+              <!-- Bounds -->
+              <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">Límites geográficos</label>
+                <div class="bg-gray-50 border border-gray-300 rounded p-3">
+                  <div class="grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <span class="font-medium text-gray-700">Min X:</span>
+                      <span class="text-gray-600 font-mono block">{{ bounds?.min_x?.toFixed(6) || 'N/A' }}</span>
+                    </div>
+                    <div>
+                      <span class="font-medium text-gray-700">Max X:</span>
+                      <span class="text-gray-600 font-mono block">{{ bounds?.max_x?.toFixed(6) || 'N/A' }}</span>
+                    </div>
+                    <div>
+                      <span class="font-medium text-gray-700">Min Y:</span>
+                      <span class="text-gray-600 font-mono block">{{ bounds?.min_y?.toFixed(6) || 'N/A' }}</span>
+                    </div>
+                    <div>
+                      <span class="font-medium text-gray-700">Max Y:</span>
+                      <span class="text-gray-600 font-mono block">{{ bounds?.max_y?.toFixed(6) || 'N/A' }}</span>
+                    </div>
+                  </div>
+                  <div class="mt-2 pt-2 border-t border-gray-200 text-xs">
+                    <span class="font-medium text-gray-700">Centro:</span>
+                    <span class="text-gray-600 font-mono block">{{ bounds?.cen_y?.toFixed(6) || 'N/A' }}, {{ bounds?.cen_x?.toFixed(6) || 'N/A' }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Área y Perímetro -->
+              <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">Área</label>
+                <input :value="calcularAreaReal()" type="text" readonly class="w-full border border-gray-300 rounded px-3 py-2 text-sm bg-gray-50" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">Perímetro</label>
+                <input :value="calcularPerimetroReal()" type="text" readonly class="w-full border border-gray-300 rounded px-3 py-2 text-sm bg-gray-50" />
+              </div>
+
+              <!-- Fechas -->
+              <div class="space-y-2">
+                <div>
+                  <label class="block text-xs font-medium text-gray-700 mb-1">Creado</label>
+                  <input :value="formatearFecha(segmentoEditado.created_at)" type="text" readonly class="w-full border border-gray-300 rounded px-3 py-2 text-xs bg-gray-50 text-gray-600" />
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-gray-700 mb-1">Actualizado</label>
+                  <input :value="formatearFecha(segmentoEditado.updated_at)" type="text" readonly class="w-full border border-gray-300 rounded px-3 py-2 text-xs bg-gray-50 text-gray-600" />
+                </div>
+              </div>
+            </form>
+          </div>
+
+          <!-- Botones fijos al fondo -->
+          <div class="border-t bg-gray-50 p-4">
+            <div class="flex gap-2">
+              <button type="button" @click="cerrarPropiedades" class="flex-1 px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-100 text-sm font-medium transition-colors">Cancelar</button>
+              <button type="button" @click="limpiarFormulario" class="flex-1 px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-100 text-sm font-medium transition-colors">Limpiar</button>
+              <button type="submit" @click="guardarPropiedades" class="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm font-medium transition-colors">Guardar</button>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </transition>
 
     <!-- Mapa -->
     <div id="map" class="h-full w-full"></div>
   </div>
 </template>
 
-<script>
-import * as turf from "@turf/turf";
-import axios from "axios";
-const itemId = 402037903;
-
-export default {
-  name: "MapaComponent",
-
-  data() {
-    return {
-      panelAbierto: true,
-      menuUsuarioAbierto: false,
-      nombreUsuario: "Paulo Ramos",
-      busqueda: "",
-      segmentos: [],
-      polygons: [],
-      overlays: [],
-      map: null,
-      loadingActualizar: false,
-      error: null,
-      itemId: null,
-      notificacion: null,
-      lastSegmentosHash: {}, 
-    autoRefreshInterval: null,
-    };
-  },
-
-  async mounted() {
-     this.iniciarAutoRefresh();
-    await this.cargarGoogleMaps();
-    this.initMap();
-    await this.cargarSegmentos();
-  },
-
-  computed: {
-    segmentosFiltrados() {
-      if (!this.busqueda) return this.segmentos;
-      const texto = this.busqueda.toLowerCase();
-      return this.segmentos.filter((s) => s.nombre?.toLowerCase().includes(texto));
-    },
-  },
-
-  methods: {
-
-     iniciarAutoRefresh() {
-    // Ejecutar inmediatamente al iniciar
-    this.refreshSiHayCambios();
-
-    // Cada 30 minutos
-    this.autoRefreshInterval = setInterval(() => {
-      this.refreshSiHayCambios();
-    }, 30 * 60 * 1000);
-  },
-
-  // Genera un hash simple por segmento basado en coordenadas y color
-  generarHashSegmento(seg) {
-    const coords = (seg.cordenadas || []).map(c => `${c.x},${c.y}`).join('|');
-    return `${seg.id}:${coords}:${seg.color}`;
-  },
-
-  async refreshSiHayCambios() {
-    try {
-      const sid = await this.obtenerSID();
-      const { data } = await axios.post('http://localhost:8000/api/zone-data', { itemId, sid });
-
-      if (!data.success || !Array.isArray(data.zones)) return;
-
-      const nuevosSegmentos = data.zones.map(z => ({
-        id: z.id ?? z.codsegmento,
-        nombre: z.n ?? z.nombre ?? 'Sin nombre',
-        color: z.color ?? (z.c !== undefined ? '#' + Number(z.c).toString(16).padStart(6,'0') : '#FFFFFF'),
-        cordenadas: this.normalizarCoordenadas(z),
-        bounds: z.b ?? z.bounds ?? {}
-      }));
-
-      // Detectar cambios comparando hashes
-      let hayCambios = false;
-      const nuevosHashes = {};
-      nuevosSegmentos.forEach(seg => {
-        const hash = this.generarHashSegmento(seg);
-        nuevosHashes[seg.id] = hash;
-        if (this.lastSegmentosHash[seg.id] !== hash) {
-          hayCambios = true;
-        }
-      });
-
-      if (hayCambios || Object.keys(this.lastSegmentosHash).length !== nuevosSegmentos.length) {
-  console.log('🔄 Cambios detectados, actualizando mapa...');
-
-  this.segmentos = nuevosSegmentos;
-  this.limpiarMapa();
-  this.dibujarSegmentos();
-  this.lastSegmentosHash = nuevosHashes;
-
-  // 🔹 Guardar en la base de datos
-  try {
-    await axios.post('http://localhost:8000/api/segmentos/guardar', { zonas: this.segmentos });
-    this.mostrarNotificacion('✅ Segmentos actualizados automáticamente y guardados', 'exito');
-  } catch (err) {
-    console.error('❌ Error al guardar segmentos automáticamente:', err);
-    this.mostrarNotificacion('❌ Error al guardar segmentos automáticamente', 'error');
-  }
-} else {
-  console.log('✔️ No hay cambios en los segmentos.');
-}
-
-    } catch (err) {
-      console.error('❌ Error al refrescar segmentos automáticamente:', err);
-    }
-  },
-
-  beforeDestroy() {
-    if (this.autoRefreshInterval) clearInterval(this.autoRefreshInterval);
-  },
-
-
-    mostrarNotificacion(mensaje, tipo = "info") {
-  this.notificacion = { mensaje, tipo };
-  setTimeout(() => (this.notificacion = null), 4000);
-},
-
-    async cargarGoogleMaps() {
-      return new Promise((resolve, reject) => {
-        // si ya está cargado, resolvemos
-        if (window.google && window.google.maps) return resolve();
-
-        const script = document.createElement("script");
-        // reemplaza TU_API_KEY por tu API key (o usa variable de entorno)
-        script.src = "https://maps.googleapis.com/maps/api/js?key=TU_API_KEY";
-        script.async = true;
-        script.defer = true;
-        script.onload = () => {
-          // a veces onload se dispara pero google aún no está listo; comprobamos
-          const check = () => {
-            if (window.google && window.google.maps) return resolve();
-            // reintentamos en 50ms
-            setTimeout(check, 50);
-          };
-          check();
-        };
-        script.onerror = (e) => reject(new Error("No se pudo cargar Google Maps: " + e));
-        document.head.appendChild(script);
-      });
-    },
-
-    initMap() {
-      const mapDiv = document.getElementById("map");
-      if (!mapDiv) return console.error("Falta el contenedor #map");
-      this.map = new google.maps.Map(mapDiv, {
-        center: { lat: -12.0464, lng: -77.0428 },
-        zoom: 12,
-        mapTypeId: "roadmap",
-      });
-    },
-
-    async cargarSegmentos() {
-      try {
-        const res = await fetch("http://localhost:8000/api/segmentos");
-        const data = await res.json();
-        console.log("📦 Datos recibidos (API /api/segmentos):", data);
-
-        // Normalizar: soporta dos formatos: arreglo directo o { segmentos: [...] }
-        let lista = Array.isArray(data) ? data : data.segmentos ?? data.zones ?? [];
-        this.segmentos = lista.map((seg) => ({
-          id: seg.id ?? seg.codsegmento ?? seg.codigo ?? null,
-          nombre: seg.n ?? seg.nombre ?? seg.name ?? "Sin nombre",
-          // color: acepta string '#RRGGBB' o número (c)
-          color:
-            seg.color ??
-            (seg.c !== undefined && seg.c !== null
-              ? "#" + Number(seg.c).toString(16).padStart(6, "0")
-              : seg.color_hex ?? "#FFFFFF"),
-          // cordenadas: normaliza varios formatos posibles
-          cordenadas: this.normalizarCoordenadas(seg),
-          bounds: seg.b ?? seg.bounds ?? {},
-        }));
-
-        console.log("🔎 Segmentos normalizados:", this.segmentos);
-
-        this.limpiarMapa();
-        this.dibujarSegmentos();
-      } catch (err) {
-        console.error("Error al cargar segmentos:", err);
-        this.error = err.message || err;
-      }
-    },
-
-
-    normalizarCoordenadas(seg) {
-      let raw = seg.p ?? seg.cordenadas ?? seg.coordenadas ?? seg.points ?? [];
-      // si viene como string JSON
-      if (typeof raw === "string") {
-        try {
-          raw = JSON.parse(raw);
-        } catch (e) {
-          console.warn("No se pudo parsear coordenadas string:", raw);
-          raw = [];
-        }
-      }
-      if (!Array.isArray(raw)) return [];
-
-      const coords = raw
-        .map((p) => {
-          // formato objeto {x, y}
-          if (p && typeof p === "object" && p.x !== undefined && p.y !== undefined) {
-            return { x: Number(p.x), y: Number(p.y) };
-          }
-          // formato array [lon, lat] o [lat, lon] — intentamos detectar
-          if (Array.isArray(p) && p.length >= 2) {
-            const a = Number(p[0]);
-            const b = Number(p[1]);
-            // asumimos [lon, lat] porque Wialon usa x=lon, y=lat
-            return { x: a, y: b };
-          }
-          // formato con nombres diferentes
-          if (p && (p.lon !== undefined || p.lng !== undefined)) {
-            return { x: Number(p.lon ?? p.lng), y: Number(p.lat ?? p.latitude ?? p.y) };
-          }
-          return null;
-        })
-        .filter(Boolean)
-        // eliminar puntos inválidos (NaN)
-        .filter((pt) => !Number.isNaN(pt.x) && !Number.isNaN(pt.y));
-
-      // eliminar duplicados exactos
-      const uniq = [];
-      const seen = new Set();
-      coords.forEach((pt) => {
-        const key = `${pt.x}-${pt.y}`;
-        if (!seen.has(key)) {
-          seen.add(key);
-          uniq.push(pt);
-        }
-      });
-      return uniq;
-    },
-
-    limpiarMapa() {
-      this.polygons.forEach((p) => p.polygon?.setMap(null));
-      this.overlays.forEach((o) => o.setMap(null));
-      this.polygons = [];
-      this.overlays = [];
-    },
-
-    dibujarSegmentos() {
-      if (!this.map) return console.warn("Mapa no inicializado aún");
-      const bounds = new google.maps.LatLngBounds();
-      // limpiar antes de dibujar
-      this.polygons.forEach((p) => p.polygon?.setMap(null));
-      this.overlays.forEach((o) => o.setMap(null));
-      this.polygons = [];
-      this.overlays = [];
-
-      console.log("📍 Dibujando segmentos (cantidad):", this.segmentos.length);
-
-      this.segmentos.forEach((seg) => {
-        const coords = seg.cordenadas || [];
-        // si no hay puntos o menos de 2, no dibujamos
-        if (!coords || coords.length < 2) {
-          console.warn("Segmento omitido (puntos insuficientes):", seg.id, coords.length);
-          return;
-        }
-
-        // Convertir a {lat, lng} (google usa lat, lng)
-        const puntos = coords.map((c) => ({ lat: parseFloat(c.y), lng: parseFloat(c.x) }));
-
-        // Si algunos puntos fallan (NaN), descartamos el segmento
-        if (puntos.some((p) => Number.isNaN(p.lat) || Number.isNaN(p.lng))) {
-          console.warn("Segmento con coordenadas inválidas, omitido:", seg.id, puntos);
-          return;
-        }
-
-        // Si tiene exactamente 2 puntos, lo dibujamos como Polyline en vez de Polygon
-        if (puntos.length === 2) {
-          const linea = new google.maps.Polyline({
-            path: puntos,
-            strokeColor: "#000",
-            strokeWeight: 2,
-            map: this.map,
-          });
-          this.polygons.push({ id: seg.id, polygon: linea });
-          puntos.forEach((p) => bounds.extend(p));
-        } else {
-          // cerramos la lista si no está cerrada (para turf)
-          const coordsTurf = puntos.map((p) => [p.lng, p.lat]);
-          // try/catch por seguridad con turf
-          let centro = null;
-          try {
-            // turf necesita un anillo cerrado; repetimos el primer punto al final
-            const ring = coordsTurf.slice();
-            if (ring.length && (ring[0][0] !== ring[ring.length - 1][0] || ring[0][1] !== ring[ring.length - 1][1])) {
-              ring.push(ring[0]);
-            }
-            centro = turf.pointOnFeature(turf.polygon([ring])).geometry.coordinates;
-          } catch (e) {
-            console.warn("Turf no pudo calcular centro para segmento:", seg.id, e);
-          }
-
-          const { color, opacity } = this.parseGoogleColor(seg.color);
-
-          const polygon = new google.maps.Polygon({
-            paths: puntos,
-            strokeColor: "#000",
-            strokeWeight: 1,
-            fillColor: color,
-            fillOpacity: opacity ?? 0.5,
-            map: this.map,
-          });
-
-          this.polygons.push({ id: seg.id, polygon });
-          puntos.forEach((p) => bounds.extend(p));
-
-          // etiqueta (overlay) — solo si turf pudo calcular centro
-          if (centro) {
-            const label = document.createElement("div");
-            label.className = "map-label";
-            label.innerText = seg.nombre || "Segmento";
-
-            const overlay = new google.maps.OverlayView();
-            overlay.onAdd = function () {
-              this.getPanes().overlayLayer.appendChild(label);
-            };
-            overlay.draw = function () {
-              const projection = this.getProjection();
-              if (!projection) return;
-              const pixel = projection.fromLatLngToDivPixel(new google.maps.LatLng(centro[1], centro[0]));
-              label.style.position = "absolute";
-              label.style.left = pixel.x + "px";
-              label.style.top = pixel.y + "px";
-              label.style.transform = "translate(-50%, -50%)";
-              label.style.pointerEvents = "none";
-              label.style.padding = "2px 6px";
-              label.style.background = "rgba(255,255,255,0.9)";
-              label.style.borderRadius = "4px";
-              label.style.fontSize = "12px";
-              label.style.boxShadow = "0 1px 3px rgba(0,0,0,0.2)";
-            };
-            overlay.onRemove = function () {
-              label.remove();
-            };
-            overlay.setMap(this.map);
-            this.overlays.push(overlay);
-          }
-        }
-      });
-
-      // Ajustar vista si hay bounds
-      try {
-        if (!bounds.isEmpty()) this.map.fitBounds(bounds);
-      } catch (e) {
-        console.warn("No se pudo ajustar bounds:", e);
-      }
-    },
-
-    parseGoogleColor(argb) {
-      if (!argb) return { color: "#cccccc", opacity: 0.5 };
-      // si viene como número (entero) tipo Wialon
-      if (typeof argb === "number") {
-        return { color: "#" + Number(argb).toString(16).padStart(6, "0"), opacity: 1 };
-      }
-      if (typeof argb === "string") {
-        // '#RRGGBB'
-        if (argb.startsWith("#") && (argb.length === 7 || argb.length === 9)) {
-          if (argb.length === 7) return { color: argb, opacity: 1 };
-          // #AARRGGBB -> extraemos alpha
-          const a = parseInt(argb.substring(1, 3), 16) / 255;
-          return { color: `#${argb.substring(3)}`, opacity: a };
-        }
-        // 'RRGGBB' sin #
-        if (/^[0-9a-fA-F]{6}$/.test(argb)) return { color: "#" + argb, opacity: 1 };
-      }
-      return { color: "#cccccc", opacity: 0.5 };
-    },
-
-    centrarMapa(segmento) {
-      const coords = segmento.cordenadas || segmento.p || [];
-      if (!coords.length) return;
-      const puntos = coords.map((c) => ({ lat: parseFloat(c.y), lng: parseFloat(c.x) }));
-      const bounds = new google.maps.LatLngBounds();
-      puntos.forEach((p) => bounds.extend(p));
-      this.map.fitBounds(bounds);
-    },
-
-    async obtenerSID() {
-      const { data } = await axios.get("http://localhost:8000/api/obtener-sid");
-      if (data.success && data.sid) return data.sid;
-      throw new Error(data.error || "No se pudo obtener el SID");
-    },
-
-    async actualizarSegmentos() {
-  this.loadingActualizar = true;
-  this.error = null;
-
-  try {
-    // 🔹 1. Obtener SID
-    const sid = await this.obtenerSID();
-
-    // 🔹 2. Solicitar datos reales de zonas
-    const { data } = await axios.post('http://localhost:8000/api/zone-data', { itemId, sid });
-
-    if (!data.success || !Array.isArray(data.zones)) {
-      throw new Error('No se recibieron zonas válidas');
-    }
-
-    // 🔹 3. Normalizar y guardar segmentos en la variable local
-    this.segmentos = data.zones.map((z) => {
-      const cordenadas = this.normalizarCoordenadas(z);
-      const color =
-        z.color ?? (z.c !== undefined ? '#' + Number(z.c).toString(16).padStart(6, '0') : '#FFFFFF');
-
-      return {
-        id: z.id ?? z.codsegmento,
-        nombre: z.n ?? z.nombre ?? 'Sin nombre',
-        color,
-        cordenadas,
-        bounds: z.b ?? z.bounds ?? {},
-      };
-    });
-
-    // 🔹 3.1 Guardar en la base de datos
-    await axios.post('http://localhost:8000/api/segmentos/guardar', { zonas: this.segmentos });
-
-    // 🔹 4. Limpiar mapa y dibujar
-    this.limpiarMapa();
-    this.dibujarSegmentos();
-
-    this.mostrarNotificacion('✅ Segmentos actualizados correctamente', 'exito');
-  } catch (err) {
-    console.error('❌ Error al actualizar segmentos:', err);
-    this.error = err.message || JSON.stringify(err);
-    this.mostrarNotificacion('❌ Error al actualizar segmentos', 'error');
-  } finally {
-    this.loadingActualizar = false;
-  }
-},
-
-
-    togglePanel() {
-      this.panelAbierto = !this.panelAbierto;
-    },
-    toggleMenuUsuario() {
-      this.menuUsuarioAbierto = !this.menuUsuarioAbierto;
-    },
-    verUsuarios() {
-      window.location.href = "/usuarios";
-    },
-    async cerrarSesion() {
-      if (!confirm("¿Deseas cerrar sesión?")) return;
-      try {
-        await fetch("/logout", {
-          method: "POST",
-          headers: {
-            "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]')?.getAttribute("content"),
-          },
-        });
-        window.location.href = "/login";
-      } catch (e) {
-        console.error("Error cerrando sesión:", e);
-      }
-    },
-  },
-};
-</script>
-
-
 
 <style>
-/* Transiciones */
-.fade-enter-active, .fade-leave-active {
+.fade-enter-active,
+.fade-leave-active {
   transition: opacity 0.2s;
 }
-.fade-enter-from, .fade-leave-to {
+
+.fade-enter-from,
+.fade-leave-to {
   opacity: 0;
 }
 
 .slide-enter-active {
   transition: transform 0.3s ease-out;
 }
+
 .slide-enter-from {
   transform: translateX(-100%);
 }
+
 .slide-leave-active {
   transition: transform 0.3s ease-in;
 }
+
 .slide-leave-to {
   transform: translateX(-100%);
 }
 
-/* Etiquetas del mapa */
 .map-label {
   background: white;
   border: 1px solid #ccc;
@@ -623,8 +255,569 @@ export default {
   white-space: nowrap;
 }
 </style>
-<link
-  rel="stylesheet"
-  href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
-/>
 
+<script>
+import { defineComponent } from "vue";
+import { useToast } from "vue-toastification";
+import "vue-toastification/dist/index.css";
+import axios from "axios";
+import * as turf from "@turf/turf";
+
+export default defineComponent({
+  name: "MapaComponent",
+  data() {
+    return {
+      propiedadesAbiertas: false,
+      tabActiva: 'geofences',
+      mostrarColorPicker: false,
+      panelAbierto: true,
+      menuUsuarioAbierto: false,
+      nombreUsuario: "Paulo Ramos",
+      busqueda: "",
+      segmentos: [],
+      poligonos: [],
+      etiquetas: [],
+      poligonosMarcadores: [],
+      loadingActualizar: false,
+      error: null,
+      itemId: 402037903,
+      lastSegmentosHash: {},
+      autoRefreshInterval: null,
+      verMas: false,
+      colorOriginal: null,
+      segmentoEditado: {
+        id: null,
+        codsegmento: '',
+        nombre: '',
+        color: '#4d0000',
+        coordenadas: [],
+        velocidad: 0,
+        mensaje: '',
+        estado: 1,
+        bounds: {
+          min_x: null,
+          max_x: null,
+          min_y: null,
+          max_y: null,
+          cen_y: null
+        },
+        area: '',
+        created_at: null,
+        updated_at: null
+      }
+    };
+  },
+   computed: {
+    coordenadasVisibles() {
+    if (!this.segmentoEditado || !this.segmentoEditado.coordenadas) return [];
+    // Mostrar solo 3 si verMas es falso
+    if (!this.verMas) return this.segmentoEditado.coordenadas.slice(0, 3);
+    return this.segmentoEditado.coordenadas;
+  },
+    segmentosFiltrados() {
+      if (!this.busqueda) return this.segmentos;
+      const texto = this.busqueda.toLowerCase();
+      return this.segmentos.filter(s => s.nombre?.toLowerCase().includes(texto));
+    },
+    coordenadasArray() {
+      let coords = this.segmentoEditado?.coordenadas || [];
+      if (typeof coords === 'string') {
+        try { coords = JSON.parse(coords); } catch { return []; }
+      }
+      if (!Array.isArray(coords)) return [];
+      return coords;
+    },
+    bounds() {
+      let boundsData = this.segmentoEditado?.bounds || {};
+      if (typeof boundsData === 'string') {
+        try { boundsData = JSON.parse(boundsData); } catch { boundsData = {}; }
+      }
+      return {
+        min_x: boundsData.min_x ?? null,
+        max_x: boundsData.max_x ?? null,
+        min_y: boundsData.min_y ?? null,
+        max_y: boundsData.max_y ?? null,
+        cen_x: boundsData.cen_x ?? null,
+        cen_y: boundsData.cen_y ?? null
+      };
+    }
+  },
+    setup() {
+      const toast = useToast();
+      return { toast };
+    },
+    mounted() {
+      this.inicializar();
+    },
+    beforeUnmount() {
+      window.removeEventListener("resize", this._resizeHandler);
+      if (this.autoRefreshInterval) clearInterval(this.autoRefreshInterval);
+    },
+    watch: {
+      // observadores
+      'segmentoEditado.color'(nuevoColor) {
+        this.poligonos.forEach(p => {
+          if (p.segmentoId === this.segmentoEditado.id) {
+            p.setOptions({ fillColor: nuevoColor, strokeColor: nuevoColor });
+          }
+        });
+
+        this.poligonosMarcadores.forEach(m => {
+          if (m.segmentoId === this.segmentoEditado.id) {
+            m.setOptions({ fillColor: nuevoColor, strokeColor: nuevoColor });
+          }
+        });
+      }
+    },
+
+    methods: {
+      mostrarMas() {
+        this.verMas = !this.verMas;
+      },
+    abrirPropiedades(segmento) {
+    // Guardar color original válido (#RRGGBB)
+    this.colorOriginal = (segmento.color || '#4d0000').slice(0, 7);
+
+    // Corregir nombre de coordenadas
+    let coords = segmento.coordenadas || segmento.cordenadas || [];
+    if (typeof coords === 'string') {
+      try { coords = JSON.parse(coords); } catch(e){ coords = []; }
+    }
+
+    // Calcular bounds si no existen
+    let bounds = segmento.bounds || {};
+    if (typeof bounds === 'string') {
+      try { bounds = JSON.parse(bounds); } catch(e){ bounds = {}; }
+    }
+    if (!bounds || Object.values(bounds).every(v => v === null || v === undefined)) {
+        if (coords.length > 0) {
+            const xs = coords.map(c => parseFloat(c.x));
+            const ys = coords.map(c => parseFloat(c.y));
+            const minX = Math.min(...xs);
+            const maxX = Math.max(...xs);
+            const minY = Math.min(...ys);
+            const maxY = Math.max(...ys);
+            const cenY = (minY + maxY)/2;
+            bounds = { min_x: minX, max_x: maxX, min_y: minY, max_y: maxY, cen_y: cenY };
+        } else {
+            bounds = { min_x:null, max_x:null, min_y:null, max_y:null, cen_y:null };
+        }
+    }
+
+    this.segmentoEditado = {
+        ...segmento,
+        color: this.colorOriginal,
+        coordenadas: coords,
+        bounds
+    };
+
+    this.propiedadesAbiertas = true;
+    this.dibujarPuntos(this.segmentoEditado);
+},
+
+
+      cerrarPropiedades() {
+        // Si hay polígono, restauramos color original
+        const poligono = this.poligonos.find(p => p.segmentoId === this.segmentoEditado.id);
+        if (poligono && this.colorOriginal) {
+          poligono.setOptions({ fillColor: this.colorOriginal, strokeColor: this.colorOriginal });
+        }
+
+        this.propiedadesAbiertas = false;
+        this.verMas = false;
+      },
+
+
+      async guardarPropiedades() {
+        try {
+          const segmento = { ...this.segmentoEditado };
+
+          // Corregir color a formato #rrggbb
+          if (segmento.color.length > 7) {
+            segmento.color = segmento.color.slice(0, 7);
+          }
+
+          // Serializar coordenadas y bounds
+          segmento.cordenadas = JSON.stringify(segmento.coordenadas || []);
+          segmento.bounds = JSON.stringify(segmento.bounds || {});
+
+          // Enviar al backend
+          const res = await axios.post('http://localhost:8000/api/segmentos/guardar', {
+            zonas: [segmento]
+          });
+
+          if (res.data.success) {
+            // Actualizar en la lista local
+            const index = this.segmentos.findIndex(s => s.id === segmento.id);
+            if (index !== -1) {
+              this.segmentos.splice(index, 1, { ...this.segmentos[index], ...this.segmentoEditado });
+            }
+
+            this.mostrarNotificacion('Propiedades guardadas correctamente', 'exito');
+            this.cerrarPropiedades();
+
+            this.dibujarSegmentos();
+          } else {
+            this.mostrarNotificacion('Error al guardar propiedades', 'error');
+          }
+        } catch (err) {
+          console.error('Error al guardar propiedades:', err);
+          this.mostrarNotificacion('Error al guardar propiedades', 'error');
+        }
+      },
+
+      limpiarFormulario() {
+        this.segmentoEditado.nombre = '';
+        this.segmentoEditado.velocidad = 0;
+        this.segmentoEditado.mensaje = '';
+      },
+
+      calcularAreaReal() {
+        const b = this.segmentoEditado?.bounds;
+        if (!b || b.min_x == null || b.max_x == null || b.min_y == null || b.max_y == null) {
+          return '0 km²';
+        }
+
+        const latDiff = Math.abs(b.max_y - b.min_y) * 111; // 1° latitud ≈ 111 km
+        const lngDiff = Math.abs(b.max_x - b.min_x) * 111 * Math.cos((b.cen_y || ((b.max_y + b.min_y) / 2)) * Math.PI / 180);
+
+        const areaKm2 = latDiff * lngDiff;
+
+        if (areaKm2 < 1) {
+          return `${(areaKm2 * 1_000_000).toFixed(2)} m²`;
+        }
+        return `${areaKm2.toFixed(4)} km²`;
+      },
+
+      calcularPerimetroReal() {
+        const b = this.segmentoEditado?.bounds;
+        if (!b || b.min_x == null || b.max_x == null || b.min_y == null || b.max_y == null) {
+          return '0 km';
+        }
+
+        const latDiff = Math.abs(b.max_y - b.min_y) * 111;
+        const lngDiff = Math.abs(b.max_x - b.min_x) * 111 * Math.cos((b.cen_y || ((b.max_y + b.min_y) / 2)) * Math.PI / 180);
+
+        const perimetroKm = 2 * (latDiff + lngDiff);
+
+        return `${perimetroKm.toFixed(3)} km (${(perimetroKm * 1000).toFixed(0)} m)`;
+      },
+
+
+      formatearFecha(fecha) {
+        if (!fecha) return 'N/A';
+        try {
+          const date = new Date(fecha);
+          return date.toLocaleString('es-PE', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+          });
+        } catch {
+          return fecha;
+        }
+      },
+
+      verUsuarios() {
+        console.log('Ver usuarios');
+      },
+
+      cerrarSesion() {
+        console.log('Cerrar sesión');
+      },
+
+      // ===== MÉTODOS EXISTENTES =====
+      async inicializar() {
+        await this.cargarGoogleMaps();
+        this.initMap();
+        this.cargarSegmentos();
+      },
+
+      togglePanel() {
+        this.panelAbierto = !this.panelAbierto;
+      },
+
+      toggleMenuUsuario() {
+        this.menuUsuarioAbierto = !this.menuUsuarioAbierto;
+      },
+
+      mostrarNotificacion(mensaje, tipo = "info") {
+        if (!this.toast) return;
+        if (tipo === "exito") this.toast.success(mensaje);
+        else if (tipo === "error") this.toast.error(mensaje);
+        else this.toast.info(mensaje);
+      },
+
+      async cargarGoogleMaps() {
+        return new Promise((resolve, reject) => {
+          if (window.google && window.google.maps) return resolve();
+          const script = document.createElement("script");
+          script.src = "https://maps.googleapis.com/maps/api/js?key=TU_API_KEY";
+          script.async = true;
+          script.defer = true;
+          script.onload = () => {
+            const check = () => {
+              if (window.google && window.google.maps) resolve();
+              else setTimeout(check, 50);
+            };
+            check();
+          };
+          script.onerror = e => reject(new Error("No se pudo cargar Google Maps: " + e));
+          document.head.appendChild(script);
+        });
+      },
+
+      initMap() {
+        const mapDiv = document.getElementById("map");
+        if (!mapDiv) return;
+
+        this.map = new google.maps.Map(mapDiv, {
+          center: { lat: -12.0464, lng: -77.0428 },
+          zoom: 12,
+          mapTypeId: "roadmap",
+        });
+
+        this._resizeHandler = () => {
+          if (!this.map) return;
+          google.maps.event.trigger(this.map, "resize");
+          if (this.poligonos.length > 0) {
+            const bounds = new google.maps.LatLngBounds();
+            this.poligonos.forEach(p => p.getPath().forEach(pt => bounds.extend(pt)));
+            if (!bounds.isEmpty()) this.map.fitBounds(bounds);
+          }
+        };
+        window.addEventListener("resize", this._resizeHandler);
+      },
+
+      limpiarMapa() {
+        this.poligonos.forEach(p => {
+          google.maps.event.clearInstanceListeners(p);
+          p.setMap(null);
+        });
+        this.poligonos = [];
+        this.etiquetas.forEach(e => {
+          google.maps.event.clearInstanceListeners(e);
+          e.setMap(null);
+        });
+        this.etiquetas = [];
+      },
+
+      normalizarCoordenadas(seg) {
+        let raw = seg.p ?? seg.cordenadas ?? seg.coordenadas ?? seg.points ?? [];
+        if (typeof raw === "string") {
+          try { raw = JSON.parse(raw); } catch { raw = []; }
+        }
+        if (!Array.isArray(raw)) return [];
+        const coords = raw.map(p => {
+          if (p?.x !== undefined && p?.y !== undefined) return { x: Number(p.x), y: Number(p.y) };
+          if (Array.isArray(p) && p.length >= 2) return { x: Number(p[0]), y: Number(p[1]) };
+          if (p?.lon !== undefined || p?.lng !== undefined) return { x: Number(p.lon ?? p.lng), y: Number(p.lat ?? p.latitude ?? p.y) };
+          return null;
+        }).filter(Boolean).filter(pt => !Number.isNaN(pt.x) && !Number.isNaN(pt.y));
+        const uniq = [];
+        const seen = new Set();
+        coords.forEach(pt => {
+          const key = `${pt.x}-${pt.y}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            uniq.push(pt);
+          }
+        });
+        return uniq;
+      },
+
+      dibujarPuntos(segmento) {
+        // Limpiar puntos antiguos
+        if (this.poligonosMarcadores) {
+          this.poligonosMarcadores.forEach(m => m.setMap(null));
+          this.poligonosMarcadores = [];
+        }
+
+        if (!segmento.coordenadas || segmento.coordenadas.length === 0) return;
+
+        segmento.coordenadas.forEach(c => {
+          const circle = new google.maps.Circle({
+            strokeColor: segmento.color,
+            strokeOpacity: 1,
+            strokeWeight: 1,
+            fillColor: segmento.color,
+            fillOpacity: 0.8,
+            map: this.map,
+            center: { lat: parseFloat(c.y), lng: parseFloat(c.x) },
+            radius: 5
+          });
+          circle.segmentoId = segmento.id;
+          this.poligonosMarcadores.push(circle);
+        });
+      },
+
+      colorChange(color) {
+        // Cambiar color temporal en el polígono y puntos
+        this.segmentoEditado.color = color;
+
+        // Actualizar círculos si ya se dibujaron
+        this.poligonosMarcadores.forEach(c => {
+          if (c.segmentoId === this.segmentoEditado.id) {
+            c.setOptions({ strokeColor: color, fillColor: color });
+          }
+        });
+
+        // Actualizar polígonos principales si quieres
+        this.poligonos.forEach(p => {
+          if (p.segmentoId === this.segmentoEditado.id) {
+            p.setOptions({ fillColor: color });
+          }
+        });
+      },
+
+      dibujarSegmentos() {
+        if (!this.map) return;
+        this.limpiarMapa();
+
+        const bounds = new google.maps.LatLngBounds();
+
+        this.segmentos.forEach(seg => {
+          const coords = seg.cordenadas || [];
+          if (coords.length < 2) return;
+
+          const puntos = coords.map(c => ({ lat: parseFloat(c.y), lng: parseFloat(c.x) }));
+          if (puntos.some(p => Number.isNaN(p.lat) || Number.isNaN(p.lng))) return;
+
+          const polygon = new google.maps.Polygon({
+            paths: puntos,
+            strokeColor: "#000000",
+            strokeWeight: 2,
+            fillColor: seg.color ?? "#FF0000",
+            fillOpacity: 0.6,
+            zIndex: 100,
+            map: this.map,
+          });
+          polygon.segmentoId = seg.id;
+          this.poligonos.push(polygon);
+
+          const path = puntos.map(p => [p.lng, p.lat]);
+          path.push(path[0]);
+          const centro = turf.pointOnFeature(turf.polygon([path])).geometry.coordinates;
+
+          const label = new google.maps.OverlayView();
+          const div = document.createElement("div");
+          div.className = "map-label";
+          div.innerText = seg.nombre;
+          div.style.cssText = "background: rgba(255,255,255,0.8); padding:2px 5px; border-radius:4px; font-size:12px; position:absolute; white-space:nowrap; z-index:200;";
+
+          label.onAdd = function () { this.getPanes().overlayLayer.appendChild(div); };
+          label.draw = function () {
+            const pos = this.getProjection().fromLatLngToDivPixel(new google.maps.LatLng(centro[1], centro[0]));
+            div.style.left = pos.x + "px";
+            div.style.top = pos.y + "px";
+            div.style.transform = "translate(-50%, -50%)";
+          };
+          label.onRemove = function () { div.remove(); };
+          label.segmentoId = seg.id;
+          label.setMap(this.map);
+          this.etiquetas.push(label);
+
+          puntos.forEach(p => bounds.extend(p));
+        });
+
+        if (!bounds.isEmpty()) this.map.fitBounds(bounds);
+      },
+
+      async cargarSegmentos() {
+        try {
+          const res = await axios.get("http://localhost:8000/api/segmentos");
+          const lista = Array.isArray(res.data) ? res.data : res.data.segmentos ?? [];
+          this.segmentos = lista.map(seg => ({
+            id: seg.id ?? seg.codsegmento ?? seg.codigo,
+            nombre: seg.nombre ?? "Sin nombre",
+            color: seg.color ?? "#FF0000",
+            cordenadas: this.normalizarCoordenadas(seg),
+          }));
+          this.dibujarSegmentos();
+        } catch (err) {
+          this.error = err.message;
+        }
+      },
+
+      centrarMapa(segmento) {
+        const coords = segmento.cordenadas || [];
+        if (!coords.length || !this.map) return;
+
+        const bounds = new google.maps.LatLngBounds();
+        coords.forEach(c => bounds.extend(new google.maps.LatLng(c.y, c.x)));
+        this.map.fitBounds(bounds);
+      },
+
+      async obtenerSID() {
+        const { data } = await axios.get("http://localhost:8000/api/obtener-sid");
+        if (data.success && data.sid) return data.sid;
+        throw new Error(data.error || "No se pudo obtener el SID");
+      },
+
+      async actualizarSegmentos() {
+        this.loadingActualizar = true;
+        this.error = null;
+        try {
+          const sid = await this.obtenerSID();
+          const { data } = await axios.post('http://localhost:8000/api/zone-data', { itemId: this.itemId, sid });
+          if (!data.success || !Array.isArray(data.zones)) throw new Error('No se recibieron zonas válidas');
+          const nuevosSegmentos = data.zones.map(z => ({
+            id: z.id ?? z.codsegmento,
+            nombre: z.n ?? z.nombre ?? 'Sin nombre',
+            color: z.color ?? (z.c !== undefined ? '#' + Number(z.c).toString(16).padStart(6, '0') : '#FFFFFF'),
+            cordenadas: this.normalizarCoordenadas(z),
+            bounds: z.b ?? z.bounds ?? {}
+          }));
+          const res = await axios.post('http://localhost:8000/api/segmentos/guardar', { zonas: nuevosSegmentos });
+          if (res.data.success) {
+            this.segmentos = nuevosSegmentos;
+            this.lastSegmentosHash = {};
+            this.limpiarMapa();
+            this.dibujarSegmentos();
+            this.mostrarNotificacion(res.data.mensaje || 'Segmentos actualizados y guardados', 'exito');
+          } else {
+            this.mostrarNotificacion('No se pudieron guardar los segmentos', 'error');
+          }
+        } catch (err) {
+          console.error('Error al actualizar segmentos:', err);
+          this.error = err.message || JSON.stringify(err);
+          this.mostrarNotificacion('Error al actualizar segmentos', 'error');
+        } finally {
+          this.loadingActualizar = false;
+        }
+      },
+
+      async eliminarGeocerca(segmento) {
+        if (!confirm(`¿Eliminar ${segmento.nombre}?`)) return;
+        try {
+          const res = await axios.delete(`http://localhost:8000/api/segmentos/${segmento.id}`);
+          if (res.data.success) {
+            this.segmentos = this.segmentos.filter(s => s.id !== segmento.id);
+
+            const polIndex = this.poligonos.findIndex(p => p.segmentoId === segmento.id);
+            if (polIndex !== -1) {
+              this.poligonos[polIndex].setMap(null);
+              this.poligonos.splice(polIndex, 1);
+            }
+
+            const lblIndex = this.etiquetas.findIndex(e => e.segmentoId === segmento.id);
+            if (lblIndex !== -1) {
+              this.etiquetas[lblIndex].setMap(null);
+              this.etiquetas.splice(lblIndex, 1);
+            }
+
+            this.mostrarNotificacion("Geocerca eliminada correctamente", "exito");
+          } else {
+            this.mostrarNotificacion("No se pudo eliminar la geocerca", "error");
+          }
+        } catch (err) {
+          console.error(err);
+          this.mostrarNotificacion("Error al eliminar la geocerca", "error");
+        }
+      }
+    }
+  }
+);
+</script>

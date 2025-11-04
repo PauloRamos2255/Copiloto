@@ -4,13 +4,23 @@ import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import type { DefineComponent } from 'vue';
 import { createApp, h } from 'vue';
 import { initializeTheme } from './composables/useAppearance';
-import '@fortawesome/fontawesome-free/css/all.min.css'
+import Toast, { PluginOptions, POSITION } from 'vue-toastification';
+import 'vue-toastification/dist/index.css';
+import '@fortawesome/fontawesome-free/css/all.min.css';
 
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
-// Initialize theme before creating the app
+// Inicializa tema antes de crear la app
 initializeTheme();
+
+const toastOptions: PluginOptions = {
+     position: POSITION.TOP_RIGHT,
+    timeout: 3000,
+    closeOnClick: true,
+    pauseOnHover: true,
+    draggable: true,
+};
 
 createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),
@@ -20,9 +30,15 @@ createInertiaApp({
             import.meta.glob<DefineComponent>('./pages/**/*.vue'),
         ),
     setup({ el, App, props, plugin }) {
-        createApp({ render: () => h(App, props) })
-            .use(plugin)
-            .mount(el);
+        const app = createApp({ render: () => h(App, props) });
+
+        // Usa Inertia plugin
+        app.use(plugin);
+
+        // Usa Vue Toastification
+        app.use(Toast, toastOptions);
+
+        app.mount(el);
     },
     progress: {
         color: '#4B5563',

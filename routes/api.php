@@ -17,6 +17,7 @@ Route::post('/segmentos/guardar', [SegmentoController::class, 'guardar']);
 Route::get('/geocode', [GeoController::class, 'geocode']);
 Route::post('/acceso', [AuthController::class, 'acceso']);
 Route::get('/users', [UsuarioController::class, 'index']);
+Route::delete('/segmentos/{id}', [SegmentoController::class, 'destroy']);
 
 
 

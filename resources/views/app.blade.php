@@ -51,6 +51,5 @@
     <div class="flex-1 min-h-screen">
         @inertia
     </div>
-    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAwIMAPTeuBV2TJghm-1VTnOVl4yi4Y3rE"></script>
 </body>
 </html>

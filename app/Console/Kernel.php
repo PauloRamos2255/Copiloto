@@ -7,18 +7,17 @@ use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 
 class Kernel extends ConsoleKernel
 {
-   
+    /**
+     * Define the application's command schedule.
+     */
     protected function schedule(Schedule $schedule)
     {
-        $schedule->command('app:sincronizar-segmentos')
-                 ->everyMinute()
-                 ->withoutOverlapping()
-                 ->runInBackground();
+        // Ejecuta tu comando cada 30 minutos
+        $schedule->command('app:sincronizar-segmentos')->everyThirtyMinutes();
     }
-
-   
     protected function commands()
     {
+
         $this->load(__DIR__ . '/Commands');
 
         require base_path('routes/console.php');

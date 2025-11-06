@@ -3,75 +3,132 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
-use App\Models\Segmento;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
+use App\Models\Segmento;
 use App\Http\Controllers\Api\WialonSidController;
-use Illuminate\Support\Facades\Cache;
-use App\Jobs\SegmentosSyncJob;
 
 class SincronizarSegmentos extends Command
 {
     protected $signature = 'app:sincronizar-segmentos';
-    protected $description = 'Sincroniza automáticamente los segmentos desde Wialon a la base de datos';
+    protected $description = 'Sincroniza los segmentos (geocercas) desde la API de Wialon con la base de datos local.';
 
     public function handle()
     {
-        $itemId = 402037903;
+        $this->info("🚀 Iniciando sincronización de segmentos...");
 
-        try {
-            // Obtener SID (usar cache para no pedirlo cada vez)
-            $sid = Cache::remember('wialon_sid', 30 * 60, function () {
-                $sidController = new WialonSidController();
-                $sidResponse = $sidController->obtenerSID();
+        $host = env('WIALON_HOST');
+        $itemId = env('WIALON_ITEM_ID');
 
-                if (!$sidResponse || !$sidResponse->getData()->success) {
-                    Log::error('No se pudo obtener SID', ['data' => optional($sidResponse)->getData()]);
-                    return null;
-                }
+        // Obtener SID
+        $sidController = new WialonSidController();
+        $sidData = $sidController->obtenerSid();
+        $sid = isset($sidData->getData()->sid) ? $sidData->getData()->sid : null;
 
-                return $sidResponse->getData()->sid ?? null;
-            });
-
-            if (!$sid) {
-                $this->error('SID vacío o inválido.');
-                return self::FAILURE;
-            }
-
-            // Obtener zonas desde Wialon
-            $response = Http::withOptions(['verify' => false])
-                ->asForm()
-                ->post('https://hst-api.wialon.com/wialon/ajax.html', [
-                    'svc' => 'resource/get_zone_data',
-                    'params' => json_encode(['itemId' => $itemId]),
-                    'sid' => $sid,
-                ]);
-
-            if (!$response->successful()) {
-                Log::error('Error HTTP al conectar con Wialon', ['status' => $response->status()]);
-                return self::FAILURE;
-            }
-
-            $zonas = $response->json();
-
-            if (isset($zonas['error']) || empty($zonas)) {
-                Log::error('Error o respuesta vacía al obtener zonas', ['data' => $zonas]);
-                return self::FAILURE;
-            }
-
-            // Enviar las zonas al job para procesar en segundo plano
-            SegmentosSyncJob::dispatch($zonas);
-
-            $this->info("Sincronización enviada a job correctamente. Total zonas recibidas: " . count($zonas));
-            return self::SUCCESS;
-
-        } catch (\Throwable $e) {
-            Log::error('Error sincronizando segmentos', [
-                'mensaje' => $e->getMessage(),
-                'linea' => $e->getLine(),
-            ]);
-            $this->error('Error sincronizando segmentos: ' . $e->getMessage());
-            return self::FAILURE;
+        if (!$sid) {
+            $this->error("❌ No se pudo obtener SID válido desde Wialon.");
+            return 1;
         }
+
+        // Llamada a la API
+        $params = json_encode(['itemId' => (int)$itemId]);
+        $url = "$host?svc=resource/get_zone_data&params=" . urlencode($params) . "&sid=$sid";
+        $response = Http::withOptions(['verify' => false])->get($url);
+
+        if ($response->failed()) {
+            $this->error("❌ Error al obtener datos desde Wialon.");
+            return 1;
+        }
+
+        $data = $response->json();
+
+        if (!is_array($data) || isset($data['error'])) {
+            $this->error("⚠️ Error en la respuesta de la API: " . ($data['reason'] ?? 'Desconocido'));
+            return 1;
+        }
+
+        if (empty($data)) {
+            $this->warn("⚠️ No se encontraron segmentos en la respuesta.");
+            return 0;
+        }
+
+        $this->info("🌀 Procesando segmentos recibidos...");
+
+        foreach ($data as $segmento) {
+            if (!is_array($segmento) || !isset($segmento['id'])) {
+                $this->warn("⚠️ Segmento inválido detectado y omitido.");
+                continue;
+            }
+
+            $id = $segmento['id'];
+            $nombre = $segmento['n'] ?? 'Sin nombre';
+            $color = isset($segmento['c'])
+                ? sprintf("#%06X", $segmento['c'] & 0xFFFFFF)
+                : '#000000';
+
+            // Coordenadas
+            $coordenadas = [];
+            if (isset($segmento['p']) && is_array($segmento['p'])) {
+                foreach ($segmento['p'] as $punto) {
+                    if (isset($punto['x'], $punto['y'])) {
+                        $coordenadas[] = [
+                            'lat' => (float) $punto['y'],
+                            'lng' => (float) $punto['x'],
+                        ];
+                    }
+                }
+            }
+
+            // Bounds
+            $bounds = $segmento['b'] ?? [
+                'min_x' => 0,
+                'min_y' => 0,
+                'max_x' => 0,
+                'max_y' => 0,
+            ];
+
+            // Buscar si existe el registro
+            $registro = Segmento::find($id);
+
+            if (!$registro) {
+                Segmento::create([
+                    'codsegmento' => $id,
+                    'nombre' => $nombre,
+                    'color' => $color,
+                    'cordenadas' => $coordenadas,
+                    'bounds' => $bounds,
+                ]);
+                $this->info("🆕 Segmento '{$nombre}' creado.");
+                continue;
+            }
+
+            // Comparar campo por campo
+            $camposActualizados = [];
+
+            if ($registro->nombre !== $nombre) {
+                $camposActualizados['nombre'] = $nombre;
+            }
+
+            if ($registro->color !== $color) {
+                $camposActualizados['color'] = $color;
+            }
+
+            if (json_encode($registro->cordenadas) !== json_encode($coordenadas)) {
+                $camposActualizados['cordenadas'] = $coordenadas;
+            }
+
+            if (json_encode($registro->bounds) !== json_encode($bounds)) {
+                $camposActualizados['bounds'] = $bounds;
+            }
+
+            // Si hay cambios, se actualiza
+            if (!empty($camposActualizados)) {
+                $registro->update($camposActualizados);
+                $this->info("♻️ Segmento '{$nombre}' actualizado (".implode(', ', array_keys($camposActualizados)).").");
+            } else {
+                $this->line("✔️ Segmento '{$nombre}' sin cambios.");
+            }
+        }
+
+        $this->info("✅ Sincronización completada con éxito.");
     }
 }

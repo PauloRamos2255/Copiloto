@@ -13,6 +13,7 @@
       <p class="text-center text-gray-500 mb-6 text-sm">Inicia sesión para continuar</p>
 
       <form @submit.prevent="login" class="space-y-5">
+        <!-- Usuario -->
         <div>
           <label class="block text-gray-600 mb-1 font-medium">Nombre de usuario</label>
           <input
@@ -27,6 +28,7 @@
           </p>
         </div>
 
+        <!-- Clave -->
         <div>
           <label class="block text-gray-600 mb-1 font-medium">Clave</label>
           <div class="relative">
@@ -51,6 +53,7 @@
           </p>
         </div>
 
+        <!-- Botón -->
         <button
           type="submit"
           class="w-full bg-indigo-500 text-white py-2 rounded-lg font-semibold hover:bg-indigo-600 transition-colors duration-200 shadow-sm"
@@ -59,6 +62,7 @@
           {{ form.processing ? 'Ingresando...' : 'Ingresar' }}
         </button>
 
+        <!-- Error general -->
         <transition name="fade">
           <p
             v-if="error"
@@ -79,7 +83,7 @@ import { useForm } from "@inertiajs/vue3";
 const mostrarPassword = ref(false);
 const error = ref(null);
 
-// ✅ useForm maneja los errores y redirección automáticamente
+// useForm maneja errores de validación
 const form = useForm({
   nombre: "",
   clave: "",
@@ -87,14 +91,20 @@ const form = useForm({
 
 const login = () => {
   error.value = null;
+
   form.post("/acceso", {
     onError: (errors) => {
-      // Si Laravel devuelve errores de validación
-      error.value = errors.nombre || errors.clave || "❌ Credenciales incorrectas";
+      // Mostrar errores de validación específicos si existen
+      if (errors.nombre || errors.clave) {
+        return; // useForm ya los maneja en form.errors
+      }
+
+      // Mensaje global de login incorrecto
+      error.value = errors.message || "❌ Credenciales incorrectas";
     },
     onSuccess: () => {
-      // Inertia redirige automáticamente al dashboard
       console.log("✅ Sesión iniciada correctamente");
+      error.value = null;
     },
   });
 };

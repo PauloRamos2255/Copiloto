@@ -18,6 +18,7 @@ Route::get('/geocode', [GeoController::class, 'geocode']);
 Route::post('/acceso', [AuthController::class, 'acceso']);
 Route::get('/users', [UsuarioController::class, 'index']);
 Route::delete('/segmentos/{id}', [SegmentoController::class, 'destroy']);
+Route::post('/segmentos/sincronizar', [SegmentoController::class, 'sincronizar']);
 
 
 

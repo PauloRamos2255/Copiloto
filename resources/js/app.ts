@@ -1,46 +1,45 @@
 import '../css/app.css';
 import { createInertiaApp } from '@inertiajs/vue3';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
-import type { DefineComponent } from 'vue';
-import { createApp, h } from 'vue';
+import { createApp, h, DefineComponent } from 'vue';
 import { initializeTheme } from './composables/useAppearance';
 import Toast, { PluginOptions, POSITION } from 'vue-toastification';
 import 'vue-toastification/dist/index.css';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 
-
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
-// Inicializa tema antes de crear la app
+// Inicializa el tema antes de crear la app
 initializeTheme();
 
 const toastOptions: PluginOptions = {
-     position: POSITION.TOP_RIGHT,
-    timeout: 3000,
-    closeOnClick: true,
-    pauseOnHover: true,
-    draggable: true,
+  position: POSITION.TOP_RIGHT,
+  timeout: 3000,
+  closeOnClick: true,
+  pauseOnHover: true,
+  draggable: true,
 };
 
 createInertiaApp({
-    title: (title) => (title ? `${title} - ${appName}` : appName),
-    resolve: (name) =>
-        resolvePageComponent(
-            `./pages/${name}.vue`,
-            import.meta.glob<DefineComponent>('./pages/**/*.vue'),
-        ),
-    setup({ el, App, props, plugin }) {
-        const app = createApp({ render: () => h(App, props) });
+  title: (title) => (title ? `${title} - ${appName}` : appName),
 
-        // Usa Inertia plugin
-        app.use(plugin);
+  // 🔥 Versión corregida con tipado correcto
+  resolve: (name: string) =>
+    resolvePageComponent(
+      `./pages/${name}.vue`,
+      import.meta.glob('./pages/**/*.vue')
+    ) as unknown as Promise<DefineComponent>,
 
-        // Usa Vue Toastification
-        app.use(Toast, toastOptions);
+  setup({ el, App, props, plugin }) {
+    const app = createApp({ render: () => h(App, props) });
 
-        app.mount(el);
-    },
-    progress: {
-        color: '#4B5563',
-    },
+    app.use(plugin);
+    app.use(Toast, toastOptions);
+
+    app.mount(el);
+  },
+
+  progress: {
+    color: '#4B5563',
+  },
 });

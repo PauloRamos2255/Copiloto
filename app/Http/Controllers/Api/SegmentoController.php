@@ -18,9 +18,48 @@ class SegmentoController extends Controller
         ]);
     }
 
+   public function sincronizar(Request $request)
+{
+    $segmentos = $request->input('segmentos', []);
+    $batch = [];
+
+    foreach ($segmentos as $seg) {
+        $id = $seg['id'] ?? null;
+        if (!$id) continue;
+
+        $batch[] = [
+            'codsegmento' => $id,
+            'nombre'      => $seg['nombre'] ?? 'Sin nombre',
+            'color'       => $seg['colorHex'] ?? $seg['color'] ?? '#FFFFFF', // ✅ usa colorHex si existe
+            'cordenadas'  => json_encode($seg['cordenadas'] ?? []),
+            'bounds'      => json_encode($seg['bounds'] ?? []),
+            'created_at'  => now(),
+            'updated_at'  => now(),
+        ];
+    }
+
+    if (!empty($batch)) {
+        Segmento::upsert(
+            $batch,
+            ['codsegmento'], // clave única
+            ['nombre', 'color', 'cordenadas', 'bounds', 'updated_at']
+        );
+    }
+
+    return response()->json([
+        'success' => true,
+        'mensaje' => 'Segmentos sincronizados correctamente'
+    ]);
+}
+
+
+
+
+
     public function guardar(Request $request)
     {
         $zonas = $request->input('zonas', []);
+
 
         if (!is_array($zonas) || empty($zonas)) {
             return response()->json([
@@ -47,8 +86,8 @@ class SegmentoController extends Controller
         try {
             Segmento::upsert(
                 $zonasData,
-                ['codsegmento'], 
-                ['nombre', 'color', 'cordenadas', 'bounds', 'updated_at'] 
+                ['codsegmento'],
+                ['nombre', 'color', 'cordenadas', 'bounds', 'updated_at']
             );
 
             return response()->json([

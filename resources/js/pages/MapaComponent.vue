@@ -327,6 +327,8 @@ export default defineComponent({
       segmentos: [],
       poligonos: [],
       etiquetas: [],
+      poligonosPorId: {},   // { [id]: google.maps.Polygon|Polyline|Circle }
+      etiquetasPorId: {},   // { [id]: OverlayView }
       poligonosMarcadores: [],
       selectedTipo: 'poligono',
       tipos: [
@@ -415,7 +417,7 @@ export default defineComponent({
     }
   },
   mounted() {
- this.inicializar()
+    this.inicializar()
   },
 
   beforeUnmount() {
@@ -424,129 +426,198 @@ export default defineComponent({
   },
 
   methods: {
-    editarYCentrar(segmento) {
-      // Ejemplo: abrir propiedades y centrar mapa
-      this.abrirPropiedades(segmento);
-      this.centrarMapa(segmento);
+    async inicializar() {
+      await this.cargarGoogleMaps();
+      this.inicializarMapa();
+      // NO llames aquí a cargarSegmentos(), inicializarMapa() lo hace en tilesloaded
     },
+
+    inicializarMapa() {
+      const mapaElemento = document.getElementById("mapa");
+      if (!mapaElemento) return console.error("No se encontró el elemento con id='mapa'");
+
+      this.map = new google.maps.Map(mapaElemento, {
+        center: { lat: -12.0464, lng: -77.0428 },
+        zoom: 12,
+        mapId: "74e66b37b4757a8ec908633b"
+      });
+
+      google.maps.event.addListenerOnce(this.map, 'tilesloaded', () => {
+        this.cargarSegmentos(); // cargar segmentos *una* vez, después de que se carguen tiles
+      });
+    },
+
+
+
+    async cargarSegmentos() {
+      try {
+        const { data } = await axios.get("http://localhost:8000/api/segmentos");
+
+        if (!data) return console.error("Respuesta vacía");
+        const raw = Array.isArray(data.segmentos) ? data.segmentos : (Array.isArray(data) ? data : []);
+
+        this.segmentos = raw.map(s => ({
+          ...s,
+          tipo: this.detectarTipoSegmento(s),
+          coordenadas: this.normalizarCoordenadas(s),
+          colorHex: s.colorHex || s.color || "#FF0000",
+          color: (s.colorHex || s.color) ? this.hexToRgba(s.colorHex || s.color) : this.hexToRgba("#FF0000")
+        }));
+
+        console.log(`Cargados ${this.segmentos.length} segmentos`);
+        this.dibujarTodosSegmentos();
+
+      } catch (err) {
+        console.error("Error al cargar segmentos:", err);
+      }
+    },
+
+
     mostrarMas() {
       this.verMas = !this.verMas;
     },
-   abrirPropiedades(segmento) {
-  if (!segmento || !segmento.cordenadas) {
-    console.warn("Segmento inválido:", segmento);
-    return;
-  }
+    abrirPropiedades(segmento) {
+      if (!segmento || !segmento.coordenadas) {
+        console.warn("Segmento inválido:", segmento);
+        return;
+      }
 
-  // Guardamos los datos del segmento
-  this.segmentoEditado = {
-    ...segmento,
-    coordenadas: segmento.cordenadas || [],
-  };
+      // 🔥 Limpieza total antes de abrir uno nuevo
+      Object.values(this.poligonosPorId).forEach(f => f.setMap(null));
+      this.poligonosPorId = {};
+      this.previewShape = null;
+      this.etiquetas.forEach(e => e.setMap(null));
+      this.etiquetas = [];
 
-  this.propiedadesAbiertas = true;
-  this.verMas = false;
-  this.selectedTipo = this.segmentoEditado.tipo || 'poligono';
+      if (this.previewMarkers?.length) {
+        this.previewMarkers.forEach(m => m.setMap(null));
+        this.previewMarkers = [];
+      }
 
-  // Centramos el mapa solo si hay coordenadas
-  this.centrarMapa(this.segmentoEditado);
+      // Copiar segmento y dibujar nuevo
+      this.segmentoEditado = { ...segmento, coordenadas: segmento.coordenadas || [] };
+      this.propiedadesAbiertas = true;
+      this.verMas = false;
+      this.selectedTipo = this.segmentoEditado.tipo || "poligono";
 
-  // Dibujar preview del segmento
-  this.vistaPreviaTipo(this.selectedTipo);
+      this.centrarMapa(this.segmentoEditado);
 
-  // Dibujar puntos de edición
-  this.dibujarPuntos(this.segmentoEditado);
-},
+      const color = this.segmentoEditado.colorHex || "#FFFFFF";
+      const figura = new google.maps.Polygon({
+        paths: this.segmentoEditado.coordenadas.map(c => ({ lat: c.y, lng: c.x })),
+        strokeColor: color,
+        strokeOpacity: 1,
+        strokeWeight: 2,
+        fillColor: color,
+        fillOpacity: 0.45,
+        map: this.map,
+      });
 
-convertirColor(color) {
-  if (!color) return "#1E90FF";
-  if (color.startsWith("#")) {
-    if (color.length === 9) return `#${color.slice(3)}`; // Ignora alpha
-    if (color.length === 7) return color;
-  }
-  return "#1E90FF";
-},
+      this.poligonosPorId[segmento.id] = figura;
+      figura.addListener('click', () => this.abrirPropiedades(segmento));
+      this.dibujarPuntos(this.segmentoEditado);
+    },
 
-vistaPreviaTipo(tipo) {
-  // Borrar vista previa anterior
-  if (this.previewShape) {
-    this.previewShape.setMap(null);
-    this.previewShape = null;
-  }
 
-  // Borrar marcadores de puntos anteriores
-  if (this.previewMarkers) {
-    this.previewMarkers.forEach(m => m.setMap(null));
-  }
-  this.previewMarkers = [];
+    convertirColor(color) {
+      if (!color) return "#1E90FF";
+      if (color.startsWith("#")) {
+        if (color.length === 9) return `#${color.slice(3)}`; // Ignora alpha
+        if (color.length === 7) return color;
+      }
+      return "#1E90FF";
+    },
 
-  if (!this.segmentoEditado || !this.segmentoEditado.cordenadas?.length) return;
+    vistaPreviaTipo(tipo) {
+      // Borrar vista previa anterior
+      if (this.previewShape) {
+        this.previewShape.setMap(null);
+        this.previewShape = null;
+      }
 
-  const coords = this.segmentoEditado.cordenadas.map(c => ({ lat: parseFloat(c.y), lng: parseFloat(c.x) }));
-  const colorBase = this.convertirColor(this.segmentoEditado.color);
+      // Borrar marcadores de puntos anteriores
+      if (this.previewMarkers) {
+        this.previewMarkers.forEach(m => m.setMap(null));
+      }
+      this.previewMarkers = [];
 
-  if (tipo === "poligono") {
-    this.previewShape = new google.maps.Polygon({
-      paths: coords,
-      map: this.map,
-      strokeColor: colorBase,
-      fillColor: colorBase,
-      strokeWeight: 2,
-      fillOpacity: 0.5,
-      editable: true
-    });
+      if (!this.segmentoEditado || !this.segmentoEditado.cordenadas?.length) return;
 
-    
-  } else if (tipo === "linea") {
-    this.previewShape = new google.maps.Polyline({
-      path: coords,
-      map: this.map,
-      strokeColor: colorBase,
-      strokeWeight: 3,
-      editable: true
-    });
-   
-  } else if (tipo === "circulo") {
-    let latSum = 0, lngSum = 0;
-    coords.forEach(p => { latSum += p.lat; lngSum += p.lng; });
-    const center = { lat: latSum / coords.length, lng: lngSum / coords.length };
+      const coords = this.segmentoEditado.cordenadas.map(c => ({ lat: parseFloat(c.y), lng: parseFloat(c.x) }));
+      const colorBase = this.convertirColor(this.segmentoEditado.color);
 
-    let maxDist = 0;
-    coords.forEach(p => {
-      const dLat = (p.lat - center.lat) * 111000;
-      const dLng = (p.lng - center.lng) * 111000 * Math.cos(center.lat * Math.PI / 180);
-      const dist = Math.sqrt(dLat*dLat + dLng*dLng);
-      if (dist > maxDist) maxDist = dist;
-    });
+      if (tipo === "poligono") {
+        this.previewShape = new google.maps.Polygon({
+          paths: coords,
+          map: this.map,
+          strokeColor: colorBase,
+          fillColor: colorBase,
+          strokeWeight: 2,
+          fillOpacity: 0.5,
+          editable: true
+        });
 
-    this.previewShape = new google.maps.Circle({
-      center,
-      radius: maxDist || 50,
-      map: this.map,
-      strokeColor: colorBase,
-      fillColor: colorBase,
-      fillOpacity: 0.3,
-      editable: true
-    });
-  }
-},
 
-onTipoChange(nuevoTipo) {
-  this.selectedTipo = nuevoTipo;
-  this.vistaPreviaTipo(this.selectedTipo); // esto dibuja la figura correcta
-},
+      } else if (tipo === "linea") {
+        this.previewShape = new google.maps.Polyline({
+          path: coords,
+          map: this.map,
+          strokeColor: colorBase,
+          strokeWeight: 3,
+          editable: true
+        });
+
+      } else if (tipo === "circulo") {
+        let latSum = 0, lngSum = 0;
+        coords.forEach(p => { latSum += p.lat; lngSum += p.lng; });
+        const center = { lat: latSum / coords.length, lng: lngSum / coords.length };
+
+        let maxDist = 0;
+        coords.forEach(p => {
+          const dLat = (p.lat - center.lat) * 111000;
+          const dLng = (p.lng - center.lng) * 111000 * Math.cos(center.lat * Math.PI / 180);
+          const dist = Math.sqrt(dLat * dLat + dLng * dLng);
+          if (dist > maxDist) maxDist = dist;
+        });
+
+        this.previewShape = new google.maps.Circle({
+          center,
+          radius: maxDist || 50,
+          map: this.map,
+          strokeColor: colorBase,
+          fillColor: colorBase,
+          fillOpacity: 0.3,
+          editable: true
+        });
+      }
+    },
+
+    onTipoChange(nuevoTipo) {
+      this.selectedTipo = nuevoTipo;
+      this.vistaPreviaTipo(this.selectedTipo); // esto dibuja la figura correcta
+    },
 
     async guardarPropiedades() {
       try {
-        const segmento = { ...this.segmentoEditado };
+        // Crear un clon limpio sin referencias circulares
+        const { id, nombre, color, colorHex, coordenadas, cordenadas, velocidadMaxima, tipo, bounds } = this.segmentoEditado;
 
-        if (segmento.color.length > 7) {
-          segmento.color = segmento.color.slice(0, 7);
-        }
+        // Asegurar que el color tenga formato correcto (#rrggbb)
+        const colorHexFinal = (color && color.startsWith('#')) ? color.slice(0, 7) : (colorHex || '#000000');
 
-        segmento.cordenadas = JSON.stringify(segmento.coordenadas || []);
-        segmento.bounds = JSON.stringify(segmento.bounds || {});
+        // Armar objeto limpio con solo datos simples
+        const segmento = {
+          id: id || null,
+          nombre: nombre || '',
+          colorHex: colorHexFinal,
+          color: colorHexFinal,
+          coordenadas: JSON.stringify(coordenadas || cordenadas || []),
+          bounds: JSON.stringify(bounds || {}),
+          velocidadMaxima: velocidadMaxima || 0,
+          tipo: tipo || 'poligono'
+        };
 
+        // Enviar datos limpios
         const res = await axios.post('http://localhost:8000/api/segmentos/guardar', {
           zonas: [segmento]
         });
@@ -554,11 +625,14 @@ onTipoChange(nuevoTipo) {
         if (res.data.success) {
           const index = this.segmentos.findIndex(s => s.id === segmento.id);
           if (index !== -1) {
-            this.segmentos.splice(index, 1, { ...this.segmentos[index], ...this.segmentoEditado });
+            // Actualiza solo con los datos nuevos, sin referencias circulares
+            this.segmentos.splice(index, 1, { ...this.segmentos[index], ...segmento });
           }
 
           this.mostrarNotificacion('Propiedades guardadas correctamente', 'exito');
           this.cerrarPropiedades();
+
+          // 🔥 Redibuja solo una vez todo limpio
           this.dibujarTodosSegmentos();
         } else {
           this.mostrarNotificacion('Error al guardar propiedades', 'error');
@@ -628,12 +702,6 @@ onTipoChange(nuevoTipo) {
       console.log('Cerrar sesión');
     },
 
-    async inicializar() {
-      await this.cargarGoogleMaps();
-      this.inicializarMapa();
-      await this.cargarSegmentos();
-    },
-
     togglePanel() {
       this.panelAbierto = !this.panelAbierto;
     },
@@ -650,70 +718,143 @@ onTipoChange(nuevoTipo) {
     },
 
 
-   async cargarGoogleMaps() {
-  if (window.google && window.google.maps && window.google.maps.marker) return;
+    async cargarGoogleMaps() {
+      if (window.google && window.google.maps && window.google.maps.marker) return;
 
-  return new Promise((resolve, reject) => {
-    const script = document.createElement("script");
-    script.src = "https://maps.googleapis.com/maps/api/js?key=AIzaSyAwIMAPTeuBV2TJghm-1VTnOVl4yi4Y3rE&map_ids=abcd1234efgh5678&libraries=marker";
-    script.async = true;
-    script.defer = true;
-    script.onload = () => {
-      const check = () => {
-        if (window.google && window.google.maps && window.google.maps.marker) {
-          resolve();
-        } else {
-          setTimeout(check, 50);
-        }
-      };
-      check();
-    };
-    script.onerror = (e) => reject(new Error("No se pudo cargar Google Maps: " + e.message));
-    document.head.appendChild(script);
-  });
+      return new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = "https://maps.googleapis.com/maps/api/js?key=AIzaSyAwIMAPTeuBV2TJghm-1VTnOVl4yi4Y3rE&map_ids=abcd1234efgh5678&libraries=marker";
+        script.async = true;
+        script.defer = true;
+        script.onload = () => {
+          const check = () => {
+            if (window.google && window.google.maps && window.google.maps.marker) {
+              resolve();
+            } else {
+              setTimeout(check, 50);
+            }
+          };
+          check();
+        };
+        script.onerror = (e) => reject(new Error("No se pudo cargar Google Maps: " + e.message));
+        document.head.appendChild(script);
+      });
 
-},
+    },
 
 
 
     cerrarPropiedades() {
-  this.propiedadesAbiertas = false;
+      this.propiedadesAbiertas = false;
 
-  // Borrar forma de vista previa
-  if (this.previewShape) {
-    this.previewShape.setMap(null);
-    this.previewShape = null;
-  }
+      // Borrar forma de vista previa
+      if (this.previewShape) {
+        this.previewShape.setMap(null);
+        this.previewShape = null;
+      }
 
-  // Borrar markers de puntos
-  if (this.previewMarkers) {
-    this.previewMarkers.forEach(marker => marker.setMap(null));
-  }
-  this.previewMarkers = [];
+      // Borrar markers de puntos
+      if (this.previewMarkers) {
+        this.previewMarkers.forEach(marker => marker.setMap(null));
+      }
+      this.previewMarkers = [];
 
-  // Limpiar segmento editado
-  this.segmentoEditado = null;
-  this.selectedTipo = null;
-},
+      // Limpiar segmento editado
+      this.segmentoEditado = null;
+      this.selectedTipo = null;
+    },
+
+
 
 
     limpiarMapa() {
-      this.limpiarPuntos();
-      this.limpiarDibujos();
+      try {
+        // Eliminar todas las figuras (polígonos, líneas, círculos)
+        if (this.segmentos && Array.isArray(this.segmentos)) {
+          this.segmentos.forEach(seg => {
+            if (seg._figura) {
+              seg._figura.setMap(null);
+              seg._figura = null;
+            }
+          });
+        }
+
+        // Eliminar las etiquetas del mapa
+        if (this.etiquetas && Array.isArray(this.etiquetas)) {
+          this.etiquetas.forEach(lbl => {
+            if (lbl && lbl.setMap) lbl.setMap(null);
+          });
+          this.etiquetas = [];
+        }
+
+        // Si tienes una lista separada de polígonos, también los limpiamos
+        if (this.poligonos && Array.isArray(this.poligonos)) {
+          this.poligonos.forEach(p => {
+            if (p && p.setMap) p.setMap(null);
+          });
+          this.poligonos = [];
+        }
+
+        console.log("🧹 Mapa limpiado correctamente antes de redibujar los segmentos.");
+
+      } catch (error) {
+        console.error("Error al limpiar el mapa:", error);
+      }
     },
 
+    dibujarPuntos(segmento) {
+      // Eliminar puntos previos
+      if (this.puntosActuales?.length) {
+        this.puntosActuales.forEach(p => {
+          try { p.setMap(null); } catch (e) { /* ignore */ }
+        });
+      }
+      this.puntosActuales = [];
+
+      if (!segmento?.coordenadas?.length) {
+        console.warn("El segmento no tiene coordenadas válidas:", segmento);
+        return;
+      }
+
+      let color = segmento.color || "#FF0000";
+      if (!/^#([0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$/.test(color)) {
+        try {
+          // Si llega en formato ARGB (#AARRGGBB) convertir a #RRGGBB conservando el final
+          if (color.length === 9 && color.startsWith('#')) color = `#${color.slice(3)}`;
+          else color = "#FF0000";
+        } catch { color = "#FF0000"; }
+      }
+
+      // Aquí podrías crear markers si quieres, ejemplo:
+      segmento.coordenadas.forEach(c => {
+        const marker = new google.maps.Marker({
+          position: { lat: Number(c.y), lng: Number(c.x) },
+          map: this.map,
+          title: segmento.nombre || ''
+        });
+        this.puntosActuales.push(marker);
+      });
+    },
+
+
+    // ---------- Normalizar - usar siempre "coordenadas" ----------
     normalizarCoordenadas(seg) {
       let raw = seg.p ?? seg.cordenadas ?? seg.coordenadas ?? seg.points ?? [];
       if (typeof raw === "string") {
         try { raw = JSON.parse(raw); } catch { raw = []; }
       }
       if (!Array.isArray(raw)) return [];
+
       const coords = raw.map(p => {
+        // Normalizamos a { x: lon, y: lat }
         if (p?.x !== undefined && p?.y !== undefined) return { x: Number(p.x), y: Number(p.y) };
         if (Array.isArray(p) && p.length >= 2) return { x: Number(p[0]), y: Number(p[1]) };
-        if (p?.lon !== undefined || p?.lng !== undefined) return { x: Number(p.lon ?? p.lng), y: Number(p.lat ?? p.latitude ?? p.y) };
+        if (p?.lon !== undefined || p?.lng !== undefined || p?.latitude !== undefined || p?.lat !== undefined)
+          return { x: Number(p.lon ?? p.lng ?? p.x), y: Number(p.lat ?? p.latitude ?? p.y) };
         return null;
       }).filter(Boolean).filter(pt => !Number.isNaN(pt.x) && !Number.isNaN(pt.y));
+
+      // eliminar duplicados
       const uniq = [];
       const seen = new Set();
       coords.forEach(pt => {
@@ -726,250 +867,156 @@ onTipoChange(nuevoTipo) {
       return uniq;
     },
 
-    dibujarPuntos(segmento) {
-      // 🧹 Elimina los puntos anteriores
-      if (this.puntosActuales?.length) {
-        this.puntosActuales.forEach(p => {
-          try {
-            p.map = null;
-          } catch { }
-        });
+    limpiarFiguraPorId(id) {
+      const figura = this.poligonosPorId[id];
+      if (figura) {
+        figura.setMap(null);
+        delete this.poligonosPorId[id];
       }
-      this.puntosActuales = [];
 
-      // ⚠️ Validar coordenadas
-      if (!segmento?.coordenadas?.length) {
-        console.warn("El segmento no tiene coordenadas válidas:", segmento);
+      const lbl = this.etiquetas.find(e => e.segmentoId === id);
+      if (lbl) {
+        lbl.setMap(null);
+        this.etiquetas = this.etiquetas.filter(e => e.segmentoId !== id);
+      }
+    },
+
+    calcularCentroidePolygon(coords) {
+      // coords: [[lon, lat], ...]
+      // simple promedio de vértices (no es centroide geométrico perfecto, pero sirve)
+      let sumX = 0, sumY = 0;
+      coords.forEach(p => { sumX += p[0]; sumY += p[1]; });
+      return [sumX / coords.length, sumY / coords.length];
+    },
+
+    crearEtiqueta(segmento) {
+      if (!segmento || !Array.isArray(segmento.coordenadas) || segmento.coordenadas.length < 1) return;
+
+      if (this.etiquetasPorId[segmento.id]) {
+        try { this.etiquetasPorId[segmento.id].setMap(null); } catch { }
+        delete this.etiquetasPorId[segmento.id];
+      }
+
+      const coords = segmento.coordenadas.map(c => [Number(c.x), Number(c.y)]);
+      const path = coords.length > 2 ? [...coords, coords[0]] : coords;
+      const centro = this.calcularCentroidePolygon(path); // [lng, lat]
+
+      const label = new google.maps.OverlayView();
+      const div = document.createElement("div");
+      div.className = "map-label";
+      div.innerText = segmento.nombre || '';
+      div.style.cssText = "background: rgba(255,255,255,0.85); padding:2px 6px; border-radius:4px; font-size:12px; position:absolute; white-space:nowrap; z-index:200;";
+
+      label.onAdd = function () { this.getPanes().overlayLayer.appendChild(div); };
+      label.draw = function () {
+        const proj = this.getProjection();
+        if (!proj) return;
+        const pos = proj.fromLatLngToDivPixel(new google.maps.LatLng(centro[1], centro[0]));
+        div.style.left = pos.x + "px";
+        div.style.top = pos.y + "px";
+        div.style.transform = "translate(-50%, -50%)";
+      };
+      label.onRemove = function () { div.remove(); };
+
+      label.setMap(this.map);
+      label.segmentoId = segmento.id;
+      label.div = div;
+
+      this.etiquetasPorId[segmento.id] = label;
+      this.etiquetas.push(label);
+    },
+
+
+    dibujarSegmento(segmento) {
+      if (!segmento || !Array.isArray(segmento.coordenadas) || segmento.coordenadas.length === 0) {
         return;
       }
 
-      // 🎨 Asegura que el color esté en formato hexadecimal válido
-      let color = segmento.color || "#FF0000";
-      if (!/^#[0-9A-Fa-f]{6}$/.test(color)) {
-        try {
-          // Si llega en formato ARGB (#4d000000), lo convertimos a RGB
-          color = "#" + color.slice(-6);
-        } catch {
-          color = "#FF0000";
-        }
+      this.limpiarFiguraPorId(segmento.id);
+
+      const tipo = (segmento.tipo || 'poligono').toLowerCase();
+      const color = segmento.color || segmento.colorHex || '#FF0000';
+
+      let figura = null;
+      if (tipo === 'poligono') {
+        const paths = segmento.coordenadas.map(c => ({ lat: Number(c.y), lng: Number(c.x) }));
+        figura = new google.maps.Polygon({
+          paths,
+          strokeColor: color,
+          strokeOpacity: 0.9,
+          strokeWeight: 2,
+          fillColor: color,
+          fillOpacity: 0.35,
+          map: this.map
+        });
+      } else if (tipo === 'polyline' || tipo === 'línea' || tipo === 'linea') {
+        const path = segmento.coordenadas.map(c => ({ lat: Number(c.y), lng: Number(c.x) }));
+        figura = new google.maps.Polyline({
+          path,
+          strokeColor: color,
+          strokeOpacity: 0.9,
+          strokeWeight: 3,
+          map: this.map
+        });
+      } else if (tipo === 'circulo' || tipo === 'círculo') {
+        const center = { lat: Number(segmento.coordenadas[0].y), lng: Number(segmento.coordenadas[0].x) };
+        const radio = Number(segmento.bounds?.r) || 50;
+        figura = new google.maps.Circle({
+          center,
+          radius: radio,
+          strokeColor: color,
+          strokeOpacity: 0.9,
+          strokeWeight: 2,
+          fillColor: color,
+          fillOpacity: 0.35,
+          map: this.map
+        });
       }
 
-    
+      if (!figura) return;
+
+      figura.segmentoId = segmento.id;
+      this.poligonosPorId[segmento.id] = figura;
+      segmento._figura = figura;
+      figura.addListener('click', () => this.abrirPropiedades(segmento));
+      this.crearEtiqueta(segmento);
     },
 
+    dibujarTodosSegmentos() {
+      if (!this.map) return;
 
-    // ✅ Función auxiliar para personalizar el contenido visual del marcador
-    crearEtiquetaPunto(numero, color) {
-      const div = document.createElement("div");
-      div.style.width = "16px";
-      div.style.height = "16px";
-      div.style.borderRadius = "50%";
-      div.style.backgroundColor = color;
-      div.style.border = "2px solid white";
-      div.style.boxShadow = "0 0 3px rgba(0,0,0,0.5)";
-      div.style.display = "flex";
-      div.style.alignItems = "center";
-      div.style.justifyContent = "center";
-      div.style.fontSize = "10px";
-      div.style.color = "#fff";
-      div.style.fontWeight = "bold";
-      div.innerText = numero;
-      return div;
-    },
+      Object.keys(this.poligonosPorId).forEach(id => this.limpiarFiguraPorId(id));
+      this.etiquetas = [];
 
-    limpiarPuntosPorSegmento(idSegmento) {
-      if (!idSegmento) return;
-
-      this.poligonosMarcadores = this.poligonosMarcadores.filter(marker => {
-        if (marker.segmentoId === idSegmento) {
-          marker.setMap(null);
-          return false;
+      const bounds = new google.maps.LatLngBounds();
+      this.segmentos.forEach(seg => {
+        seg.coordenadas = this.normalizarCoordenadas(seg);
+        if (seg.coordenadas.length > 0) {
+          this.dibujarSegmento(seg);
+          seg.coordenadas.forEach(c => bounds.extend(new google.maps.LatLng(c.y, c.x)));
         }
-        return true;
       });
+
+      if (!bounds.isEmpty()) this.map.fitBounds(bounds);
     },
 
 
 
 
-
-    actualizarColorSegmento(segmentoId, nuevoColor) {
-      if (!this.poligonosMarcadores) return;
-
-      this.poligonosMarcadores
-        .filter(marker => marker.segmentoId === segmentoId)
-        .forEach(marker => {
-          const icon = marker.getIcon();
-          if (icon) {
-            // Creamos un nuevo objeto icon para evitar problemas de referencia
-            marker.setIcon({
-              ...icon,
-              fillColor: nuevoColor
-            });
-          }
-        });
+    hexToRgba(hex) {
+      if (!hex) return 'rgba(255,255,255,1)';
+      hex = hex.toString().replace('#', '');
+      if (hex.length === 6) hex = hex + 'FF'; // RRGGBB -> RRGGBBFF (alpha full)
+      if (hex.length !== 8) return 'rgba(255,255,255,1)';
+      const r = parseInt(hex.slice(0, 2), 16);
+      const g = parseInt(hex.slice(2, 4), 16);
+      const b = parseInt(hex.slice(4, 6), 16);
+      const a = parseInt(hex.slice(6, 8), 16) / 255;
+      return `rgba(${r},${g},${b},${a.toFixed(3)})`;
     },
 
-    // Limpiar puntos
-    limpiarPuntos() {
-      // Recorremos todos los marcadores y los removemos del mapa
-      this.poligonosMarcadores.forEach(marker => {
-        marker.setMap(null);
-      });
-
-      // Vaciamos el array para no mantener referencias
-      this.poligonosMarcadores = [];
-    },
-
-inicializarMapa() {
-  const mapaElemento = document.getElementById("mapa");
-  if (!mapaElemento) return console.error("No se encontró el elemento con id='mapa'");
-
-  this.map = new google.maps.Map(mapaElemento, {
-    center: { lat: -12.0464, lng: -77.0428 },
-    zoom: 12,
-    mapId: "74e66b37b4757a8ec908633b"
-  });
-
-  google.maps.event.addListenerOnce(this.map, 'tilesloaded', () => {
-    // 3. Ahora sí cargar los segmentos
-    this.cargarSegmentos();
-  });
-
-},
-
- 
-
-dibujarSegmento(segmento, editable = false) {
-  let figura;
-
-  if (segmento.tipo === "polygon") {
-    figura = new google.maps.Polygon({
-      paths: segmento.cordenadas.map(c => ({ lat: c.y, lng: c.x })),
-      fillColor: segmento.color ?? "#90EE90",
-      strokeColor: segmento.color ?? "#32CD32",
-      strokeWeight: 2,
-      editable: editable,
-      map: this.map
-    });
-
-  } else if (segmento.tipo === "polyline") {
-    figura = new google.maps.Polyline({
-      path: segmento.cordenadas.map(c => ({ lat: c.y, lng: c.x })),
-      strokeColor: segmento.color ?? "#FFD700",
-      strokeWeight: 3,
-      editable: editable,
-      map: this.map
-    });
-
-  } else if (segmento.tipo === "circle") {
-    figura = new google.maps.Circle({
-      center: { lat: segmento.cordenadas[0].y, lng: segmento.cordenadas[0].x },
-      radius: segmento.radio || 100,
-      fillColor: segmento.color ?? "#00BFFF",
-      strokeColor: segmento.color ?? "#00BFFF",
-      strokeWeight: 2,
-      map: this.map
-    });
-
-    // Si es editable, agregar marcador central para mover
-    if (editable) {
-      segmento._marcadorCentro = new google.maps.Marker({
-        position: figura.getCenter(),
-        map: this.map,
-        draggable: true,
-        visible: true
-      });
-
-      // actualizar centro del círculo en tiempo real
-      segmento._marcadorCentro.addListener("position_changed", () => {
-        figura.setCenter(segmento._marcadorCentro.getPosition());
-      });
-    }
-  }
-
-  segmento._figura = figura;
-},
-
-async cargarSegmentos() {
-  try {
-    const { data } = await axios.get("http://localhost:8000/api/segmentos");
-
-    if (!Array.isArray(data.segmentos)) return;
-
-    this.segmentos = data.segmentos.map(s => ({
-      ...s,
-      tipo: this.detectarTipoSegmento(s),
-      cordenadas: this.normalizarCoordenadas(s)
-    }));
-
-    this.dibujarTodosSegmentos();
-  } catch (err) {
-    console.error("Error al cargar segmentos:", err);
-  }
-},
-
-dibujarTodosSegmentos() {
-        if (!this.map) return;
-        this.limpiarMapa();
-
-        const bounds = new google.maps.LatLngBounds();
-
-        this.segmentos.forEach(seg => {
-          const coords = seg.cordenadas || [];
-          if (coords.length < 2) return;
-
-          const puntos = coords.map(c => ({ lat: parseFloat(c.y), lng: parseFloat(c.x) }));
-          if (puntos.some(p => Number.isNaN(p.lat) || Number.isNaN(p.lng))) return;
-
-          const polygon = new google.maps.Polygon({
-            paths: puntos,
-            strokeColor: "#000000",
-            strokeWeight: 2,
-            fillColor: seg.color ?? "#FF0000",
-            fillOpacity: 0.6,
-            zIndex: 100,
-            map: this.map,
-          });
-          polygon.segmentoId = seg.id;
-          this.poligonos.push(polygon);
-
-          const path = puntos.map(p => [p.lng, p.lat]);
-          path.push(path[0]);
-          const centro = turf.pointOnFeature(turf.polygon([path])).geometry.coordinates;
-
-          const label = new google.maps.OverlayView();
-          const div = document.createElement("div");
-          div.className = "map-label";
-          div.innerText = seg.nombre;
-          div.style.cssText = "background: rgba(255,255,255,0.8); padding:2px 5px; border-radius:4px; font-size:12px; position:absolute; white-space:nowrap; z-index:200;";
-
-          label.onAdd = function () { this.getPanes().overlayLayer.appendChild(div); };
-          label.draw = function () {
-            const pos = this.getProjection().fromLatLngToDivPixel(new google.maps.LatLng(centro[1], centro[0]));
-            div.style.left = pos.x + "px";
-            div.style.top = pos.y + "px";
-            div.style.transform = "translate(-50%, -50%)";
-          };
-          label.onRemove = function () { div.remove(); };
-          label.segmentoId = seg.id;
-          label.setMap(this.map);
-          this.etiquetas.push(label);
-
-          puntos.forEach(p => bounds.extend(p));
-        });
-
-        if (!bounds.isEmpty()) this.map.fitBounds(bounds);
-      
-}
-,
 
 
-
-    limpiarDibujos() {
-      if (this.figuraActual) { this.figuraActual.setMap(null); this.figuraActual = null; }
-      if (this.puntosActuales) { this.puntosActuales.forEach(p=>p.map=null); this.puntosActuales=[]; }
-    },
 
     colorChange(color) {
       this.segmentoEditado.color = color;
@@ -987,13 +1034,27 @@ dibujarTodosSegmentos() {
     },
 
     centrarMapa(segmento) {
-      const coords = segmento.cordenadas || [];
-      if (!coords.length || !this.map) return;
+      let coords = segmento.coordenadas ?? segmento.cordenadas ?? segmento.p;
+      if (!coords) return;
+
+      if (typeof coords === "string") {
+        try { coords = JSON.parse(coords); } catch (e) { console.error("Error parse coords", e); return; }
+      }
+
+      const puntos = coords
+        .map(c => ({
+          lat: parseFloat(c.y ?? c.lat ?? c.latitude),
+          lng: parseFloat(c.x ?? c.lng ?? c.lon),
+        }))
+        .filter(c => !isNaN(c.lat) && !isNaN(c.lng));
+
+      if (!puntos.length) return;
 
       const bounds = new google.maps.LatLngBounds();
-      coords.forEach(c => bounds.extend(new google.maps.LatLng(c.y, c.x)));
+      puntos.forEach(c => bounds.extend(c));
       this.map.fitBounds(bounds);
     },
+
 
     async obtenerSID() {
       const { data } = await axios.get("http://localhost:8000/api/obtener-sid");
@@ -1001,38 +1062,142 @@ dibujarTodosSegmentos() {
       throw new Error(data.error || "No se pudo obtener el SID");
     },
 
-     async actualizarSegmentos() {
-        this.loadingActualizar = true;
-        this.error = null;
-        try {
-          const sid = await this.obtenerSID();
-          const { data } = await axios.post('http://localhost:8000/api/zone-data', { itemId: this.itemId, sid });
-          if (!data.success || !Array.isArray(data.zones)) throw new Error('No se recibieron zonas válidas');
-          const nuevosSegmentos = data.zones.map(z => ({
+    async actualizarSegmentos() {
+      this.loadingActualizar = true;
+      this.error = null;
+
+      try {
+        const sid = await this.obtenerSID();
+        const { data } = await axios.post('http://localhost:8000/api/zone-data', {
+          itemId: this.itemId,
+          sid
+        });
+
+        if (!data.success || !Array.isArray(data.zones))
+          throw new Error('No se recibieron zonas válidas');
+
+        const nuevosSegmentos = data.zones.map(z => {
+          const coordenadas = this.normalizarCoordenadas(z);
+
+          let colorHex = '#FFFFFF';
+          if (z.color) {
+            colorHex = z.color;
+          } else if (z.c !== undefined && z.c !== null) {
+            colorHex = '#' + Number(z.c).toString(16).padStart(8, '0');
+          }
+          if (!/^#([0-9A-F]{6}|[0-9A-F]{8})$/i.test(colorHex)) colorHex = '#FFFFFF';
+
+          const colorMapa = this.hexToRgba(colorHex); // ✅ ahora sí existe
+
+          return {
             id: z.id ?? z.codsegmento,
             nombre: z.n ?? z.nombre ?? 'Sin nombre',
-            color: z.color ?? (z.c !== undefined ? '#' + Number(z.c).toString(16).padStart(6, '0') : '#FFFFFF'),
-            cordenadas: this.normalizarCoordenadas(z),
-            bounds: z.b ?? z.bounds ?? {}
-          }));
-          const res = await axios.post('http://localhost:8000/api/segmentos/guardar', { zonas: nuevosSegmentos });
-          if (res.data.success) {
-            this.segmentos = nuevosSegmentos;
-            this.lastSegmentosHash = {};
-            this.limpiarDibujos();
-            this.dibujarTodosSegmentos();
-            this.mostrarNotificacion(res.data.mensaje || 'Segmentos actualizados y guardados', 'exito');
+            colorHex,
+            color: colorMapa,
+            coordenadas,
+            bounds: z.b ?? z.bounds ?? {},
+            tipo: this.detectarTipoSegmento(z)
+          };
+        });
+
+        const segmentosModificados = [];
+
+        for (const ns of nuevosSegmentos) {
+          const existente = this.segmentos.find(s => s.id === ns.id);
+
+          if (existente) {
+            const haCambiado =
+              existente.nombre !== ns.nombre ||
+              existente.colorHex !== ns.colorHex ||
+              JSON.stringify(existente.coordenadas) !== JSON.stringify(ns.coordenadas) ||
+              JSON.stringify(existente.bounds) !== JSON.stringify(ns.bounds);
+
+            if (haCambiado) {
+              if (existente._figura) {
+                existente._figura.setMap(null);
+                existente._figura = null;
+              }
+
+              const lbl = this.etiquetas.find(e => e.segmentoId === existente.id);
+              if (lbl) {
+                lbl.setMap(null);
+                this.etiquetas = this.etiquetas.filter(e => e.segmentoId !== existente.id);
+              }
+
+              Object.assign(existente, ns);
+
+              this.limpiarFiguraPorId(existente.id)
+              this.dibujarSegmento(existente);
+              this.crearEtiqueta(existente);
+              segmentosModificados.push(ns);
+            }
           } else {
-            this.mostrarNotificacion('No se pudieron guardar los segmentos', 'error');
+            this.segmentos.push(ns);
+            this.dibujarSegmento(ns);
+            this.crearEtiqueta(ns);
+            segmentosModificados.push(ns);
           }
-        } catch (err) {
-          console.error('Error al actualizar segmentos:', err);
-          this.error = err.message || JSON.stringify(err);
-          this.mostrarNotificacion('Error al actualizar segmentos', 'error');
-        } finally {
-          this.loadingActualizar = false;
         }
-      },
+
+        this.segmentos = this.segmentos.filter(s => {
+          if (!nuevosSegmentos.some(ns => ns.id === s.id)) {
+            if (s._figura) s._figura.setMap(null);
+            const lbl = this.etiquetas.find(e => e.segmentoId === s.id);
+            if (lbl) lbl.setMap(null);
+            return false;
+          }
+          return true;
+        });
+
+        if (segmentosModificados.length > 0) {
+          await axios.post('http://localhost:8000/api/segmentos/sincronizar', {
+            segmentos: segmentosModificados.map(s => ({
+              id: s.id,
+              nombre: s.nombre,
+              colorHex: s.colorHex,
+              cordenadas: s.coordenadas,
+              bounds: s.bounds
+            }))
+          });
+        }
+
+        this.mostrarNotificacion('Segmentos sincronizados correctamente', 'exito');
+      } catch (err) {
+        console.error('Error al actualizar segmentos:', err);
+        this.error = err.message || JSON.stringify(err);
+        this.mostrarNotificacion('Error al sincronizar segmentos', 'error');
+      } finally {
+        this.loadingActualizar = false;
+      }
+    },
+
+
+
+
+    actualizarFigura(segmento) {
+      if (!segmento._figura) return;
+      const tipo = segmento.tipo;
+      if (tipo === 'poligono' || tipo === 'polyline' || tipo === 'linea') {
+        const path = segmento.coordenadas.map(c => ({ lat: Number(c.y), lng: Number(c.x) }));
+        if (segmento._figura.setPaths) segmento._figura.setPaths(path);
+        else if (segmento._figura.setPath) segmento._figura.setPath(path);
+        segmento._figura.setOptions({ strokeColor: segmento.color, fillColor: segmento.color });
+      } else if (tipo === 'circulo') {
+        const center = { lat: Number(segmento.coordenadas[0].y), lng: Number(segmento.coordenadas[0].x) };
+        segmento._figura.setCenter(center);
+        segmento._figura.setOptions({ strokeColor: segmento.color, fillColor: segmento.color });
+        if (segmento._marcadorCentro) segmento._marcadorCentro.setPosition(center);
+      }
+    },
+
+    actualizarEtiqueta(segmento) {
+      const label = this.etiquetas.find(e => e.segmentoId === segmento.id);
+      if (!label) return;
+      if (label.div) label.div.innerText = segmento.nombre || '';
+    },
+
+
+
 
     async eliminarGeocerca(segmento) {
       if (!confirm(`¿Eliminar ${segmento.nombre}?`)) return;
@@ -1064,7 +1229,7 @@ dibujarTodosSegmentos() {
     },
 
     detectarTipoSegmento(seg) {
-      const coords = seg.cordenadas ?? seg.coordenadas ?? [];
+      const coords = seg.cordenadas ?? seg.coordenadas ?? seg.p ?? [];
 
       if (seg.tipo) return seg.tipo;
 
@@ -1078,7 +1243,8 @@ dibujarTodosSegmentos() {
       return "desconocido";
     },
 
-  }}
-    
+  }
+}
+
 );
 </script>

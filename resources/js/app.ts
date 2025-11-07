@@ -6,6 +6,10 @@ import { initializeTheme } from './composables/useAppearance';
 import Toast, { PluginOptions, POSITION } from 'vue-toastification';
 import 'vue-toastification/dist/index.css';
 import '@fortawesome/fontawesome-free/css/all.min.css';
+import axios from "axios";
+
+
+
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
@@ -19,6 +23,11 @@ const toastOptions: PluginOptions = {
   pauseOnHover: true,
   draggable: true,
 };
+
+const token = document.querySelector('meta[name="csrf-token"]');
+if (token) {
+  axios.defaults.headers.common["X-CSRF-TOKEN"] = token.getAttribute("content");
+}
 
 createInertiaApp({
   title: (title) => (title ? `${title} - ${appName}` : appName),

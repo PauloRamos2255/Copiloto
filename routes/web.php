@@ -10,7 +10,7 @@ use App\Http\Controllers\Acceso\AuthController;
 |--------------------------------------------------------------------------
 */
 
-// 🔹 Página principal (Login)
+// 🔹 Página de login (acceso público)
 Route::get('/login', function () {
     return Inertia::render('Login');
 })->name('login');
@@ -18,14 +18,21 @@ Route::get('/login', function () {
 // 🔹 Acción de inicio de sesión
 Route::post('/acceso', [AuthController::class, 'acceso'])->name('acceso');
 
-// 🔹 Rutas protegidas (solo autenticados)
+// 🔹 Cierre de sesión (requiere autenticación)
+Route::post('/logout', [AuthController::class, 'logout'])
+    ->middleware('auth')
+    ->name('logout');
+
+// 🔹 Rutas protegidas (solo usuarios autenticados)
 Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard', fn() => Inertia::render('Dashboard'))->name('dashboard');
     Route::get('/zona', fn() => Inertia::render('ZonaComponent'))->name('zona');
     Route::get('/mapa', fn() => Inertia::render('MapaComponent'))->name('mapa');
     Route::get('/listasegmento', fn() => Inertia::render('TablaSegmento'))->name('segmento');
     Route::get('/usuarios', fn() => Inertia::render('TablaUsuarios'))->name('usuarios');
+    Route::get('/rutas', fn() => Inertia::render('Rutas'))->name('rutas');
 });
 
-// 🔹 Configuración adicional
-require __DIR__.'/settings.php';
+// 🔹 Catch-all 404 para cualquier ruta no definida
+Route::get('/{any}', fn() => Inertia::render('NotFound'))
+    ->where('any', '.*');

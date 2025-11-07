@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\SegmentoController;
 use App\Http\Controllers\Api\GeoController;
 use App\Http\Controllers\Acceso\AuthController;
 use App\Http\Controllers\Api\UsuarioController;
+use Illuminate\Http\Request;
 
 // routes/api.php
 Route::get('/obtener-sid', [WialonSidController::class, 'obtenerSid']);
@@ -19,7 +20,10 @@ Route::post('/acceso', [AuthController::class, 'acceso']);
 Route::get('/users', [UsuarioController::class, 'index']);
 Route::delete('/segmentos/{id}', [SegmentoController::class, 'destroy']);
 Route::post('/segmentos/sincronizar', [SegmentoController::class, 'sincronizar']);
-
+Route::middleware('auth:sanctum')->post('/logout', function (Request $request) {
+    $request->user()->tokens()->delete();
+    return response()->json(['message' => 'Sesión cerrada correctamente']);
+});
 
 
 

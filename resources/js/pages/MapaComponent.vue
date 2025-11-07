@@ -8,7 +8,7 @@
           <span class="text-lg font-semibold">Copiloto</span>
         </div>
         <nav class="flex items-center space-x-5 text-sm">
-          <button class="flex items-center space-x-1 hover:text-blue-400">
+          <button @click="irADashboard()" class="flex items-center space-x-1 hover:text-blue-400">
             <i class="fas fa-chart-line"></i>
             <span>Dashboard</span>
           </button>
@@ -16,10 +16,14 @@
             <i class="fas fa-globe"></i>
             <span>Segmentos</span>
           </button>
-          <button class="flex items-center space-x-1 hover:text-blue-400" @click="verUsuarios">
+          <button class="flex items-center space-x-1 hover:text-blue-400" @click="">
             <i class="fas fa-user"></i>
             <span>Usuarios</span>
           </button>
+          <Button class="flex items-center space-x-1 text-blue-400" @click="irRutas()">
+          <i class="fas fa-route"></i>
+          <span>Rutas</span>
+          </Button>
         </nav>
       </div>
       <div class="flex items-center space-x-4 relative">
@@ -63,7 +67,7 @@
               @click="centrarMapa(segmento)">
               <div class="flex items-center space-x-2">
                 <div class="w-4 h-4 rounded border border-gray-300"
-                  :style="{ backgroundColor: segmento.color || '#4d0000' }"></div>
+                  :style="{ backgroundColor: convertirColor(segmento.colorHex) || '#4d0000' }"></div>
                 <span class="text-sm">{{ segmento.nombre }}</span>
               </div>
               <div class="flex items-center space-x-3 text-gray-600">
@@ -109,9 +113,6 @@
                 <div class="flex gap-2">
                   <input v-model="segmentoEditado.nombre" type="text" required
                     class="flex-1 border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                  <input v-model="segmentoEditado.color" type="color"
-                    class="w-14 h-10 cursor-pointer border border-gray-300 rounded"
-                    @input="colorChange($event.target.value)" />
                 </div>
               </div>
 
@@ -152,7 +153,7 @@
                 </div>
               </div>
 
-              <!-- Tipo de geometría -->
+              <!-- Tipo de geometría 
               <div>
                 <label class="block text-xs font-medium text-gray-700 mb-2">Tipo de geometría</label>
                 <div class="flex space-x-2 items-center">
@@ -163,7 +164,7 @@
                     <span class="text-sm">{{ tipo.label }}</span>
                   </label>
                 </div>
-              </div>
+              </div>-->
 
               <!-- Coordenadas -->
               <div>
@@ -241,24 +242,6 @@
               </div>
             </form>
           </div>
-
-          <!-- Botones fijos al fondo -->
-          <div class="border-t bg-gray-50 p-4">
-            <div class="flex gap-2">
-              <button type="button" @click="cerrarPropiedades()"
-                class="flex-1 px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-100 text-sm font-medium transition-colors">
-                Cancelar
-              </button>
-              <button type="button" @click="limpiarFormulario"
-                class="flex-1 px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-100 text-sm font-medium transition-colors">
-                Limpiar
-              </button>
-              <button type="submit" @click="guardarPropiedades"
-                class="flex-1 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm font-medium transition-colors">
-                Guardar
-              </button>
-            </div>
-          </div>
         </div>
       </aside>
     </transition>
@@ -309,13 +292,15 @@ import { defineComponent, ref } from "vue"; // IMPORTANTE: ref aquí
 import { useToast } from "vue-toastification";
 import "vue-toastification/dist/index.css";
 import axios from "axios";
-import * as turf from "@turf/turf";
+import Button from "@/components/ui/button/Button.vue";
+
 
 export default defineComponent({
   name: "MapaComponent",
 
   data() {
     return {
+      mostrar: 'dashboard',
       figuraActual: null,
       propiedadesAbiertas: false,
       tabActiva: 'geofences',
@@ -330,6 +315,8 @@ export default defineComponent({
       poligonosPorId: {},   // { [id]: google.maps.Polygon|Polyline|Circle }
       etiquetasPorId: {},   // { [id]: OverlayView }
       poligonosMarcadores: [],
+      puntosEditables: [],
+
       selectedTipo: 'poligono',
       tipos: [
         { value: 'circulo', label: 'Círculo' },
@@ -339,6 +326,7 @@ export default defineComponent({
       loadingActualizar: false,
       error: null,
       itemId: 402037903,
+      colorHex: "#4153B9",
       lastSegmentosHash: {},
       autoRefreshInterval: null,
       verMas: false,
@@ -425,11 +413,23 @@ export default defineComponent({
     if (this.autoRefreshInterval) clearInterval(this.autoRefreshInterval);
   },
 
+
+  
   methods: {
+
+    
+ irADashboard() {
+  window.location.href = '/dashboard';
+},
+
+ irRutas() {
+  window.location.href = '/rutas';
+},
+
     async inicializar() {
       await this.cargarGoogleMaps();
       this.inicializarMapa();
-      // NO llames aquí a cargarSegmentos(), inicializarMapa() lo hace en tilesloaded
+      this.limpiarPuntos();
     },
 
     inicializarMapa() {
@@ -448,23 +448,54 @@ export default defineComponent({
     },
 
 
+    colorHexToGoogleMaps(colorHex) {
+      if (!colorHex) return { fillColor: "#FF0000", fillOpacity: 1 };
+
+      if (colorHex.startsWith("rgba")) {
+        const [r, g, b, a] = colorHex.match(/[\d.]+/g).map(Number);
+        const fillColor = `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+        return { fillColor, fillOpacity: a };
+      }
+
+      if (colorHex.startsWith("#")) {
+        if (colorHex.length === 9) { // #AARRGGBB
+          return {
+            fillColor: `#${colorHex.slice(3)}`,
+            fillOpacity: parseInt(colorHex.slice(1, 3), 16) / 255
+          };
+        }
+        if (colorHex.length === 7) return { fillColor: colorHex, fillOpacity: 1 };
+      }
+
+      return { fillColor: "#FF0000", fillOpacity: 1 };
+    },
+
+
+
 
     async cargarSegmentos() {
       try {
         const { data } = await axios.get("http://localhost:8000/api/segmentos");
+        const raw = Array.isArray(data.segmentos) ? data.segmentos : [];
 
-        if (!data) return console.error("Respuesta vacía");
-        const raw = Array.isArray(data.segmentos) ? data.segmentos : (Array.isArray(data) ? data : []);
+        this.segmentos = raw.map(seg => {
+          const coords = this.normalizarCoordenadas(seg);
+          const tipo = this.detectarTipoSegmento({ coordenadas: coords });
+          let colorHex = seg.color ?? seg.colorHex ?? "#FF0000";
+          if (!/^#([0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$/.test(colorHex)) colorHex = "#FF0000";
 
-        this.segmentos = raw.map(s => ({
-          ...s,
-          tipo: this.detectarTipoSegmento(s),
-          coordenadas: this.normalizarCoordenadas(s),
-          colorHex: s.colorHex || s.color || "#FF0000",
-          color: (s.colorHex || s.color) ? this.hexToRgba(s.colorHex || s.color) : this.hexToRgba("#FF0000")
-        }));
+          return {
+            id: seg.codsegmento ?? seg.id,
+            nombre: seg.nombre || "Sin nombre",
+            coordenadas: coords,
+            tipo,
+            colorHex,
+            color: this.colorHexToGoogleMaps(colorHex),
+            bounds: seg.bounds ?? {}
+          };
+        });
 
-        console.log(`Cargados ${this.segmentos.length} segmentos`);
+        // ✅ Dibuja todos los segmentos inmediatamente después de cargarlos
         this.dibujarTodosSegmentos();
 
       } catch (err) {
@@ -472,595 +503,6 @@ export default defineComponent({
       }
     },
 
-
-    mostrarMas() {
-      this.verMas = !this.verMas;
-    },
-    abrirPropiedades(segmento) {
-      if (!segmento || !segmento.coordenadas) {
-        console.warn("Segmento inválido:", segmento);
-        return;
-      }
-
-      // 🔥 Limpieza total antes de abrir uno nuevo
-      Object.values(this.poligonosPorId).forEach(f => f.setMap(null));
-      this.poligonosPorId = {};
-      this.previewShape = null;
-      this.etiquetas.forEach(e => e.setMap(null));
-      this.etiquetas = [];
-
-      if (this.previewMarkers?.length) {
-        this.previewMarkers.forEach(m => m.setMap(null));
-        this.previewMarkers = [];
-      }
-
-      // Copiar segmento y dibujar nuevo
-      this.segmentoEditado = { ...segmento, coordenadas: segmento.coordenadas || [] };
-      this.propiedadesAbiertas = true;
-      this.verMas = false;
-      this.selectedTipo = this.segmentoEditado.tipo || "poligono";
-
-      this.centrarMapa(this.segmentoEditado);
-
-      const color = this.segmentoEditado.colorHex || "#FFFFFF";
-      const figura = new google.maps.Polygon({
-        paths: this.segmentoEditado.coordenadas.map(c => ({ lat: c.y, lng: c.x })),
-        strokeColor: color,
-        strokeOpacity: 1,
-        strokeWeight: 2,
-        fillColor: color,
-        fillOpacity: 0.45,
-        map: this.map,
-      });
-
-      this.poligonosPorId[segmento.id] = figura;
-      figura.addListener('click', () => this.abrirPropiedades(segmento));
-      this.dibujarPuntos(this.segmentoEditado);
-    },
-
-
-    convertirColor(color) {
-      if (!color) return "#1E90FF";
-      if (color.startsWith("#")) {
-        if (color.length === 9) return `#${color.slice(3)}`; // Ignora alpha
-        if (color.length === 7) return color;
-      }
-      return "#1E90FF";
-    },
-
-    vistaPreviaTipo(tipo) {
-      // Borrar vista previa anterior
-      if (this.previewShape) {
-        this.previewShape.setMap(null);
-        this.previewShape = null;
-      }
-
-      // Borrar marcadores de puntos anteriores
-      if (this.previewMarkers) {
-        this.previewMarkers.forEach(m => m.setMap(null));
-      }
-      this.previewMarkers = [];
-
-      if (!this.segmentoEditado || !this.segmentoEditado.cordenadas?.length) return;
-
-      const coords = this.segmentoEditado.cordenadas.map(c => ({ lat: parseFloat(c.y), lng: parseFloat(c.x) }));
-      const colorBase = this.convertirColor(this.segmentoEditado.color);
-
-      if (tipo === "poligono") {
-        this.previewShape = new google.maps.Polygon({
-          paths: coords,
-          map: this.map,
-          strokeColor: colorBase,
-          fillColor: colorBase,
-          strokeWeight: 2,
-          fillOpacity: 0.5,
-          editable: true
-        });
-
-
-      } else if (tipo === "linea") {
-        this.previewShape = new google.maps.Polyline({
-          path: coords,
-          map: this.map,
-          strokeColor: colorBase,
-          strokeWeight: 3,
-          editable: true
-        });
-
-      } else if (tipo === "circulo") {
-        let latSum = 0, lngSum = 0;
-        coords.forEach(p => { latSum += p.lat; lngSum += p.lng; });
-        const center = { lat: latSum / coords.length, lng: lngSum / coords.length };
-
-        let maxDist = 0;
-        coords.forEach(p => {
-          const dLat = (p.lat - center.lat) * 111000;
-          const dLng = (p.lng - center.lng) * 111000 * Math.cos(center.lat * Math.PI / 180);
-          const dist = Math.sqrt(dLat * dLat + dLng * dLng);
-          if (dist > maxDist) maxDist = dist;
-        });
-
-        this.previewShape = new google.maps.Circle({
-          center,
-          radius: maxDist || 50,
-          map: this.map,
-          strokeColor: colorBase,
-          fillColor: colorBase,
-          fillOpacity: 0.3,
-          editable: true
-        });
-      }
-    },
-
-    onTipoChange(nuevoTipo) {
-      this.selectedTipo = nuevoTipo;
-      this.vistaPreviaTipo(this.selectedTipo); // esto dibuja la figura correcta
-    },
-
-    async guardarPropiedades() {
-      try {
-        // Crear un clon limpio sin referencias circulares
-        const { id, nombre, color, colorHex, coordenadas, cordenadas, velocidadMaxima, tipo, bounds } = this.segmentoEditado;
-
-        // Asegurar que el color tenga formato correcto (#rrggbb)
-        const colorHexFinal = (color && color.startsWith('#')) ? color.slice(0, 7) : (colorHex || '#000000');
-
-        // Armar objeto limpio con solo datos simples
-        const segmento = {
-          id: id || null,
-          nombre: nombre || '',
-          colorHex: colorHexFinal,
-          color: colorHexFinal,
-          coordenadas: JSON.stringify(coordenadas || cordenadas || []),
-          bounds: JSON.stringify(bounds || {}),
-          velocidadMaxima: velocidadMaxima || 0,
-          tipo: tipo || 'poligono'
-        };
-
-        // Enviar datos limpios
-        const res = await axios.post('http://localhost:8000/api/segmentos/guardar', {
-          zonas: [segmento]
-        });
-
-        if (res.data.success) {
-          const index = this.segmentos.findIndex(s => s.id === segmento.id);
-          if (index !== -1) {
-            // Actualiza solo con los datos nuevos, sin referencias circulares
-            this.segmentos.splice(index, 1, { ...this.segmentos[index], ...segmento });
-          }
-
-          this.mostrarNotificacion('Propiedades guardadas correctamente', 'exito');
-          this.cerrarPropiedades();
-
-          // 🔥 Redibuja solo una vez todo limpio
-          this.dibujarTodosSegmentos();
-        } else {
-          this.mostrarNotificacion('Error al guardar propiedades', 'error');
-        }
-      } catch (err) {
-        console.error('Error al guardar propiedades:', err);
-        this.mostrarNotificacion('Error al guardar propiedades', 'error');
-      }
-    },
-
-    limpiarFormulario() {
-      this.segmentoEditado.nombre = '';
-      this.segmentoEditado.velocidad = 0;
-      this.segmentoEditado.mensaje = '';
-    },
-
-    calcularAreaReal() {
-      const b = this.segmentoEditado?.bounds;
-      if (!b || b.min_x == null || b.max_x == null || b.min_y == null || b.max_y == null) {
-        return '0 km²';
-      }
-
-      const latDiff = Math.abs(b.max_y - b.min_y) * 111;
-      const lngDiff = Math.abs(b.max_x - b.min_x) * 111 * Math.cos((b.cen_y || ((b.max_y + b.min_y) / 2)) * Math.PI / 180);
-      const areaKm2 = latDiff * lngDiff;
-
-      if (areaKm2 < 1) {
-        return `${(areaKm2 * 1_000_000).toFixed(2)} m²`;
-      }
-      return `${areaKm2.toFixed(4)} km²`;
-    },
-
-    calcularPerimetroReal() {
-      const b = this.segmentoEditado?.bounds;
-      if (!b || b.min_x == null || b.max_x == null || b.min_y == null || b.max_y == null) {
-        return '0 km';
-      }
-
-      const latDiff = Math.abs(b.max_y - b.min_y) * 111;
-      const lngDiff = Math.abs(b.max_x - b.min_x) * 111 * Math.cos((b.cen_y || ((b.max_y + b.min_y) / 2)) * Math.PI / 180);
-      const perimetroKm = 2 * (latDiff + lngDiff);
-
-      return `${perimetroKm.toFixed(3)} km (${(perimetroKm * 1000).toFixed(0)} m)`;
-    },
-
-    formatearFecha(fecha) {
-      if (!fecha) return 'N/A';
-      try {
-        const date = new Date(fecha);
-        return date.toLocaleString('es-PE', {
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit'
-        });
-      } catch {
-        return fecha;
-      }
-    },
-
-    verUsuarios() {
-      console.log('Ver usuarios');
-    },
-
-    cerrarSesion() {
-      console.log('Cerrar sesión');
-    },
-
-    togglePanel() {
-      this.panelAbierto = !this.panelAbierto;
-    },
-
-    toggleMenuUsuario() {
-      this.menuUsuarioAbierto = !this.menuUsuarioAbierto;
-    },
-
-    mostrarNotificacion(mensaje, tipo = "info") {
-      if (!this.toast) return;
-      if (tipo === "exito") this.toast.success(mensaje);
-      else if (tipo === "error") this.toast.error(mensaje);
-      else this.toast.info(mensaje);
-    },
-
-
-    async cargarGoogleMaps() {
-      if (window.google && window.google.maps && window.google.maps.marker) return;
-
-      return new Promise((resolve, reject) => {
-        const script = document.createElement("script");
-        script.src = "https://maps.googleapis.com/maps/api/js?key=AIzaSyAwIMAPTeuBV2TJghm-1VTnOVl4yi4Y3rE&map_ids=abcd1234efgh5678&libraries=marker";
-        script.async = true;
-        script.defer = true;
-        script.onload = () => {
-          const check = () => {
-            if (window.google && window.google.maps && window.google.maps.marker) {
-              resolve();
-            } else {
-              setTimeout(check, 50);
-            }
-          };
-          check();
-        };
-        script.onerror = (e) => reject(new Error("No se pudo cargar Google Maps: " + e.message));
-        document.head.appendChild(script);
-      });
-
-    },
-
-
-
-    cerrarPropiedades() {
-      this.propiedadesAbiertas = false;
-
-      // Borrar forma de vista previa
-      if (this.previewShape) {
-        this.previewShape.setMap(null);
-        this.previewShape = null;
-      }
-
-      // Borrar markers de puntos
-      if (this.previewMarkers) {
-        this.previewMarkers.forEach(marker => marker.setMap(null));
-      }
-      this.previewMarkers = [];
-
-      // Limpiar segmento editado
-      this.segmentoEditado = null;
-      this.selectedTipo = null;
-    },
-
-
-
-
-    limpiarMapa() {
-      try {
-        // Eliminar todas las figuras (polígonos, líneas, círculos)
-        if (this.segmentos && Array.isArray(this.segmentos)) {
-          this.segmentos.forEach(seg => {
-            if (seg._figura) {
-              seg._figura.setMap(null);
-              seg._figura = null;
-            }
-          });
-        }
-
-        // Eliminar las etiquetas del mapa
-        if (this.etiquetas && Array.isArray(this.etiquetas)) {
-          this.etiquetas.forEach(lbl => {
-            if (lbl && lbl.setMap) lbl.setMap(null);
-          });
-          this.etiquetas = [];
-        }
-
-        // Si tienes una lista separada de polígonos, también los limpiamos
-        if (this.poligonos && Array.isArray(this.poligonos)) {
-          this.poligonos.forEach(p => {
-            if (p && p.setMap) p.setMap(null);
-          });
-          this.poligonos = [];
-        }
-
-        console.log("🧹 Mapa limpiado correctamente antes de redibujar los segmentos.");
-
-      } catch (error) {
-        console.error("Error al limpiar el mapa:", error);
-      }
-    },
-
-    dibujarPuntos(segmento) {
-      // Eliminar puntos previos
-      if (this.puntosActuales?.length) {
-        this.puntosActuales.forEach(p => {
-          try { p.setMap(null); } catch (e) { /* ignore */ }
-        });
-      }
-      this.puntosActuales = [];
-
-      if (!segmento?.coordenadas?.length) {
-        console.warn("El segmento no tiene coordenadas válidas:", segmento);
-        return;
-      }
-
-      let color = segmento.color || "#FF0000";
-      if (!/^#([0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$/.test(color)) {
-        try {
-          // Si llega en formato ARGB (#AARRGGBB) convertir a #RRGGBB conservando el final
-          if (color.length === 9 && color.startsWith('#')) color = `#${color.slice(3)}`;
-          else color = "#FF0000";
-        } catch { color = "#FF0000"; }
-      }
-
-      // Aquí podrías crear markers si quieres, ejemplo:
-      segmento.coordenadas.forEach(c => {
-        const marker = new google.maps.Marker({
-          position: { lat: Number(c.y), lng: Number(c.x) },
-          map: this.map,
-          title: segmento.nombre || ''
-        });
-        this.puntosActuales.push(marker);
-      });
-    },
-
-
-    // ---------- Normalizar - usar siempre "coordenadas" ----------
-    normalizarCoordenadas(seg) {
-      let raw = seg.p ?? seg.cordenadas ?? seg.coordenadas ?? seg.points ?? [];
-      if (typeof raw === "string") {
-        try { raw = JSON.parse(raw); } catch { raw = []; }
-      }
-      if (!Array.isArray(raw)) return [];
-
-      const coords = raw.map(p => {
-        // Normalizamos a { x: lon, y: lat }
-        if (p?.x !== undefined && p?.y !== undefined) return { x: Number(p.x), y: Number(p.y) };
-        if (Array.isArray(p) && p.length >= 2) return { x: Number(p[0]), y: Number(p[1]) };
-        if (p?.lon !== undefined || p?.lng !== undefined || p?.latitude !== undefined || p?.lat !== undefined)
-          return { x: Number(p.lon ?? p.lng ?? p.x), y: Number(p.lat ?? p.latitude ?? p.y) };
-        return null;
-      }).filter(Boolean).filter(pt => !Number.isNaN(pt.x) && !Number.isNaN(pt.y));
-
-      // eliminar duplicados
-      const uniq = [];
-      const seen = new Set();
-      coords.forEach(pt => {
-        const key = `${pt.x}-${pt.y}`;
-        if (!seen.has(key)) {
-          seen.add(key);
-          uniq.push(pt);
-        }
-      });
-      return uniq;
-    },
-
-    limpiarFiguraPorId(id) {
-      const figura = this.poligonosPorId[id];
-      if (figura) {
-        figura.setMap(null);
-        delete this.poligonosPorId[id];
-      }
-
-      const lbl = this.etiquetas.find(e => e.segmentoId === id);
-      if (lbl) {
-        lbl.setMap(null);
-        this.etiquetas = this.etiquetas.filter(e => e.segmentoId !== id);
-      }
-    },
-
-    calcularCentroidePolygon(coords) {
-      // coords: [[lon, lat], ...]
-      // simple promedio de vértices (no es centroide geométrico perfecto, pero sirve)
-      let sumX = 0, sumY = 0;
-      coords.forEach(p => { sumX += p[0]; sumY += p[1]; });
-      return [sumX / coords.length, sumY / coords.length];
-    },
-
-    crearEtiqueta(segmento) {
-      if (!segmento || !Array.isArray(segmento.coordenadas) || segmento.coordenadas.length < 1) return;
-
-      if (this.etiquetasPorId[segmento.id]) {
-        try { this.etiquetasPorId[segmento.id].setMap(null); } catch { }
-        delete this.etiquetasPorId[segmento.id];
-      }
-
-      const coords = segmento.coordenadas.map(c => [Number(c.x), Number(c.y)]);
-      const path = coords.length > 2 ? [...coords, coords[0]] : coords;
-      const centro = this.calcularCentroidePolygon(path); // [lng, lat]
-
-      const label = new google.maps.OverlayView();
-      const div = document.createElement("div");
-      div.className = "map-label";
-      div.innerText = segmento.nombre || '';
-      div.style.cssText = "background: rgba(255,255,255,0.85); padding:2px 6px; border-radius:4px; font-size:12px; position:absolute; white-space:nowrap; z-index:200;";
-
-      label.onAdd = function () { this.getPanes().overlayLayer.appendChild(div); };
-      label.draw = function () {
-        const proj = this.getProjection();
-        if (!proj) return;
-        const pos = proj.fromLatLngToDivPixel(new google.maps.LatLng(centro[1], centro[0]));
-        div.style.left = pos.x + "px";
-        div.style.top = pos.y + "px";
-        div.style.transform = "translate(-50%, -50%)";
-      };
-      label.onRemove = function () { div.remove(); };
-
-      label.setMap(this.map);
-      label.segmentoId = segmento.id;
-      label.div = div;
-
-      this.etiquetasPorId[segmento.id] = label;
-      this.etiquetas.push(label);
-    },
-
-
-    dibujarSegmento(segmento) {
-      if (!segmento || !Array.isArray(segmento.coordenadas) || segmento.coordenadas.length === 0) {
-        return;
-      }
-
-      this.limpiarFiguraPorId(segmento.id);
-
-      const tipo = (segmento.tipo || 'poligono').toLowerCase();
-      const color = segmento.color || segmento.colorHex || '#FF0000';
-
-      let figura = null;
-      if (tipo === 'poligono') {
-        const paths = segmento.coordenadas.map(c => ({ lat: Number(c.y), lng: Number(c.x) }));
-        figura = new google.maps.Polygon({
-          paths,
-          strokeColor: color,
-          strokeOpacity: 0.9,
-          strokeWeight: 2,
-          fillColor: color,
-          fillOpacity: 0.35,
-          map: this.map
-        });
-      } else if (tipo === 'polyline' || tipo === 'línea' || tipo === 'linea') {
-        const path = segmento.coordenadas.map(c => ({ lat: Number(c.y), lng: Number(c.x) }));
-        figura = new google.maps.Polyline({
-          path,
-          strokeColor: color,
-          strokeOpacity: 0.9,
-          strokeWeight: 3,
-          map: this.map
-        });
-      } else if (tipo === 'circulo' || tipo === 'círculo') {
-        const center = { lat: Number(segmento.coordenadas[0].y), lng: Number(segmento.coordenadas[0].x) };
-        const radio = Number(segmento.bounds?.r) || 50;
-        figura = new google.maps.Circle({
-          center,
-          radius: radio,
-          strokeColor: color,
-          strokeOpacity: 0.9,
-          strokeWeight: 2,
-          fillColor: color,
-          fillOpacity: 0.35,
-          map: this.map
-        });
-      }
-
-      if (!figura) return;
-
-      figura.segmentoId = segmento.id;
-      this.poligonosPorId[segmento.id] = figura;
-      segmento._figura = figura;
-      figura.addListener('click', () => this.abrirPropiedades(segmento));
-      this.crearEtiqueta(segmento);
-    },
-
-    dibujarTodosSegmentos() {
-      if (!this.map) return;
-
-      Object.keys(this.poligonosPorId).forEach(id => this.limpiarFiguraPorId(id));
-      this.etiquetas = [];
-
-      const bounds = new google.maps.LatLngBounds();
-      this.segmentos.forEach(seg => {
-        seg.coordenadas = this.normalizarCoordenadas(seg);
-        if (seg.coordenadas.length > 0) {
-          this.dibujarSegmento(seg);
-          seg.coordenadas.forEach(c => bounds.extend(new google.maps.LatLng(c.y, c.x)));
-        }
-      });
-
-      if (!bounds.isEmpty()) this.map.fitBounds(bounds);
-    },
-
-
-
-
-    hexToRgba(hex) {
-      if (!hex) return 'rgba(255,255,255,1)';
-      hex = hex.toString().replace('#', '');
-      if (hex.length === 6) hex = hex + 'FF'; // RRGGBB -> RRGGBBFF (alpha full)
-      if (hex.length !== 8) return 'rgba(255,255,255,1)';
-      const r = parseInt(hex.slice(0, 2), 16);
-      const g = parseInt(hex.slice(2, 4), 16);
-      const b = parseInt(hex.slice(4, 6), 16);
-      const a = parseInt(hex.slice(6, 8), 16) / 255;
-      return `rgba(${r},${g},${b},${a.toFixed(3)})`;
-    },
-
-
-
-
-    colorChange(color) {
-      this.segmentoEditado.color = color;
-      this.poligonosMarcadores.forEach(c => {
-        if (c.segmentoId === this.segmentoEditado.id) {
-          c.setOptions({ strokeColor: color, fillColor: color });
-        }
-      });
-
-      this.poligonos.forEach(p => {
-        if (p.segmentoId === this.segmentoEditado.id) {
-          p.setOptions({ fillColor: color });
-        }
-      });
-    },
-
-    centrarMapa(segmento) {
-      let coords = segmento.coordenadas ?? segmento.cordenadas ?? segmento.p;
-      if (!coords) return;
-
-      if (typeof coords === "string") {
-        try { coords = JSON.parse(coords); } catch (e) { console.error("Error parse coords", e); return; }
-      }
-
-      const puntos = coords
-        .map(c => ({
-          lat: parseFloat(c.y ?? c.lat ?? c.latitude),
-          lng: parseFloat(c.x ?? c.lng ?? c.lon),
-        }))
-        .filter(c => !isNaN(c.lat) && !isNaN(c.lng));
-
-      if (!puntos.length) return;
-
-      const bounds = new google.maps.LatLngBounds();
-      puntos.forEach(c => bounds.extend(c));
-      this.map.fitBounds(bounds);
-    },
-
-
-    async obtenerSID() {
-      const { data } = await axios.get("http://localhost:8000/api/obtener-sid");
-      if (data.success && data.sid) return data.sid;
-      throw new Error(data.error || "No se pudo obtener el SID");
-    },
 
     async actualizarSegmentos() {
       this.loadingActualizar = true;
@@ -1168,27 +610,586 @@ export default defineComponent({
         this.mostrarNotificacion('Error al sincronizar segmentos', 'error');
       } finally {
         this.loadingActualizar = false;
+        this.inicializar()
       }
     },
 
+
+
+    mostrarMas() {
+      this.verMas = !this.verMas;
+    },
+
+
+    // --- Abrir propiedades: dibuja solo al abrir el formulario ---
+    abrirPropiedades(segmento) {
+      if (!segmento) return;
+
+      // Normaliza coordenadas
+      segmento.coordenadas = this.normalizarCoordenadas(segmento);
+
+      // Guarda el segmento editado
+      this.segmentoEditado = { ...segmento };
+      this.selectedTipo = segmento.tipo ?? "poligono";
+
+      // Abre el panel de propiedades
+      this.propiedadesAbiertas = true;
+
+      // Centra mapa y dibuja puntos
+      this.centrarMapa(this.segmentoEditado);
+      this.dibujarPuntos(this.segmentoEditado);
+
+      // Guarda referencia del polígono actual
+      this.figuraActual = this.poligonos.find(p => p.id === segmento.id);
+
+      // Guarda el color original por si se cancela
+      this.colorOriginal = { ...segmento.color };
+
+      // Dibuja vista previa
+      this.vistaPreviaTipo(this.selectedTipo);
+    },
+
+
+
+
+    actualizarColorPoligono() {
+      if (this.figuraActual && this.segmentoEditado?.color?.fillColor) {
+        this.figuraActual.setOptions({
+          fillColor: this.segmentoEditado.color.fillColor,
+          strokeColor: this.segmentoEditado.color.fillColor,
+        });
+      }
+    },
+
+
+    cancelarEdicion() {
+      if (this.figuraActual && this.colorOriginal) {
+        this.figuraActual.setOptions({
+          fillColor: this.colorOriginal.fillColor,
+          strokeColor: this.colorOriginal.fillColor,
+        });
+      }
+      this.segmentoEditado = null;
+      this.figuraActual = null;
+      this.colorOriginal = null;
+      this.propiedadesAbiertas = false;
+    },
+
+    convertirColor(color) {
+      if (!color) return "#1E90FF";
+      if (color.startsWith("#")) {
+        if (color.length === 9) return `#${color.slice(3)}`;
+        if (color.length === 7) return color;
+      }
+      return "#1E90FF";
+    },
+
+    vistaPreviaTipo(tipo) {
+      if (this.previewShape) this.previewShape.setMap(null);
+      if (this.previewMarkers) this.previewMarkers.forEach(m => m.setMap(null));
+      this.previewMarkers = [];
+
+      const coords = this.segmentoEditado?.coordenadas ?? [];
+      if (!coords.length) return;
+
+      const colorHex = this.segmentoEditado.colorHex ?? "#FFFFFF";
+      const { fillColor, fillOpacity } = this.colorHexToGoogleMaps(colorHex);
+
+      const opcionesBase = {
+        map: this.map,
+        strokeColor: fillColor,
+        strokeOpacity: fillOpacity,
+        strokeWeight: tipo === "linea" ? 3 : 2,
+        fillColor: tipo !== "linea" ? fillColor : undefined,
+        fillOpacity: tipo !== "linea" ? fillOpacity : 0
+      };
+
+      if (tipo === "poligono") this.previewShape = new google.maps.Polygon({ ...opcionesBase, paths: coords.map(c => ({ lat: c.y, lng: c.x })) });
+      else if (tipo === "linea") this.previewShape = new google.maps.Polyline({ ...opcionesBase, path: coords.map(c => ({ lat: c.y, lng: c.x })) });
+      else if (tipo === "circulo") {
+        const center = { lat: coords[0].y, lng: coords[0].x };
+        let maxDist = 50;
+        if (coords.length > 1) {
+          maxDist = Math.max(...coords.map(p => {
+            const dLat = (p.y - center.lat) * 111000;
+            const dLng = (p.x - center.lng) * 111000 * Math.cos(center.lat * Math.PI / 180);
+            return Math.sqrt(dLat ** 2 + dLng ** 2);
+          }));
+        }
+        this.previewShape = new google.maps.Circle({ ...opcionesBase, center, radius: maxDist });
+      }
+    },
+
+
+    onTipoChange(nuevoTipo) {
+      this.selectedTipo = nuevoTipo;
+      this.vistaPreviaTipo(this.selectedTipo);
+    },
+
+    async guardarPropiedades() {
+      try {
+        const s = this.segmentoEditado;
+        const colorHex = s.colorHex?.startsWith("#") ? s.colorHex : "#000000";
+        const segmento = {
+          id: s.id ?? null,
+          nombre: s.nombre ?? "",
+          colorHex,
+          color: colorHex,
+          coordenadas: JSON.stringify(s.coordenadas ?? []),
+          bounds: JSON.stringify(s.bounds ?? {}),
+          velocidadMaxima: s.velocidadMaxima ?? 0,
+          tipo: s.tipo ?? "poligono"
+        };
+        const res = await axios.post("http://localhost:8000/api/segmentos/guardar", { zonas: [segmento] });
+
+        if (res.data.success) {
+          const index = this.segmentos.findIndex(seg => seg.id === segmento.id);
+          if (index !== -1) this.segmentos.splice(index, 1, { ...this.segmentos[index], ...segmento });
+          else this.segmentos.push(segmento);
+
+          this.mostrarNotificacion("Propiedades guardadas correctamente", "exito");
+          this.cerrarPropiedades();
+          this.dibujarTodosSegmentos();
+        } else {
+          this.mostrarNotificacion("Error al guardar propiedades", "error");
+        }
+      } catch (err) {
+        console.error(err);
+        this.mostrarNotificacion("Error al guardar propiedades", "error");
+      }
+    },
+
+    limpiarFormulario() {
+      this.segmentoEditado.nombre = '';
+      this.segmentoEditado.velocidad = 0;
+      this.segmentoEditado.mensaje = '';
+    },
+
+    calcularAreaReal() {
+      const b = this.segmentoEditado?.bounds;
+      if (!b || b.min_x == null || b.max_x == null || b.min_y == null || b.max_y == null) {
+        return '0 km²';
+      }
+
+      const latDiff = Math.abs(b.max_y - b.min_y) * 111;
+      const lngDiff = Math.abs(b.max_x - b.min_x) * 111 * Math.cos((b.cen_y || ((b.max_y + b.min_y) / 2)) * Math.PI / 180);
+      const areaKm2 = latDiff * lngDiff;
+
+      if (areaKm2 < 1) {
+        return `${(areaKm2 * 1_000_000).toFixed(2)} m²`;
+      }
+      return `${areaKm2.toFixed(4)} km²`;
+    },
+
+    calcularPerimetroReal() {
+      const b = this.segmentoEditado?.bounds;
+      if (!b || b.min_x == null || b.max_x == null || b.min_y == null || b.max_y == null) {
+        return '0 km';
+      }
+
+      const latDiff = Math.abs(b.max_y - b.min_y) * 111;
+      const lngDiff = Math.abs(b.max_x - b.min_x) * 111 * Math.cos((b.cen_y || ((b.max_y + b.min_y) / 2)) * Math.PI / 180);
+      const perimetroKm = 2 * (latDiff + lngDiff);
+
+      return `${perimetroKm.toFixed(3)} km (${(perimetroKm * 1000).toFixed(0)} m)`;
+    },
+
+    formatearFecha(fecha) {
+      if (!fecha) return 'N/A';
+      try {
+        const date = new Date(fecha);
+        return date.toLocaleString('es-PE', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+      } catch {
+        return fecha;
+      }
+    },
+
+
+    togglePanel() {
+      this.panelAbierto = !this.panelAbierto;
+    },
+
+    toggleMenuUsuario() {
+      this.menuUsuarioAbierto = !this.menuUsuarioAbierto;
+    },
+
+    mostrarNotificacion(mensaje, tipo = "info") {
+      if (!this.toast) return;
+      if (tipo === "exito") this.toast.success(mensaje);
+      else if (tipo === "error") this.toast.error(mensaje);
+      else this.toast.info(mensaje);
+    },
+
+
+    async cargarGoogleMaps() {
+      if (window.google && window.google.maps) return;
+      return new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = "https://maps.googleapis.com/maps/api/js?key=AIzaSyAwIMAPTeuBV2TJghm-1VTnOVl4yi4Y3rE";
+        script.async = true;
+        script.defer = true;
+        script.onload = () => resolve();
+        script.onerror = () => reject(new Error("No se pudo cargar Google Maps"));
+        document.head.appendChild(script);
+      });
+    },
+
+
+    cerrarPropiedades() {
+      this.propiedadesAbiertas = false;
+      this.limpiarPuntos()
+      this.cancelarEdicion()
+
+      // Borrar forma de vista previa
+      if (this.previewShape) {
+        this.previewShape.setMap(null);
+        this.previewShape = null;
+      }
+
+      // Borrar markers de puntos
+      if (this.previewMarkers) {
+        this.previewMarkers.forEach(marker => marker.setMap(null));
+      }
+      this.previewMarkers = [];
+
+      this.segmentoEditado = null;
+      this.selectedTipo = null;
+    },
+
+
+    limpiarPuntos() {
+      this.puntosEditables?.forEach(p => p.setMap(null));
+      this.puntosEditables = [];
+    },
+
+
+
+    limpiarMapa() {
+      try {
+        if (this.segmentos && Array.isArray(this.segmentos)) {
+          this.segmentos.forEach(seg => {
+            if (seg._figura) {
+              seg._figura.setMap(null);
+              seg._figura = null;
+            }
+          });
+        }
+
+        if (this.etiquetas && Array.isArray(this.etiquetas)) {
+          this.etiquetas.forEach(lbl => {
+            if (lbl && lbl.setMap) lbl.setMap(null);
+          });
+          this.etiquetas = [];
+        }
+        if (this.poligonos && Array.isArray(this.poligonos)) {
+          this.poligonos.forEach(p => {
+            if (p && p.setMap) p.setMap(null);
+          });
+          this.poligonos = [];
+        }
+
+      } catch (error) {
+        console.error("Error al limpiar el mapa:", error);
+      }
+    },
+
+    parseColor(color) {
+      if (color.startsWith("rgba")) {
+        const valores = color
+          .replace(/rgba|\(|\)|\s/g, "")
+          .split(",")
+          .map(Number);
+        const [r, g, b, a] = valores;
+        const fillColor =
+          "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+        return { fillColor, fillOpacity: a };
+      }
+
+      if (color.startsWith("#") && color.length === 9) {
+        const a = parseInt(color.slice(1, 3), 16) / 255;
+        const fillColor = "#" + color.slice(3);
+        return { fillColor, fillOpacity: a };
+      }
+
+      if (color.startsWith("#") && color.length === 7) {
+        return { fillColor: color, fillOpacity: 1 };
+      }
+
+      return { fillColor: "#000000", fillOpacity: 1 };
+    },
+
+    dibujarPuntos(segmento) {
+      if (!segmento || !segmento.coordenadas?.length) return;
+      const colorSeg = this.colorHexToGoogleMaps(segmento.colorHex);
+      const poly = new google.maps.Polygon({
+        paths: segmento.coordenadas.map(c => ({ lat: c.y, lng: c.x })),
+        strokeColor: colorSeg.fillColor,
+        strokeOpacity: colorSeg.fillOpacity,
+        strokeWeight: 2,
+        fillColor: colorSeg.fillColor,
+        fillOpacity: colorSeg.fillOpacity,
+        map: this.map
+      });
+    },
+
+
+
+    normalizarCoordenadas(seg) {
+      let raw = seg.coordenadas ?? seg.cordenadas ?? seg.p ?? [];
+      if (typeof raw === "string") {
+        try { raw = JSON.parse(raw); } catch { raw = []; }
+      }
+      if (!Array.isArray(raw)) return [];
+
+      const coords = raw.map(p => {
+        if (p?.x !== undefined && p?.y !== undefined) return { x: Number(p.x), y: Number(p.y) };
+        if (Array.isArray(p) && p.length >= 2) return { x: Number(p[0]), y: Number(p[1]) };
+        if (p?.lon !== undefined || p?.lat !== undefined) return { x: Number(p.lon ?? p.x), y: Number(p.lat ?? p.y) };
+        return null;
+      }).filter(Boolean);
+
+      const seen = new Set();
+      return coords.filter(c => {
+        const key = `${c.x}-${c.y}`;
+        if (!seen.has(key)) { seen.add(key); return true; }
+        return false;
+      });
+    },
+
+
+
+
+    limpiarFiguraPorId(id) {
+      const figura = this.poligonosPorId[id];
+      if (figura) { figura.setMap(null); delete this.poligonosPorId[id]; }
+      const label = this.etiquetasPorId[id];
+      if (label) { label.setMap(null); delete this.etiquetasPorId[id]; }
+    },
+    calcularCentroidePolygon(coords) {
+      let sumX = 0, sumY = 0;
+      coords.forEach(p => { sumX += p[0]; sumY += p[1]; });
+      return [sumX / coords.length, sumY / coords.length];
+    },
+
+    crearEtiqueta(seg) {
+      if (!seg.coordenadas.length) return;
+      const centro = seg.coordenadas.reduce((acc, c) => ({ x: acc.x + c.x, y: acc.y + c.y }), { x: 0, y: 0 });
+      centro.x /= seg.coordenadas.length;
+      centro.y /= seg.coordenadas.length;
+
+      const label = new google.maps.OverlayView();
+      const div = document.createElement("div");
+      div.innerText = seg.nombre || '';
+      div.style.cssText = "background: rgba(255,255,255,0.85); padding:2px 6px; border-radius:4px; font-size:12px; position:absolute; white-space:nowrap;";
+      label.onAdd = function () { this.getPanes().overlayLayer.appendChild(div); };
+      label.draw = function () {
+        const proj = this.getProjection();
+        if (!proj) return;
+        const pos = proj.fromLatLngToDivPixel(new google.maps.LatLng(centro.y, centro.x));
+        div.style.left = pos.x + "px";
+        div.style.top = pos.y + "px";
+        div.style.transform = "translate(-50%, -50%)";
+      };
+      label.onRemove = function () { div.remove(); };
+      label.setMap(this.map);
+      this.etiquetasPorId[seg.id] = label;
+    },
+
+
+    dibujarSegmento(seg) {
+      this.limpiarFiguraPorId(seg.id);
+      if (!seg.coordenadas?.length) return;
+
+      const coords = seg.coordenadas.map(c => ({ lat: parseFloat(c.y), lng: parseFloat(c.x) }));
+      const { fillColor, fillOpacity } = this.colorHexToGoogleMaps(seg.colorHex);
+      let figura;
+
+      switch (seg.tipo) {
+        case "poligono":
+          figura = new google.maps.Polygon({
+            paths: coords,
+            strokeColor: fillColor,
+            strokeOpacity: fillOpacity,
+            strokeWeight: 2,
+            fillColor,
+            fillOpacity,
+            editable: false,
+            map: this.map
+          });
+          break;
+        case "linea":
+          figura = new google.maps.Polyline({
+            path: coords,
+            strokeColor: fillColor,
+            strokeOpacity: fillOpacity,
+            strokeWeight: 3,
+            editable: false,
+            map: this.map
+          });
+          break;
+        case "circulo":
+          const center = coords[0];
+          let maxDist = 50;
+          if (coords.length > 1) {
+            maxDist = Math.max(...coords.map(p => {
+              const dLat = (p.lat - center.lat) * 111000;
+              const dLng = (p.lng - center.lng) * 111000 * Math.cos(center.lat * Math.PI / 180);
+              return Math.sqrt(dLat ** 2 + dLng ** 2);
+            }));
+          }
+          figura = new google.maps.Circle({
+            center,
+            radius: maxDist,
+            strokeColor: fillColor,
+            strokeOpacity: fillOpacity,
+            fillColor,
+            fillOpacity,
+            editable: false,
+            map: this.map
+          });
+          break;
+      }
+
+      if (figura) {
+        seg._figura = figura;
+        this.poligonosPorId[seg.id] = figura;
+        this.crearEtiqueta(seg);
+      }
+    },
+
+    dibujarTodosSegmentos() {
+      Object.keys(this.poligonosPorId).forEach(id => this.limpiarFiguraPorId(id));
+      this.etiquetasPorId = {};
+      this.segmentos.forEach(seg => {
+        seg.coordenadas = this.normalizarCoordenadas(seg);
+        if (seg.coordenadas.length) this.dibujarSegmento(seg);
+      });
+    },
+
+
+    obtenerColorParaMapa(color) {
+      if (!color) return { fillColor: "#FF0000", fillOpacity: 1 };
+
+      if (color.startsWith("rgba")) {
+        const [r, g, b, a] = color.match(/\d+(\.\d+)?/g).map(Number);
+        return { fillColor: `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`, fillOpacity: a };
+      }
+
+      if (color.startsWith("#")) {
+        if (color.length === 9) return { fillColor: `#${color.slice(3)}`, fillOpacity: parseInt(color.slice(1, 3), 16) / 255 };
+        if (color.length === 7) return { fillColor: color, fillOpacity: 1 };
+      }
+
+      return { fillColor: "#FF0000", fillOpacity: 1 };
+    },
+
+
+
+    hexToRgba(hex) {
+      if (!hex) return { r: 255, g: 255, b: 255, a: 1 };
+      hex = hex.replace("#", "");
+      if (hex.length === 6) hex += "FF";
+      const r = parseInt(hex.slice(0, 2), 16);
+      const g = parseInt(hex.slice(2, 4), 16);
+      const b = parseInt(hex.slice(4, 6), 16);
+      const a = parseInt(hex.slice(6, 8), 16) / 255;
+      return { r, g, b, a };
+    },
+
+
+    colorChange(color) {
+      this.segmentoEditado.color = color;
+      this.poligonosMarcadores.forEach(c => {
+        if (c.segmentoId === this.segmentoEditado.id) {
+          c.setOptions({ strokeColor: color, fillColor: color });
+        }
+      });
+
+      this.poligonos.forEach(p => {
+        if (p.segmentoId === this.segmentoEditado.id) {
+          p.setOptions({ fillColor: color });
+        }
+      });
+    },
+
+    centrarMapa(segmento) {
+      const coords = segmento.coordenadas ?? [];
+      if (!coords.length) return;
+
+      const bounds = new google.maps.LatLngBounds();
+      coords.forEach(c => {
+        const lat = parseFloat(c.y ?? c.lat ?? 0);
+        const lng = parseFloat(c.x ?? c.lng ?? 0);
+        if (!isNaN(lat) && !isNaN(lng)) bounds.extend({ lat, lng });
+      });
+      if (!bounds.isEmpty()) this.map.fitBounds(bounds);
+    },
+
+
+    async obtenerSID() {
+      const { data } = await axios.get("http://localhost:8000/api/obtener-sid");
+      if (data.success && data.sid) return data.sid;
+      throw new Error(data.error || "No se pudo obtener el SID");
+    },
+
+    async guardarPropiedades() {
+      try {
+        const s = this.segmentoEditado;
+        const colorHex = s.colorHex?.startsWith("#") ? s.colorHex : "#000000";
+        const segmento = {
+          id: s.id ?? null,
+          nombre: s.nombre ?? "",
+          colorHex,
+          color: colorHex,
+          coordenadas: JSON.stringify(s.coordenadas ?? []),
+          bounds: JSON.stringify(s.bounds ?? {}),
+          velocidadMaxima: s.velocidadMaxima ?? 0,
+          tipo: s.tipo ?? "poligono"
+        };
+        const res = await axios.post("http://localhost:8000/api/segmentos/guardar", { zonas: [segmento] });
+
+        if (res.data.success) {
+          const index = this.segmentos.findIndex(seg => seg.id === segmento.id);
+          if (index !== -1) this.segmentos.splice(index, 1, { ...this.segmentos[index], ...segmento });
+          else this.segmentos.push(segmento);
+
+          this.mostrarNotificacion("Propiedades guardadas correctamente", "exito");
+          this.cerrarPropiedades();
+          this.dibujarTodosSegmentos();
+        } else {
+          this.mostrarNotificacion("Error al guardar propiedades", "error");
+        }
+      } catch (err) {
+        console.error(err);
+        this.mostrarNotificacion("Error al guardar propiedades", "error");
+      }
+    },
 
 
 
     actualizarFigura(segmento) {
-      if (!segmento._figura) return;
-      const tipo = segmento.tipo;
-      if (tipo === 'poligono' || tipo === 'polyline' || tipo === 'linea') {
-        const path = segmento.coordenadas.map(c => ({ lat: Number(c.y), lng: Number(c.x) }));
-        if (segmento._figura.setPaths) segmento._figura.setPaths(path);
-        else if (segmento._figura.setPath) segmento._figura.setPath(path);
-        segmento._figura.setOptions({ strokeColor: segmento.color, fillColor: segmento.color });
-      } else if (tipo === 'circulo') {
-        const center = { lat: Number(segmento.coordenadas[0].y), lng: Number(segmento.coordenadas[0].x) };
-        segmento._figura.setCenter(center);
-        segmento._figura.setOptions({ strokeColor: segmento.color, fillColor: segmento.color });
-        if (segmento._marcadorCentro) segmento._marcadorCentro.setPosition(center);
+      const figura = segmento._figura || this.poligonosPorId[segmento.id];
+      if (!figura) return;
+
+      const { fillColor, fillOpacity } = this.colorHexToGoogleMaps(segmento.colorHex);
+      if (segmento.tipo === "poligono") {
+        figura.setOptions({ strokeColor: fillColor, fillColor, fillOpacity, strokeOpacity: fillOpacity });
+        figura.setPaths(segmento.coordenadas.map(c => ({ lat: c.y, lng: c.x })));
+      } else if (segmento.tipo === "linea") {
+        figura.setOptions({ strokeColor: fillColor, strokeOpacity: fillOpacity });
+        figura.setPath(segmento.coordenadas.map(c => ({ lat: c.y, lng: c.x })));
+      } else if (segmento.tipo === "circulo") {
+        figura.setOptions({ strokeColor: fillColor, fillColor, fillOpacity, strokeOpacity: fillOpacity });
+        figura.setCenter({ lat: segmento.coordenadas[0].y, lng: segmento.coordenadas[0].x });
       }
     },
+
 
     actualizarEtiqueta(segmento) {
       const label = this.etiquetas.find(e => e.segmentoId === segmento.id);
@@ -1225,26 +1226,40 @@ export default defineComponent({
       } catch (err) {
         console.error(err);
         this.mostrarNotificacion("Error al eliminar la geocerca", "error");
+      } finally {
+        this.inicializarMapa();
       }
     },
 
     detectarTipoSegmento(seg) {
-      const coords = seg.cordenadas ?? seg.coordenadas ?? seg.p ?? [];
-
-      if (seg.tipo) return seg.tipo;
-
+      const coords = seg.coordenadas ?? [];
       if (coords.length === 1) return "circulo";
-
       if (coords.length === 2) return "linea";
-
-      if (coords.length > 2) {
-        return "poligono";
-      }
+      if (coords.length > 2) return "poligono";
       return "desconocido";
     },
 
+
+    async cerrarSesion() {
+      try {
+        await axios.post("/logout");
+        // Redirige y limpia el historial
+        this.$inertia.visit("/login", { replace: true });
+        window.location.reload(); // 🔄 fuerza recarga total
+      } catch (error) {
+        console.error("Error al cerrar sesión:", error);
+        this.toast.error("No se pudo cerrar sesión correctamente.");
+      }
+    }
+
+
+
+
+
   }
 }
+
+
 
 );
 </script>

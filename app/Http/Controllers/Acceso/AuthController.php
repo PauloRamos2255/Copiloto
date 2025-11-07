@@ -34,4 +34,16 @@ class AuthController extends Controller
     return redirect()->route('mapa');
 }
 
+public function logout(Request $request)
+    {
+        Auth::logout();
+
+        // Invalidar sesión y regenerar token CSRF
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        // Redirigir al login
+        return redirect()->route('login')->with('status', 'Sesión cerrada correctamente ✅');
+    }
+
 }

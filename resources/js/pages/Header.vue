@@ -43,6 +43,8 @@
 <script setup>
 import { ref } from 'vue';
 import { Link } from '@inertiajs/inertia-vue3';
+import { router } from '@inertiajs/vue3'
+import axios from 'axios'
 
 const nombreUsuario = ref('Admin');
 const menuUsuarioAbierto = ref(false);
@@ -51,8 +53,21 @@ function toggleMenuUsuario() {
   menuUsuarioAbierto.value = !menuUsuarioAbierto.value;
 }
 
-function cerrarSesion() {
-  alert('Sesión cerrada');
+async function cerrarSesion() {
+  try {
+    await axios.post('/logout')
+
+    // 🔹 Redirige a la página de login
+    router.visit('/login', { replace: true })
+
+    // 🔹 Limpia cualquier caché o estado de la sesión en el navegador
+    localStorage.clear()
+    sessionStorage.clear()
+
+  } catch (error) {
+    console.error('Error al cerrar sesión:', error)
+    alert('No se pudo cerrar sesión correctamente.')
+  }
 }
 </script>
 

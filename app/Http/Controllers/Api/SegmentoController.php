@@ -10,6 +10,17 @@ use Illuminate\Support\Facades\Log;
 class SegmentoController extends Controller
 {
 
+    public function show($id)
+    {
+        $segmento = Segmento::find($id);
+        if (!$segmento) {
+            return response()->json(['success' => false, 'mensaje' => 'Segmento no encontrado'], 404);
+        }
+
+        return response()->json($segmento);
+    }
+
+
     public function index()
     {
         return response()->json([
@@ -18,39 +29,39 @@ class SegmentoController extends Controller
         ]);
     }
 
-   public function sincronizar(Request $request)
-{
-    $segmentos = $request->input('segmentos', []);
-    $batch = [];
+    public function sincronizar(Request $request)
+    {
+        $segmentos = $request->input('segmentos', []);
+        $batch = [];
 
-    foreach ($segmentos as $seg) {
-        $id = $seg['id'] ?? null;
-        if (!$id) continue;
+        foreach ($segmentos as $seg) {
+            $id = $seg['id'] ?? null;
+            if (!$id) continue;
 
-        $batch[] = [
-            'codsegmento' => $id,
-            'nombre'      => $seg['nombre'] ?? 'Sin nombre',
-            'color'       => $seg['colorHex'] ?? $seg['color'] ?? '#FFFFFF', // ✅ usa colorHex si existe
-            'cordenadas'  => json_encode($seg['cordenadas'] ?? []),
-            'bounds'      => json_encode($seg['bounds'] ?? []),
-            'created_at'  => now(),
-            'updated_at'  => now(),
-        ];
+            $batch[] = [
+                'codsegmento' => $id,
+                'nombre'      => $seg['nombre'] ?? 'Sin nombre',
+                'color'       => $seg['colorHex'] ?? $seg['color'] ?? '#FFFFFF', // ✅ usa colorHex si existe
+                'cordenadas'  => json_encode($seg['cordenadas'] ?? []),
+                'bounds'      => json_encode($seg['bounds'] ?? []),
+                'created_at'  => now(),
+                'updated_at'  => now(),
+            ];
+        }
+
+        if (!empty($batch)) {
+            Segmento::upsert(
+                $batch,
+                ['codsegmento'], // clave única
+                ['nombre', 'color', 'cordenadas', 'bounds', 'updated_at']
+            );
+        }
+
+        return response()->json([
+            'success' => true,
+            'mensaje' => 'Segmentos sincronizados correctamente'
+        ]);
     }
-
-    if (!empty($batch)) {
-        Segmento::upsert(
-            $batch,
-            ['codsegmento'], // clave única
-            ['nombre', 'color', 'cordenadas', 'bounds', 'updated_at']
-        );
-    }
-
-    return response()->json([
-        'success' => true,
-        'mensaje' => 'Segmentos sincronizados correctamente'
-    ]);
-}
 
 
 

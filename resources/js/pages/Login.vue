@@ -23,9 +23,11 @@
             class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:outline-none"
             required
           />
-          <p v-if="form.errors.nombre" class="text-red-500 text-sm mt-1">
-            {{ form.errors.nombre }}
-          </p>
+          <transition name="fade">
+            <p v-if="form.errors.nombre" class="text-red-500 text-sm mt-1">
+              {{ form.errors.nombre }}
+            </p>
+          </transition>
         </div>
 
         <!-- Clave -->
@@ -48,9 +50,11 @@
               <span v-else>👁</span>
             </button>
           </div>
-          <p v-if="form.errors.clave" class="text-red-500 text-sm mt-1">
-            {{ form.errors.clave }}
-          </p>
+          <transition name="fade">
+            <p v-if="form.errors.clave" class="text-red-500 text-sm mt-1">
+              {{ form.errors.clave }}
+            </p>
+          </transition>
         </div>
 
         <!-- Botón -->
@@ -61,17 +65,17 @@
         >
           {{ form.processing ? 'Ingresando...' : 'Ingresar' }}
         </button>
-
-        <!-- Error general -->
-        <transition name="fade">
-          <p
-            v-if="error"
-            class="text-red-500 text-center font-medium mt-2 bg-red-50 py-2 rounded-lg"
-          >
-            {{ error }}
-          </p>
-        </transition>
       </form>
+
+      <!-- Error global (credenciales incorrectas) -->
+      <transition name="fade">
+        <p
+          v-if="form.errors.nombre && !form.errors.nombre.includes('required')"
+          class="text-red-500 text-center font-medium mt-4 bg-red-50 py-2 rounded-lg"
+        >
+          {{ form.errors.nombre }}
+        </p>
+      </transition>
     </div>
   </div>
 </template>
@@ -81,7 +85,6 @@ import { ref } from "vue";
 import { useForm } from "@inertiajs/vue3";
 
 const mostrarPassword = ref(false);
-const error = ref(null);
 
 // useForm maneja errores de validación
 const form = useForm({
@@ -90,21 +93,12 @@ const form = useForm({
 });
 
 const login = () => {
-  error.value = null;
-
   form.post("/acceso", {
-    onError: (errors) => {
-      // Mostrar errores de validación específicos si existen
-      if (errors.nombre || errors.clave) {
-        return; // useForm ya los maneja en form.errors
-      }
-
-      // Mensaje global de login incorrecto
-      error.value = errors.message || "❌ Credenciales incorrectas";
-    },
     onSuccess: () => {
       console.log("✅ Sesión iniciada correctamente");
-      error.value = null;
+    },
+    onError: () => {
+      // useForm ya llena form.errors automáticamente
     },
   });
 };

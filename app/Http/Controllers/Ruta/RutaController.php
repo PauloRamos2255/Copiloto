@@ -20,11 +20,49 @@ class RutaController extends Controller
     }
 
     // Mostrar una ruta específica con sus detalles
-    public function show($id)
-    {
-        $ruta = Ruta::with('detallesRuta')->findOrFail($id);
-        return response()->json($ruta, 200);
+    // RutaSegmentoController.php
+    // RutaSegmentoController.php
+public function show($id)
+{
+    $detalles = DB::table('ruta as r')
+        ->leftJoin('detalleRuta as d', 'r.codruta', '=', 'd.ruta_codruta')
+        ->leftJoin('segmento as s', 'd.segmento_codsegmento', '=', 's.codsegmento')
+        ->where('r.codruta', $id)
+        ->select(
+            'r.codruta as ruta_id',
+            'r.nombre as ruta_nombre',
+            'd.segmento_codsegmento',
+            's.nombre as segmento_nombre',
+            'd.mensaje',
+            'd.velocidadPermitida'
+        )
+        ->get();
+
+    if ($detalles->isEmpty()) {
+        return response()->json([
+            'id' => $id,
+            'nombre' => null,
+            'segmentos' => []
+        ], 200);
     }
+
+    $rutaNombre = $detalles->first()->ruta_nombre;
+
+    $segmentos = $detalles->map(fn($d) => [
+        'id' => $d->segmento_codsegmento,
+        'nombre' => $d->segmento_nombre ?? "Segmento {$d->segmento_codsegmento}",
+        'mensaje' => $d->mensaje ?? '',
+        'velocidad' => (float) ($d->velocidadPermitida ?? 0),
+    ]);
+
+    return response()->json([
+        'id' => $id,
+        'nombre' => $rutaNombre,
+        'segmentos' => $segmentos
+    ], 200);
+}
+
+
 
     // Crear una ruta con sus detalles
     public function store(Request $request)

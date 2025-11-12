@@ -9,58 +9,154 @@ use App\Models\Segmento;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Schema;
 
 class RutaController extends Controller
 {
     // Listar todas las rutas con sus detalles
     public function index()
     {
-        $rutas = Ruta::with('detallesRuta')->get();
+        // Traer todas las rutas con sus detalles y segmentos
+        $rutasPlano = DB::table('ruta as r')
+            ->leftJoin('detalleRuta as d', 'r.codruta', '=', 'd.ruta_codruta')
+            ->leftJoin('segmento as s', 'd.segmento_codsegmento', '=', 's.codsegmento')
+            ->select(
+                'r.codruta',
+                'r.nombre',
+                'r.tipo',
+                'r.icono',
+                'r.limiteGeneral',
+                'd.segmento_codsegmento',
+                'd.mensaje',
+                'd.velocidadPermitida',
+                's.nombre as segmento_nombre',
+                's.color as segmento_color'
+            )
+            ->get();
+
+        // Agrupar los segmentos por ruta
+        $rutas = [];
+        foreach ($rutasPlano as $row) {
+            $rutaId = $row->codruta;
+
+            if (!isset($rutas[$rutaId])) {
+                $rutas[$rutaId] = [
+                    'id' => $row->codruta,
+                    'nombre' => $row->nombre,
+                    'tipo' => $row->tipo,
+                    'icono' => $row->icono,
+                    'limiteGeneral' => $row->limiteGeneral,
+                    'detalles_ruta' => [],
+                ];
+            }
+
+            if ($row->segmento_codsegmento) {
+                $rutas[$rutaId]['detalles_ruta'][] = [
+                    'id' => $row->segmento_codsegmento,
+                    'nombre' => $row->segmento_nombre ?? "Segmento {$row->segmento_codsegmento}",
+                    'color' => $row->segmento_color ?? '#cccccc',
+                    'mensaje' => $row->mensaje ?? '',
+                    'velocidadPermitida' => (float) ($row->velocidadPermitida ?? 0),
+                ];
+            }
+        }
+
+        // Reindexar el array para que sea consecutivo
+        $rutas = array_values($rutas);
+
         return response()->json($rutas, 200);
     }
+
 
     // Mostrar una ruta específica con sus detalles
     // RutaSegmentoController.php
     // RutaSegmentoController.php
-public function show($id)
-{
-    $detalles = DB::table('ruta as r')
-        ->leftJoin('detalleRuta as d', 'r.codruta', '=', 'd.ruta_codruta')
-        ->leftJoin('segmento as s', 'd.segmento_codsegmento', '=', 's.codsegmento')
-        ->where('r.codruta', $id)
-        ->select(
-            'r.codruta as ruta_id',
-            'r.nombre as ruta_nombre',
-            'd.segmento_codsegmento',
-            's.nombre as segmento_nombre',
-            'd.mensaje',
-            'd.velocidadPermitida'
-        )
-        ->get();
+    public function show($id)
+    {
+        $detalles = DB::table('ruta as r')
+            ->leftJoin('detalleRuta as d', 'r.codruta', '=', 'd.ruta_codruta')
+            ->leftJoin('segmento as s', 'd.segmento_codsegmento', '=', 's.codsegmento')
+            ->where('r.codruta', $id)
+            ->select(
+                'r.codruta as ruta_id',
+                'r.nombre as ruta_nombre',
+                'd.segmento_codsegmento',
+                's.nombre as segmento_nombre',
+                'd.mensaje',
+                'd.velocidadPermitida'
+            )
+            ->get();
 
-    if ($detalles->isEmpty()) {
+        // Si no hay segmentos, devolver array vacío
+        if ($detalles->isEmpty()) {
+            return response()->json([], 200);
+        }
+
+        $segmentos = $detalles->map(fn($d) => [
+            'id' => $d->segmento_codsegmento,
+            'nombre' => $d->segmento_nombre ?? "Segmento {$d->segmento_codsegmento}",
+            'mensaje' => $d->mensaje ?? '',
+            'velocidad' => (float) ($d->velocidadPermitida ?? 0),
+        ]);
+
+        // Devuelve directamente el array de segmentos
+        return response()->json($segmentos, 200);
+    }
+
+
+    public function showID($id)
+    {
+        // Obtener la ruta principal
+        $ruta = DB::table('ruta')
+            ->where('codruta', $id)
+            ->select('codruta', 'nombre', 'tipo', 'icono', 'limiteGeneral')
+            ->first();
+
+        if (!$ruta) {
+            return response()->json(['error' => 'Ruta no encontrada'], 404);
+        }
+
+        // Obtener los detalles de la ruta con los segmentos asociados y su color
+        $detalles = DB::table('detalleRuta as d')
+            ->leftJoin('segmento as s', 'd.segmento_codsegmento', '=', 's.codsegmento')
+            ->where('d.ruta_codruta', $id)
+            ->select(
+                'd.id as detalle_id',
+                'd.segmento_codsegmento',
+                'd.mensaje',
+                'd.velocidadPermitida',
+                's.nombre as segmento_nombre',
+                's.color as segmento_color',
+                's.cordenadas' // <-- agregar aquí
+            )
+            ->get();
+
+
+        // Estructurar los detalles de la ruta
+        $detallesRuta = $detalles->map(function ($d) {
+            return [
+                'id' => $d->segmento_codsegmento,
+                'nombre' => $d->segmento_nombre ?? "Segmento {$d->segmento_codsegmento}",
+                'mensaje' => $d->mensaje ?? '',
+                'velocidadPermitida' => (float) ($d->velocidadPermitida ?? 0),
+                'color' => $d->segmento_color ?? '#ffffff',
+                'cordenadas' => json_decode($d->cordenadas) ?? [] // parsear JSON a array
+            ];
+        });
+
+        // Armar la respuesta final
         return response()->json([
-            'id' => $id,
-            'nombre' => null,
-            'segmentos' => []
+            'id' => $ruta->codruta,
+            'nombre' => $ruta->nombre,
+            'tipo' => $ruta->tipo,
+            'icono' => $ruta->icono,
+            'limiteGeneral' => $ruta->limiteGeneral,
+            'detalles_ruta' => $detallesRuta,
         ], 200);
     }
 
-    $rutaNombre = $detalles->first()->ruta_nombre;
 
-    $segmentos = $detalles->map(fn($d) => [
-        'id' => $d->segmento_codsegmento,
-        'nombre' => $d->segmento_nombre ?? "Segmento {$d->segmento_codsegmento}",
-        'mensaje' => $d->mensaje ?? '',
-        'velocidad' => (float) ($d->velocidadPermitida ?? 0),
-    ]);
 
-    return response()->json([
-        'id' => $id,
-        'nombre' => $rutaNombre,
-        'segmentos' => $segmentos
-    ], 200);
-}
 
 
 
@@ -171,7 +267,7 @@ public function show($id)
         DB::beginTransaction();
 
         try {
-            $ruta = Ruta::findOrFail($id);
+            $ruta = Ruta::with('detallesRuta')->findOrFail($id);
 
             // Actualizar campos básicos
             $ruta->update($validated);
@@ -185,19 +281,19 @@ public function show($id)
                 $ruta->save();
             }
 
-            // Actualizar detalles
+            // Actualizar detalles en bloque
             if (!empty($validated['detalles'])) {
-                // Eliminar antiguos
-                $ruta->detallesRuta()->delete();
+                // Preparar datos
+                $detallesData = array_map(fn($d) => [
+                    'ruta_codruta' => $ruta->codruta,
+                    'segmento_codsegmento' => $d['segmento_codsegmento'],
+                    'velocidadPermitida' => $d['velocidadPermitida'],
+                    'mensaje' => $d['mensaje'] ?? null,
+                ], $validated['detalles']);
 
-                // Crear nuevos
-                foreach ($validated['detalles'] as $detalle) {
-                    $ruta->detallesRuta()->create([
-                        'segmento_codsegmento' => $detalle['segmento_codsegmento'],
-                        'velocidadPermitida' => $detalle['velocidadPermitida'],
-                        'mensaje' => $detalle['mensaje'] ?? null,
-                    ]);
-                }
+                // Eliminar antiguos y crear todos de una vez
+                $ruta->detallesRuta()->delete();
+                $ruta->detallesRuta()->insert($detallesData);
             }
 
             DB::commit();
@@ -216,35 +312,41 @@ public function show($id)
     }
 
     // Eliminar ruta y sus detalles
-    public function destroy($id)
-    {
-        DB::beginTransaction();
+  public function destroy($id)
+{
+    DB::beginTransaction();
 
-        try {
-            $ruta = Ruta::findOrFail($id);
+    try {
+        $ruta = Ruta::findOrFail($id);
 
-            // Eliminar logo
-            if ($ruta->icono) {
-                Storage::disk('public')->delete($ruta->icono);
-            }
-
-            // Eliminar detalles
-            $ruta->detallesRuta()->delete();
-
-            // Eliminar ruta
-            $ruta->delete();
-
-            DB::commit();
-
-            return response()->json(['message' => 'Ruta eliminada exitosamente'], 200);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json([
-                'message' => 'Error al eliminar la ruta',
-                'error' => $e->getMessage()
-            ], 500);
+        if (!empty($ruta->icono) && Storage::disk('public')->exists($ruta->icono)) {
+            Storage::disk('public')->delete($ruta->icono);
         }
+
+        // Verificar que la tabla de detalles exista antes de borrar
+        if (Schema::hasTable('detalle_ruta')) {
+            DB::table('detalle_ruta')->where('ruta_codruta', $id)->delete();
+        } elseif (Schema::hasTable('detalleRuta')) {
+            DB::table('detalleRuta')->where('ruta_codruta', $id)->delete();
+        }
+
+        $ruta->delete();
+
+        DB::commit();
+        return response()->json(['message' => 'Ruta eliminada exitosamente'], 200);
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return response()->json([
+            'message' => 'Error al eliminar la ruta',
+            'error' => $e->getMessage(),
+            'linea' => $e->getLine()
+        ], 500);
     }
+}
+
+
+
 
     // Obtener detalles de una ruta con nombres de segmentos
     public function detallesRuta($codruta)

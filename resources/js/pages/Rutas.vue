@@ -138,45 +138,45 @@
                     </td>
                   </tr>
                   <!-- Segmentos expandibles -->
-                   <transition name="fade-slide">
-          <tr v-if="String(registroExpandido) === String(ruta.id) && ruta.mostrarSegmentos" class="bg-blue-50 transition-all">
-            <td colspan="5" class="px-6 md:px-10 py-4">
-              
-              <!-- Skeleton -->
-              <div v-if="!ruta.segmentos || ruta.segmentosCargando" class="grid gap-3 animate-pulse"
-                   :style="`grid-template-columns: repeat(auto-fit, minmax(${ruta.segmentos && ruta.segmentos.length <= 2 ? '200px' : '120px'}, 1fr))`">
-                <div v-for="n in 3" :key="'skel-seg-' + n" class="p-3 bg-white rounded-lg border-l-4 border-blue-500 shadow-sm">
-                  <div class="h-3 bg-gray-300 rounded mb-1 w-5/6"></div>
-                  <div class="h-2 bg-gray-300 rounded mb-1 w-4/6"></div>
-                  <div class="h-2 bg-gray-300 rounded w-2/6"></div>
-                </div>
-              </div>
+                  <transition name="fade-slide">
+                    <tr v-if="String(registroExpandido) === String(ruta.id) && ruta.mostrarSegmentos"
+                      class="bg-blue-50 transition-all">
+                      <td colspan="5" class="px-3 md:px-6 py-3">
 
-              <!-- Segmentos reales -->
-              <div v-else class="grid gap-3"
-                   :style="`grid-template-columns: repeat(auto-fit, minmax(${ruta.segmentos.length <= 2 ? '200px' : '120px'}, 1fr))`">
-                <div v-for="segmento in ruta.segmentos" :key="'saved-' + segmento._tempId"
-                     class="p-3 bg-white rounded-lg border-l-4 border-blue-500 shadow-sm hover:shadow-md transition-all flex flex-col">
+                        <!-- Skeleton -->
+                        <div v-if="!ruta.segmentos || ruta.segmentosCargando" class="grid gap-2 animate-pulse"
+                          style="grid-template-columns: repeat(4, 1fr)">
+                          <div v-for="n in 4" :key="'skel-seg-' + n"
+                            class="p-2 bg-white rounded border-l-4 border-blue-500 shadow-sm">
+                            <div class="h-3 bg-gray-300 rounded mb-1 w-5/6"></div>
+                            <div class="h-2 bg-gray-300 rounded mb-1 w-4/6"></div>
+                            <div class="h-2 bg-gray-300 rounded w-2/6"></div>
+                          </div>
+                        </div>
 
-                  <div class="font-semibold text-gray-800 text-sm truncate" :title="segmento.nombre">
-                    {{ segmento.nombre || `Segmento ${segmento.id}` }}
-                  </div>
+                        <!-- Segmentos reales -->
+                        <div v-else class="grid gap-2" style="grid-template-columns: repeat(4, 1fr)">
+                          <div v-for="segmento in ruta.segmentos" :key="'saved-' + segmento._tempId"
+                            class="p-2 bg-white rounded border-l-4 border-blue-500 shadow-sm hover:shadow-md transition-all flex flex-col">
 
-                  <div class="text-xs text-gray-600 mt-1 truncate" :title="segmento.mensaje">
-                    <span v-if="segmento.mensaje">{{ segmento.mensaje }}</span>
-                  </div>
+                            <div class="font-semibold text-gray-800 text-xs truncate" :title="segmento.nombre">
+                              {{ segmento.nombre || `Segmento ${segmento.id}` }}
+                            </div>
 
-                  <div class="text-xs text-blue-600 font-medium mt-1 truncate" :title="segmento.velocidad + ' km/h'">
-                    <span v-if="segmento.velocidad">{{ segmento.velocidad }} km/h</span>
-                  </div>
+                            <div class="text-xs text-gray-600 mt-1 truncate" :title="segmento.mensaje">
+                              <span v-if="segmento.mensaje">{{ segmento.mensaje }}</span>
+                            </div>
 
-                </div>
-              </div>
+                            <div class="text-xs text-blue-600 font-medium mt-1" :title="segmento.velocidad + ' km/h'">
+                              <span v-if="segmento.velocidad">{{ segmento.velocidad }} km/h</span>
+                            </div>
 
-            </td>
-          </tr>
-        </transition>
+                          </div>
+                        </div>
 
+                      </td>
+                    </tr>
+                  </transition>
                 </template>
 
                 <!-- Sin resultados -->
@@ -210,23 +210,29 @@
     </main>
 
     <!-- Modal Crear/Editar Ruta -->
+
     <transition name="fade">
-      <div v-if="formularioSegmentoAbierto"
-        class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      <div v-if="formularioSegmentoAbierto" class="fixed inset-0 z-50 flex items-center justify-center p-4"
         @click.self="cerrarFormulario">
-        <!-- Overlay de carga -->
+
+        <!-- Fondo oscuro -->
+        <div class="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
+
+        <!-- Loader -->
         <div v-if="cargandoFormulario"
-          class="absolute inset-0 bg-white/95 flex items-center justify-center z-50 rounded-2xl">
+          class="fixed inset-0 z-[60] flex items-center justify-center bg-white/95 rounded-2xl">
           <div class="flex flex-col items-center gap-3">
             <div class="animate-spin rounded-full h-12 w-12 border-t-4 border-blue-600 border-solid"></div>
             <p class="text-sm font-semibold text-gray-700">Cargando...</p>
           </div>
         </div>
 
-        <!-- Contenedor principal -->
-        <div class="bg-white max-w-[95vw] rounded-2xl shadow-2xl max-h-[90vh] flex flex-col relative overflow-hidden">
-          <!-- Encabezado -->
-          <div v-if="!cargandoFormulario"
+        <!-- Contenedor principal del formulario -->
+        <div v-if="!cargandoFormulario"
+          class="bg-white max-w-[1200px] w-full rounded-2xl shadow-2xl max-h-[90vh] flex flex-col overflow-hidden relative z-50">
+
+          <!-- Header -->
+          <div
             class="bg-gradient-to-r from-blue-600 to-blue-500 px-6 py-4 flex items-center justify-between flex-shrink-0">
             <h2 class="text-xl font-bold text-white flex items-center gap-2">
               <i class="fas fa-route"></i>
@@ -239,96 +245,85 @@
           </div>
 
           <!-- Contenido -->
-          <div v-show="!cargandoFormulario" class="flex flex-1 overflow-hidden scrollbar-hide ">
+          <div class="flex flex-1 overflow-hidden">
+
             <!-- Panel izquierdo -->
-            <div class="flex-1 p-6 overflow-y-auto space-y-5 bg-white border-r border-gray-200 scrollbar-hide">
-              <!-- Datos generales -->
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-5 text-sm">
-                <!-- Nombre -->
-                <div>
-                  <label for="nombre-ruta" class="block font-semibold mb-1 text-gray-700 text-[13px]">
-                    <i class="fas fa-tag text-blue-600 mr-1"></i> Nombre de la Ruta
+            <div class="lg:w-1/2 flex flex-col p-6 overflow-hidden">
+
+              <!-- Campos principales: Nombre, Límite, Tipo, Logo -->
+              <div class="grid grid-cols-12 gap-3 mb-4 border-b border-gray-300 pb-4">
+                <div class="col-span-3 flex flex-col">
+                  <label class="block text-sm font-semibold text-gray-700 mb-1">
+                    <i class="fas fa-tag text-blue-600 mr-1"></i>Nombre
                   </label>
-                  <input id="nombre-ruta" type="text" v-model="nuevaRuta.nombre" placeholder="Ej: Ruta Centro"
-                    class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-400 focus:outline-none shadow-sm text-[13px]" />
+                  <input type="text" v-model="nuevaRuta.nombre" placeholder="Ej: Ruta Centro"
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:outline-none h-10" />
                 </div>
 
-                <!-- Límite general -->
-                <div>
-                  <label for="limite-general" class="block font-semibold mb-1 text-gray-700 text-[13px]">
-                    <i class="fas fa-gauge-high text-blue-600 mr-1"></i> Límite General
+                <div class="col-span-3 flex flex-col">
+                  <label class="block text-sm font-semibold text-gray-700 mb-1">
+                    <i class="fas fa-gauge-high text-blue-600 mr-1"></i>Límite
                   </label>
                   <div class="relative">
-                    <input id="limite-general" type="number" :value="velocidadPromedio" disabled
-                      class="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-100 text-[13px] cursor-not-allowed font-semibold"
-                      readonly />
-                    <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[12px] font-semibold text-blue-700">
-                      km/h
-                    </span>
+                    <input type="number" :value="velocidadPromedio" disabled
+                      class="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-100 text-sm cursor-not-allowed font-semibold h-10" />
+                    <span
+                      class="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-blue-700">km/h</span>
                   </div>
-                  <p v-if="velocidadPromedio > 0" class="text-[11px] text-gray-500 mt-1">
-                    Promedio automático de segmentos
-                  </p>
                 </div>
 
-                <!-- Tipo de ruta -->
-                <div>
-                  <label for="tipo-ruta" class="block font-semibold mb-1 text-gray-700 text-[13px]">
-                    <i class="fas fa-road text-blue-600 mr-1"></i> Tipo de Ruta
+                <div class="col-span-3 flex flex-col">
+                  <label class="block text-sm font-semibold text-gray-700 mb-1">
+                    <i class="fas fa-road text-blue-600 mr-1"></i>Tipo
                   </label>
-                  <select id="tipo-ruta" v-model="nuevaRuta.tipo"
-                    class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-400 focus:outline-none text-[13px]">
-                    <option value="" disabled>Seleccione un tipo</option>
+                  <select v-model="nuevaRuta.tipo"
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:outline-none h-10">
+                    <option value="" disabled>Seleccione</option>
                     <option value="General">General</option>
                     <option value="Vuelta">Vuelta</option>
                   </select>
                 </div>
-              </div>
 
-              <!-- Logo -->
-              <div class="w-full">
-                <label for="logo-input" class="block font-semibold mb-1 text-gray-700 text-[13px]">
-                  <i class="fas fa-image text-blue-600 mr-1"></i> Logo de la Empresa
-                </label>
-                <div
-                  class="border-2 border-dashed rounded-xl h-28 flex items-center justify-center cursor-pointer transition-all"
-                  :class="dragOverLogo ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50'"
-                  @dragover.prevent="dragOverLogo = true" @dragleave.prevent="dragOverLogo = false"
-                  @drop.prevent="dropLogo" @click="abrirSelectorLogo" role="button" tabindex="0"
-                  @keydown.enter="abrirSelectorLogo">
-                  <input id="logo-input" ref="logoInput" type="file" accept="image/*" class="hidden"
-                    @change="previewLogo" />
-                  <div v-if="!nuevaRuta.logoPreview" class="text-center text-gray-400 text-[12px] pointer-events-none">
-                    <i class="fas fa-cloud-upload-alt text-2xl mb-1 block"></i>
-                    <p>Arrastra tu logo aquí o haz clic</p>
+                <div class="col-span-3 flex flex-col">
+                  <label class="block text-sm font-semibold text-gray-700 mb-1">
+                    <i class="fas fa-image text-blue-600 mr-1"></i>Logo
+                  </label>
+                  <div
+                    class="border-2 border-dashed rounded-lg h-10 flex items-center justify-center cursor-pointer transition-all"
+                    :class="dragOverLogo ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50'"
+                    @dragover.prevent="dragOverLogo = true" @dragleave.prevent="dragOverLogo = false"
+                    @drop.prevent="dropLogo" @click="abrirSelectorLogo" role="button" tabindex="0"
+                    @keydown.enter="abrirSelectorLogo">
+                    <input type="file" ref="logoInput" accept="image/*" class="hidden" @change="previewLogo" />
+                    <div v-if="!nuevaRuta.logoPreview" class="text-center text-gray-400 text-sm pointer-events-none">
+                      <i class="fas fa-cloud-upload-alt text-lg"></i>
+                    </div>
+                    <img v-else :src="nuevaRuta.logoPreview" class="h-8 w-auto object-contain mx-auto rounded" />
                   </div>
-                  <img v-else :src="nuevaRuta.logoPreview" class="h-28 w-auto object-contain mx-auto rounded-lg"
-                    alt="Logo preview de la empresa" />
                 </div>
               </div>
 
-              <!-- Segmentos -->
-              <div class="grid grid-cols-1 lg:grid-cols-12 gap-3">
+              <!-- Segmentos y controles -->
+              <div class="flex flex-1 gap-3 overflow-hidden  pt-3">
+
                 <!-- Segmentos disponibles -->
                 <div
-                  class="lg:col-span-3 bg-green-50 rounded-xl border border-green-200 flex flex-col p-3 shadow-sm overflow-hidden"
-                  style="height: 11cm">
+                  class="w-1/2 bg-green-50 rounded-xl border border-green-200 flex flex-col p-3 shadow-sm overflow-hidden">
                   <h3 class="font-semibold mb-2 flex items-center text-sm text-green-700 flex-shrink-0">
                     <i class="fas fa-list mr-2 text-green-600"></i>Disponibles ({{ segmentosDisponiblesFiltrados.length
                     }})
                   </h3>
-
                   <input type="text" v-model="filtroSegmentos" placeholder="Buscar..."
-                    class="w-full px-2 py-1.5 border border-green-300 rounded-lg mb-2 text-sm focus:ring-2 focus:ring-green-400 focus:outline-none flex-shrink-0" />
-
-                  <div class="border-2 border-dashed rounded-lg p-1.5 bg-white overflow-y-auto flex-1"
+                    class="w-full px-2 py-1 border border-green-300 rounded-lg mb-2 text-sm focus:ring-2 focus:ring-green-400 focus:outline-none flex-shrink-0" />
+                  <div
+                    class="border-2 border-dashed rounded-lg p-1.5 bg-white overflow-y-auto flex-1 scrollbar-thin scrollbar-thumb-green-300 scrollbar-track-transparent"
                     :class="dragOverDisponibles ? 'border-green-500 bg-green-50' : 'border-green-300'"
                     @dragover.prevent="dragOverDisponibles = true" @dragleave.prevent="dragOverDisponibles = false"
                     @drop.prevent="dropSegmentoEnDisponibles">
                     <div v-for="segmento in segmentosDisponiblesFiltrados" :key="segmento._tempId" draggable="true"
                       @dragstart="iniciarDragSegmento(segmento, 'disponibles')" @dragend="finalizarDrag"
                       @dblclick="agregarSegmentoARuta(segmento)"
-                      class="p-1.5 mb-1.5 bg-green-100 border border-green-300 rounded cursor-pointer hover:bg-green-200 hover:shadow transition-all text-xs flex items-center justify-between group">
+                      class="p-1 mb-1 bg-green-100 border border-green-300 rounded cursor-pointer hover:bg-green-200 hover:shadow transition-all text-xs flex items-center justify-between group">
                       <div class="flex items-center">
                         <i class="fas fa-grip-vertical text-green-600 mr-1 text-xs"></i>
                         <span>{{ segmento.nombre }}</span>
@@ -337,192 +332,146 @@
                         class="fas fa-arrow-right text-green-600 opacity-0 group-hover:opacity-100 transition-opacity"></i>
                     </div>
                   </div>
-
-                  <p class="text-xs text-gray-500 mt-1 text-center flex-shrink-0">
-                    <i class="fas fa-info-circle mr-1"></i>Doble clic o arrastra
-                  </p>
                 </div>
 
-                <!-- Segmentos en ruta -->
+                <!-- Segmentos en ruta y controles -->
                 <div
-                  class="lg:col-span-5 bg-blue-50 rounded-xl border border-blue-200 flex flex-col p-3 shadow-sm overflow-hidden"
-                  style="height: 11cm">
+                  class="w-1/2 bg-blue-50 rounded-xl border border-blue-200 flex flex-col p-3 shadow-sm overflow-hidden">
                   <h3 class="font-semibold mb-2 flex items-center text-sm text-blue-700 flex-shrink-0">
                     <i class="fas fa-route mr-2 text-blue-600"></i>En la Ruta ({{ segmentosRuta.length }})
                   </h3>
 
-                  <!-- Editor -->
+                  <!-- Editor compacto -->
                   <div v-if="segmentoSeleccionado"
-                    class="bg-yellow-50 rounded-lg p-2 mb-2 border border-yellow-300 flex-shrink-0">
+                    class="bg-yellow-50 rounded-lg p-2 mb-2 border border-yellow-300 flex flex-col gap-1 flex-shrink-0">
                     <div class="flex items-center justify-between mb-1">
-                      <span class="text-xs font-semibold text-gray-700">
-                        ✏ Editando:
-                        <span class="text-blue-600">{{ segmentoSeleccionado.nombre }}</span>
-                      </span>
-                      <button @click="segmentoSeleccionado = null" class="text-gray-600 hover:text-gray-800 text-xs"
-                        type="button" aria-label="Cancelar edición">
+                      <span class="text-xs font-semibold text-gray-700">✏ Editando: <span class="text-yellow-700">{{
+                          segmentoSeleccionado.nombre }}</span></span>
+                      <button @click="segmentoSeleccionado = null"
+                        class="text-gray-600 hover:text-gray-800 text-xs p-1 rounded" type="button">
                         <i class="fas fa-times"></i>
                       </button>
                     </div>
-
-                    <div class="grid grid-cols-2 gap-2">
+                    <div class="grid grid-cols-2 gap-1">
                       <div>
-                        <label for="mensaje-seg" class="text-[11px] font-semibold text-gray-700 block">Mensaje</label>
-                        <input id="mensaje-seg" type="text" v-model="segmentoSeleccionado.mensaje"
-                          placeholder="Ej: Velocidad máxima"
-                          class="w-full border border-yellow-400 rounded px-2 py-1 text-[11px] focus:ring-2 focus:ring-yellow-400 focus:outline-none" />
+                        <label class="text-[10px] font-semibold text-gray-700 block">Mensaje</label>
+                        <input type="text" v-model="segmentoSeleccionado.mensaje" placeholder="Velocidad máxima"
+                          class="w-full border border-yellow-400 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-yellow-400 focus:outline-none" />
                       </div>
                       <div>
-                        <label for="velocidad-seg"
-                          class="text-[11px] font-semibold text-gray-700 block">Velocidad</label>
-                        <input id="velocidad-seg" type="number" v-model.number="segmentoSeleccionado.velocidad"
-                          placeholder="Ej: 80" min="0"
-                          class="w-full border border-yellow-400 rounded px-2 py-1 text-[11px] focus:ring-2 focus:ring-yellow-400 focus:outline-none" />
+                        <label class="text-[10px] font-semibold text-gray-700 block">Velocidad</label>
+                        <input type="number" v-model.number="segmentoSeleccionado.velocidad" placeholder="80" min="0"
+                          class="w-full border border-yellow-400 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-yellow-400 focus:outline-none" />
                       </div>
                     </div>
                   </div>
 
-                  <!-- Lista de segmentos -->
-                  <div class="border-2 border-dashed rounded-lg p-1.5 bg-white overflow-y-auto flex-1"
+                  <!-- Lista de segmentos en ruta -->
+                  <div
+                    class="border-2 border-dashed rounded-lg p-1.5 bg-white overflow-y-auto flex-1 scrollbar-thin scrollbar-thumb-blue-300 scrollbar-track-transparent"
                     :class="dragOverRuta ? 'border-blue-500 bg-blue-50' : 'border-blue-300'"
                     @dragover.prevent="dragOverRuta = true" @dragleave.prevent="dragOverRuta = false"
                     @drop.prevent="dropSegmentoEnRuta">
                     <div v-for="(segmento, idx) in segmentosRuta" :key="segmento._tempId" draggable="true"
                       @dragstart="iniciarDragSegmento(segmento, 'ruta')" @dragend="finalizarDrag"
                       @dragover.prevent="setDragToIndex(idx)" @drop.prevent="dropSobreSegmento(idx)"
-                      @click="seleccionarSegmento(segmento)"
-                      class="p-1.5 mb-1 rounded cursor-move transition-all border-l-4 text-xs" :class="isSelected(segmento)
-                        ? 'bg-blue-200 border-blue-600 shadow-md'
-                        : 'bg-blue-100 border-blue-400 hover:bg-blue-150 hover:shadow-sm'">
+                      @click="() => { seleccionarSegmento(segmento); centrarEnSegmento(segmento); }"
+                      class="p-1 mb-1 rounded cursor-move transition-all border-l-4 text-xs"
+                      :class="isSelected(segmento) ? 'bg-blue-200 border-blue-600 shadow-md' : 'bg-blue-100 border-blue-400 hover:bg-blue-150 hover:shadow-sm'">
                       <div class="flex items-center justify-between">
                         <div class="flex items-center">
                           <i class="fas fa-grip-vertical text-blue-600 mr-1 text-xs"></i>
                           <span class="font-semibold mr-1">{{ idx + 1 }}.</span>
                           <span>{{ segmento.nombre }}</span>
                         </div>
-                        <span v-if="segmento.velocidad" class="text-[11px] text-blue-700">{{ segmento.velocidad }}
+                        <span v-if="segmento.velocidad" class="text-[10px] text-blue-700">{{ segmento.velocidad }}
                           km/h</span>
                       </div>
                     </div>
                   </div>
-                </div>
 
-                <!-- Controles -->
-                <div
-                  class="lg:col-span-4 bg-purple-50 rounded-xl border border-purple-200 flex flex-col justify-between p-3 shadow-sm overflow-hidden"
-                  style="height: 11cm">
-                  <h3 class="font-semibold text-center flex items-center justify-center mb-2 text-sm flex-shrink-0">
-                    <i class="fas fa-sliders-h mr-1 text-purple-600"></i>Controles
-                  </h3>
-
-                  <!-- Botones -->
-                  <div class="flex flex-col flex-1 justify-start space-y-2 overflow-y-auto">
-                    <div class="border-t border-gray-300 pt-2"></div>
-
-                    <button @click="moverArribaSeleccionado"
-                      :disabled="!segmentoSeleccionado || indiceSeleccionado === 0" type="button"
-                      class="w-full py-1.5 rounded bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white text-xs font-semibold transition-all">
-                      <i class="fas fa-arrow-up mr-1"></i>Arriba
-                    </button>
-
-                    <button @click="moverAbajoSeleccionado"
-                      :disabled="!segmentoSeleccionado || indiceSeleccionado === segmentosRuta.length - 1" type="button"
-                      class="w-full py-1.5 rounded bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white text-xs font-semibold transition-all">
-                      <i class="fas fa-arrow-down mr-1"></i>Abajo
-                    </button>
-
-                    <div class="border-t border-gray-300 pt-2"></div>
-
-                    <button @click="eliminarSeleccionado" :disabled="!segmentoSeleccionado" type="button"
-                      class="w-full py-1.5 rounded bg-red-500 hover:bg-red-600 disabled:bg-gray-300 text-white text-xs font-semibold transition-all">
-                      <i class="fas fa-trash mr-1"></i>Eliminar
-                    </button>
-
-                    <div class="border-t border-gray-300 pt-2"></div>
-
-                    <button @click="limpiarSegmentos" :disabled="segmentosRuta.length === 0" type="button"
-                      class="w-full py-1.5 rounded bg-yellow-500 hover:bg-yellow-600 disabled:bg-gray-300 text-white text-xs font-semibold transition-all">
-                      <i class="fas fa-broom mr-1"></i>Limpiar
-                    </button>
-                  </div>
-
-                  <!-- Validaciones -->
-                  <div class="border-t border-gray-300 mt-3 pt-2 flex-shrink-0">
-                    <h4 class="text-xs font-semibold text-gray-700 mb-1">
-                      <i class="fas fa-check-circle text-green-600 mr-1"></i>Validaciones
-                    </h4>
-
-                    <div class="text-xs space-y-1">
+                  <!-- Botones y validaciones -->
+                  <div class="mt-2 flex flex-col gap-2">
+                    <div class="flex gap-2">
+                      <button @click="eliminarSeleccionado" :disabled="!segmentoSeleccionado"
+                        class="flex-1 py-1.5 rounded bg-red-500 hover:bg-red-600 disabled:bg-gray-300 text-white text-xs font-semibold transition-all">
+                        <i class="fas fa-trash mr-1"></i>Eliminar
+                      </button>
+                      <button @click="limpiarSegmentos" :disabled="segmentosRuta.length === 0"
+                        class="flex-1 py-1.5 rounded bg-yellow-500 hover:bg-yellow-600 disabled:bg-gray-300 text-white text-xs font-semibold transition-all">
+                        <i class="fas fa-broom mr-1"></i>Limpiar
+                      </button>
+                    </div>
+                    <div class="border-t border-gray-300 pt-1 text-xs space-y-1">
                       <div
                         v-if="segmentoSeleccionado && (!segmentoSeleccionado.mensaje || !segmentoSeleccionado.velocidad)"
-                        class="p-1.5 rounded-lg bg-yellow-100 border border-yellow-300 text-yellow-800">
+                        class="p-1 rounded-lg bg-yellow-100 border border-yellow-300 text-yellow-800">
                         ⚠ Completa los campos
                       </div>
-
                       <div v-else-if="segmentoSeleccionado"
-                        class="p-1.5 rounded-lg bg-green-100 border border-green-300 text-green-800">
+                        class="p-1 rounded-lg bg-green-100 border border-green-300 text-green-800">
                         ✓ Segmento completo
-                      </div>
-
-                      <div v-if="segmentosRuta.length > 0"
-                        class="p-1.5 rounded-lg bg-blue-100 border border-blue-300 text-blue-700">
-                        Segmentos en ruta:
-                        <strong>{{ segmentosRuta.length }}</strong>
-                      </div>
-
-                      <div v-else class="p-1.5 rounded-lg bg-gray-100 border border-gray-300 text-gray-600">
-                        No hay segmentos
                       </div>
                     </div>
                   </div>
+
                 </div>
               </div>
+
             </div>
 
-            <!-- Panel derecho (mapa) -->
-            <div class="flex flex-col w-[40%] bg-gray-50 px-6 py-6 space-y-4">
-              <h3
-                class="font-semibold text-center text-sm flex items-center justify-center text-gray-700 flex-shrink-0">
-                <i class="fas fa-map-marked-alt mr-2 text-blue-600"></i>Vista de la Ruta
-              </h3>
+            <!-- Panel derecho: Mapa -->
+            <div class="lg:w-1/2 p-3 flex flex-col">
+              <div class="flex flex-col items-center mb-3">
+                <h3 class="font-semibold text-center text-base flex items-center justify-center text-gray-700 mb-1">
+                  <i class="fas fa-map-marked-alt mr-2 text-blue-600 text-lg"></i>
+                  Vista de la Ruta
+                </h3>
+                <div class="w-2/3 border-t-2 border-blue-400"></div>
+              </div>
+              <LMap ref="mapaRef" :zoom="zoom" :center="center"
+                style="height: calc(100% - 40px); width: 100%; border-radius: 12px; overflow: hidden;">
 
-              <div class="border-t border-gray-300"></div>
+                <!-- Capa de Google Maps -->
+                <LTileLayer :url="'https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}'"
+                  :subdomains="['mt0', 'mt1', 'mt2', 'mt3']" :attribution="'© Google'" />
 
-              <l-map :zoom="zoom" :center="center">
-                <l-tile-layer :url="url" :attribution="attribution" :subdomains="subdomains" />
+                <!-- Polígonos y markers de segmentos -->
+                <template v-for="segmento in segmentosRuta" :key="segmento.id || segmento._tempId">
+                  <LPolygon v-if="segmento.cordenadas?.length" :lat-lngs="segmento.cordenadas.map(c => [c.y, c.x])"
+                    :color="segmento.color || 'blue'" :fill-color="convertirColorConAlpha(segmento.color || '#0000ff')"
+                    :fill-opacity="50" />
 
-                <template v-for="segmento in segmentosRuta" :key="segmento._tempId">
-                  <l-polygon v-if="segmento.cordenadas?.length" :lat-lngs="segmento.cordenadas.map(c => [c.y, c.x])"
-                    :color="segmento.color || 'blue'" :fill-color="segmento.color ? segmento.color + '55' : '#0000ff55'"
-                    :fill-opacity="0.5" />
-
+                  <LMarker v-if="segmento.cordenadas?.length" :lat-lng="calcularCentro(segmento.cordenadas)"
+                    :icon="crearCardIcon(segmento.nombre)" />
                 </template>
-              </l-map>
+              </LMap>
 
             </div>
+
           </div>
 
           <!-- Footer -->
-          <div v-if="!cargandoFormulario"
-            class="border-t bg-gray-50 px-6 py-4 flex flex-col md:flex-row justify-end gap-3 flex-shrink-0">
+          <div class="border-t bg-gray-50 px-6 py-4 flex flex-col md:flex-row justify-end gap-3">
             <button @click="cerrarFormulario" type="button"
-              class="px-6 py-2 border rounded-lg hover:bg-gray-100 transition-all font-medium w-full md:w-auto">
+              class="px-6 py-2 border rounded-lg hover:bg-gray-100 transition-all font-medium w-full md:w-auto text-sm">
               <i class="fas fa-times mr-1"></i>Cancelar
             </button>
             <button @click="guardarRuta()" type="button"
-              class="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-all font-medium shadow-md hover:shadow-lg w-full md:w-auto flex items-center justify-center gap-2">
-              <template v-if="cargandoFormulario">
-                <div class="animate-spin rounded-full h-5 w-5 border-t-2 border-white border-solid"></div>
-                Guardando...
-              </template>
-              <template v-else>
-                <i class="fas fa-save mr-1"></i> Guardar Ruta
-              </template>
+              class="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-all font-medium shadow-md hover:shadow-lg w-full md:w-auto flex items-center justify-center gap-2 text-sm">
+              <i class="fas fa-save mr-1"></i> Guardar Ruta
             </button>
           </div>
+
         </div>
       </div>
     </transition>
+
+
+
+
+
+
 
   </div>
 </template>
@@ -532,8 +481,14 @@ import { ref, reactive, computed, watch, onMounted, nextTick, onUnmounted } from
 import axios from "axios";
 import Header from "@/pages/Header.vue";
 import Swal from "sweetalert2";
-import { LMap, LTileLayer, LMarker, LPolygon   } from "@vue-leaflet/vue-leaflet";
-import 'leaflet/dist/leaflet.css';
+// imports
+import { LMap, LTileLayer, LMarker, LPolygon } from '@vue-leaflet/vue-leaflet';
+
+import type { LeafletMap } from "vue2-leaflet"; // o "vue3-leaflet" si usas Vue 3
+import type { Map as LeafletInstance } from "leaflet";
+import "leaflet/dist/leaflet.css";
+
+
 
 interface Punto {
   x: number; // longitud
@@ -596,16 +551,19 @@ const registroExpandido = ref<number | null>(null);
 const formularioSegmentoAbierto = ref(false);
 const cargandoFormulario = ref(false);
 const logoInput = ref<HTMLInputElement | null>(null);
+const todosSegmentos = ref<Segmento[]>([]);
 
 
 
 //MAPA
-const url = 'https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}'
-const subdomains = ['mt0', 'mt1', 'mt2', 'mt3']
-const attribution = '© OpenStreetMap contributors'
-const zoom = 15
-const center = [-12.0464, -77.0428] // Lima
-const markerLatLng = [-12.0464, -77.0428]
+// Configuración del mapa
+const url = 'https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}'; // 'm' = mapa normal
+const subdomains = ['mt0', 'mt1', 'mt2', 'mt3']; // subdominios de Google
+const attribution = '© Google';
+const zoom = ref(13);
+const center = ref<[number, number]>([-12.0555785, -76.9816634]);
+const markerLatLng = [-12.0464, -77.0428];
+
 
 
 // Generar anchos aleatorios
@@ -635,9 +593,32 @@ const dragOverRuta = ref(false);
 const draggedSegment = ref<Segmento | null>(null);
 const dragOrigen = ref<DragOrigen>(null);
 const dragToIndex = ref<number | null>(null);
+let tempIdCounter = 0;
 
-function generarTempId(): string {
-  return (Date.now() + Math.random()).toString(36); // string único
+
+const mapaRef = ref(null);
+
+const actualizarMapa = async () => {
+  await nextTick();
+  if (mapaRef.value && mapaRef.value.leafletObject) {
+    mapaRef.value.leafletObject.invalidateSize();
+    console.log("✅ Mapa actualizado correctamente");
+  } else {
+    console.warn("⚠️ No se encontró instancia del mapa para actualizar");
+  }
+};
+
+watch(() => formularioSegmentoAbierto.value, (nuevoValor) => {
+  if (nuevoValor) {
+    setTimeout(actualizarMapa, 400);
+  }
+});
+
+
+
+function generarTempId() {
+  tempIdCounter++;
+  return `segmento_${Date.now()}_${tempIdCounter}`;
 }
 
 
@@ -677,21 +658,18 @@ async function cargarSegmentos() {
 
     // Intentamos obtener el array de segmentos
     let arr: Segmento[] = [];
-    if (Array.isArray(data)) {
-      arr = data;
-    } else if (Array.isArray(data.data)) {
-      arr = data.data;
-    } else if (Array.isArray(data.segmentos)) {
-      arr = data.segmentos;
-    }
+    if (Array.isArray(data)) arr = data;
+    else if (Array.isArray(data.data)) arr = data.data;
+    else if (Array.isArray(data.segmentos)) arr = data.segmentos;
 
-    // Si no hay segmentos, mostramos mensaje
     if (arr.length === 0) {
       errorCarga.value = "No se encontraron segmentos";
       console.warn("⚠️ No hay segmentos disponibles");
+      todosSegmentos.value = [];
       segmentosDisponibles.value = [];
       return;
     }
+
 
     // Función para obtener un ID válido
     function obtenerId(seg: Segmento): number | undefined {
@@ -703,19 +681,23 @@ async function cargarSegmentos() {
       return undefined;
     }
 
-    // Filtramos los segmentos válidos y asignamos ID
-    const segmentosConId = arr.filter(seg => {
-      const id = obtenerId(seg);
-      if (!id) console.warn("Segmento sin ID válido:", seg);
-      else seg.id = id;
-      return !!id;
-    });
+    // Filtramos segmentos válidos y asignamos ID
+    const segmentosConId = arr
+      .filter(seg => {
+        const id = obtenerId(seg);
+        if (!id) console.warn("Segmento sin ID válido:", seg);
+        else seg.id = id;
+        return !!id;
+      })
+      .map(s => ({ ...s, _tempId: generarTempId() })); // asignamos _tempId
 
-    // Asignamos _tempId y guardamos en la lista disponible
-    segmentosDisponibles.value = segmentosConId.map(s => asignarTempId({ ...s }));
+    // Guardamos como lista maestra
+    todosSegmentos.value = segmentosConId;
 
-    console.log("Segmentos cargados:", segmentosDisponibles.value);
+    // Inicializamos la lista de disponibles considerando los que ya están en la ruta
+    resetearSegmentosDisponibles();
 
+    console.log("Segmentos cargados:", todosSegmentos.value);
   } catch (error: any) {
     if (error.code === 'ECONNABORTED') {
       errorCarga.value = "Timeout: El servidor tardó demasiado en responder";
@@ -725,68 +707,55 @@ async function cargarSegmentos() {
       errorCarga.value = `Error: ${error.message}`;
     }
 
+    todosSegmentos.value = [];
     segmentosDisponibles.value = [];
     alert(`Error al cargar los segmentos: ${errorCarga.value}`);
-
   } finally {
     cargando.value = false;
   }
 }
+
+// Recalcular los segmentos disponibles según los que ya están en la ruta
+function resetearSegmentosDisponibles() {
+  // IDs de los segmentos que ya están en la ruta (precargados o agregados)
+  const idsEnRuta = new Set([
+    ...segmentosRuta.value.map((s: Segmento) => s.id),
+    ...(nuevaRuta.segmentos?.map((s: Segmento) => s.id) || [])
+  ]);
+
+  // Filtrar todos los segmentos para mostrar solo los disponibles
+  segmentosDisponibles.value = todosSegmentos.value
+    .filter((s: Segmento) => !idsEnRuta.has(s.id))
+    .map(s => ({ ...s, _tempId: generarTempId() }));
+}
+
+
 
 async function cargarRutas() {
   cargando.value = true;
   errorCarga.value = "";
+  rutas.value = [];
+
+  const inicio = performance.now(); // ⏱ inicio
 
   try {
-    const { data } = await axios.get("http://localhost:8000/api/rutas", { timeout: 10000 });
+    const { data } = await axios.get("http://localhost:8000/api/rutas");
 
-    // Determinar el arreglo de rutas de forma más limpia
-    const arr: Ruta[] = Array.isArray(data)
-      ? data
-      : Array.isArray(data.data)
-        ? data.data
-        : Array.isArray(data.rutas)
-          ? data.rutas
-          : [];
+    // tu lógica...
+    const arr = Array.isArray(data) ? data : data.data || data.rutas || [];
+    rutas.value = arr.map(r => ({ ...r }));
 
-    rutas.value = arr.map(r => {
-      const idRuta = r.id || r.codRuta || r.codruta || r.codigo || r.cod_ruta;
-
-      const segmentos: Segmento[] = (r.detalles ?? [])
-        .filter((d: DetalleRuta) => d.segmento_codsegmento)
-        .map((d: DetalleRuta) => ({
-          id: d.segmento_codsegmento,
-          mensaje: d.mensaje ?? "",
-          velocidad: Number(d.velocidadPermitida) || 0,
-          _tempId: generarTempId()
-        }));
-      return {
-        ...r,
-        id: idRuta,
-        mostrarSegmentos: false,
-        segmentos
-      };
-    });
-
-  } catch (error: any) {
-    console.error("Error al cargar las rutas:", error);
-
-    if (error.code === 'ECONNABORTED') {
-      errorCarga.value = "Timeout al cargar rutas";
-    } else if (error.message === 'Network Error') {
-      errorCarga.value = "Error de red al cargar rutas";
-    } else {
-      errorCarga.value = error.message;
-    }
-
-    rutas.value = [];
-    // Si quieres mantener la alerta, pero considera reemplazarlo con un toast o snackbar
-    alert(`Error al cargar las rutas: ${errorCarga.value}`);
-
+  } catch (error) {
+    console.error("Error al cargar rutas:", error);
   } finally {
+    const fin = performance.now(); // ⏱ fin
+    const duracion = (fin - inicio) / 1000; // en segundos
+    console.log(`⏳ cargarRutas() tardó ${duracion.toFixed(2)} segundos`);
     cargando.value = false;
   }
 }
+
+
 
 const indiceSeleccionado = computed(() => {
   const seleccionado = segmentoSeleccionado.value;
@@ -861,6 +830,9 @@ onMounted(async () => {
     await cargarSegmentos();
     await cargarRutas();
     calcularRegistrosPorPantalla();
+
+
+
     window.addEventListener('resize', calcularRegistrosPorPantalla);
   } catch (error) {
     console.error("Error en la carga inicial:", error);
@@ -886,7 +858,12 @@ async function abrirFormulario() {
 
 function cerrarFormulario() {
   formularioSegmentoAbierto.value = false;
+
+  // Limpiar formulario y ruta
   limpiarFormulario();
+
+  // Restaurar todos los segmentos disponibles después de limpiar
+  resetearSegmentosDisponibles();
 }
 
 function limpiarFormulario() {
@@ -1104,49 +1081,27 @@ async function editarRuta(id?: number) {
   await nextTick();
 
   try {
-    const [rutaResp, segmentosResp] = await Promise.all([
-      axios.get(`http://localhost:8000/api/rutas/${id}`),
-      axios.get("http://localhost:8000/api/segmentos"),
-    ]);
-
+    const rutaResp = await axios.get(`http://localhost:8000/api/rutasid/${id}`);
     const ruta = rutaResp.data;
-    const segmentosAPI = Array.isArray(segmentosResp.data)
-      ? segmentosResp.data
-      : segmentosResp.data.segmentos ?? [];
 
     if (!ruta) {
       alert("No se encontró la ruta");
       return;
     }
 
-    const segmentosMap = new Map<number, string>();
-    for (const s of segmentosAPI) {
-      const segId = s.codsegmento ?? s.id;
-      if (segId) {
-        segmentosMap.set(segId, s.nombre);
-      }
-    }
-
     const tipoSeleccionado =
       ruta.tipo === "G" ? "General" : ruta.tipo === "V" ? "Vuelta" : "Otro";
 
-    const detallesRuta = ruta.detalles_ruta ?? ruta.detallesRuta ?? [];
-    const segmentos: Segmento[] = detallesRuta
-      .map((d: any) => {
-        const segId = d.segmento_codsegmento ?? d.codsegmento ?? d.id;
-        if (!segId) {
-          console.warn("Segmento sin ID detectado:", d);
-          return null;
-        }
-        return {
-          id: segId,
-          nombre: segmentosMap.get(segId) ?? d.nombre ?? `Segmento ${segId}`,
-          mensaje: d.mensaje ?? "",
-          velocidad: Number(d.velocidadPermitida) || 0,
-          _tempId: generarTempId(),
-        };
-      })
-      .filter((s: Segmento | null): s is Segmento => s !== null);
+    const detallesRuta = ruta.detalles_ruta ?? [];
+    const segmentos: Segmento[] = detallesRuta.map((d: any) => ({
+      id: d.id ?? d.segmento_codsegmento,
+      nombre: d.nombre ?? `Segmento ${d.id ?? d.segmento_codsegmento}`,
+      color: d.color ?? "#cccccc",
+      mensaje: d.mensaje ?? "",
+      velocidad: Number(d.velocidadPermitida) || 0,
+      _tempId: generarTempId(),
+      cordenadas: Array.isArray(d.cordenadas) ? d.cordenadas : [], // siempre array
+    }));
 
     const icono = ruta.icono ?? "";
     const logoPreviewUrl = icono
@@ -1156,29 +1111,20 @@ async function editarRuta(id?: number) {
       : "";
 
     Object.assign(nuevaRuta, {
-      id: ruta.codruta ?? ruta.id,
+      id: ruta.id ?? ruta.codruta,
       nombre: ruta.nombre ?? "",
       tipo: tipoSeleccionado,
-      color: ruta.color ?? "",
+      color: "",
       logo: icono,
       logoPreview: logoPreviewUrl,
       limite: Number(ruta.limiteGeneral) || 0,
       segmentos,
     });
 
-    const idsEnRuta = new Set(segmentos.map((s) => s.id));
+    // Asignar segmentos a la vista
     segmentosRuta.value = segmentos;
-
-    const segmentosDisponiblesFiltered = segmentosAPI.filter((s: any) => {
-      const segId = s.codsegmento ?? s.id;
-      if (!segId) {
-        console.warn("Segmento disponible sin ID:", s);
-        return false;
-      }
-      return !idsEnRuta.has(segId);
-    });
-
-    segmentosDisponibles.value = segmentosDisponiblesFiltered;
+    resetearSegmentosDisponibles();
+    setTimeout(actualizarMapa, 300);
 
     console.log("Ruta lista para edición:", nuevaRuta);
   } catch (error: any) {
@@ -1188,6 +1134,8 @@ async function editarRuta(id?: number) {
     cargandoFormulario.value = false;
   }
 }
+
+
 
 async function confirmarAccionRuta(id?: number) {
   if (!id || id <= 0) {
@@ -1199,81 +1147,53 @@ async function confirmarAccionRuta(id?: number) {
     return;
   }
 
-  // Mostrar un modal de carga inmediatamente
-  Swal.fire({
-    title: 'Cargando ruta...',
-    allowOutsideClick: false,
-    didOpen: () => Swal.showLoading(),
+  // Preguntar al usuario si quiere duplicar o crear la ruta de regreso
+  const resultado = await Swal.fire({
+    title: "¿Qué deseas hacer con esta ruta?",
+    text: "Puedes duplicarla igual o crear la versión de regreso (segmentos invertidos).",
+    icon: "question",
+    showDenyButton: true,
+    showCancelButton: true,
+    confirmButtonText: "Duplicar igual",
+    denyButtonText: "Ruta de regreso",
+    cancelButtonText: "Cancelar",
+    reverseButtons: true,
+    confirmButtonColor: "#2563eb",
+    denyButtonColor: "#10b981",
+    cancelButtonColor: "#6b7280",
   });
 
-  try {
-    const { data: ruta } = await axios.get(`http://localhost:8000/api/rutas/${id}`, { timeout: 10000 });
-
-    Swal.close(); // cerrar modal de carga
-
-    if (!ruta || !ruta.nombre) throw new Error("La ruta no tiene datos válidos");
-
-    const detalles = ruta.detalles || ruta.detalles_ruta || [];
-    if (detalles.length === 0) {
-      await Swal.fire({
-        icon: "warning",
-        title: "Ruta vacía",
-        text: "Esta ruta no tiene segmentos para duplicar",
-      });
-      return;
-    }
-
-    // Ahora mostrar el modal de confirmación
-    const resultado = await Swal.fire({
-      title: `¿Qué deseas hacer con la ruta "${ruta.nombre}"?`,
-      text: "Puedes duplicarla igual o crear la versión de regreso (segmentos invertidos).",
-      icon: "question",
-      showDenyButton: true,
-      showCancelButton: true,
-      confirmButtonText: "Duplicar igual",
-      denyButtonText: "Ruta de regreso",
-      cancelButtonText: "Cancelar",
-      reverseButtons: true,
-      confirmButtonColor: "#2563eb",
-      denyButtonColor: "#10b981",
-      cancelButtonColor: "#6b7280",
-    });
-
-    if (resultado.isConfirmed) await duplicarRuta(ruta, false);
-    else if (resultado.isDenied) await duplicarRuta(ruta, true);
-
-  } catch (error: any) {
-    Swal.close(); // cerrar modal de carga si falla
-    await Swal.fire({
-      icon: "error",
-      title: "Error al obtener la ruta",
-      text: error.message || "No se pudo cargar la ruta",
-    });
-  }
+  if (resultado.isConfirmed) await duplicarRuta(id, false);
+  else if (resultado.isDenied) await duplicarRuta(id, true);
 }
 
+async function duplicarRuta(rutaId: number, invertida = false): Promise<any> {
+  if (!rutaId || rutaId <= 0) {
+    await Swal.fire({
+      icon: "error",
+      title: "Error",
+      text: "El ID de la ruta no es válido",
+    });
+    return;
+  }
 
-async function duplicarRuta(ruta: any, invertida = false): Promise<any> {
   Swal.fire({
-    title: invertida ? 'Creando ruta de regreso...' : 'Duplicando ruta...',
+    title: invertida ? "Creando ruta de regreso..." : "Duplicando ruta...",
     allowOutsideClick: false,
     didOpen: () => Swal.showLoading(),
   });
 
   try {
-    const rutaId = ruta?.id || ruta?.codruta;
-    if (!rutaId) throw new Error("La ruta no tiene un ID válido.");
+    // Obtener la ruta completa desde la API
+    const { data: ruta } = await axios.get(`http://localhost:8000/api/rutasid/${rutaId}`, { timeout: 10000 });
 
-    let detalles = ruta.detalles || ruta.detalles_ruta;
-    if (!Array.isArray(detalles) || detalles.length === 0) {
-      const { data } = await axios.get(`http://localhost:8000/api/rutas/${rutaId}`);
-      detalles = data?.detallesRuta || [];
-    }
+    if (!ruta || !ruta.nombre) throw new Error("No se encontró la ruta o no tiene datos válidos");
 
+    const detalles = ruta.detalles || ruta.detalles_ruta;
     if (!Array.isArray(detalles) || detalles.length === 0) throw new Error("La ruta no tiene segmentos para duplicar.");
 
+    // Procesar segmentos
     const segmentosProcesados = invertida ? [...detalles].reverse() : [...detalles];
-
     const nuevoNombre = invertida ? `${ruta.nombre} (Vuelta)` : `${ruta.nombre} (Copia)`;
 
     const detallesData = segmentosProcesados.map((s: any, i: number) => ({
@@ -1283,6 +1203,7 @@ async function duplicarRuta(ruta: any, invertida = false): Promise<any> {
       orden: i + 1
     }));
 
+    // Datos para crear la nueva ruta
     const datosRuta = {
       nombre: nuevoNombre,
       tipo: invertida ? "V" : (ruta.tipo || "G"),
@@ -1297,16 +1218,13 @@ async function duplicarRuta(ruta: any, invertida = false): Promise<any> {
       { headers: { "Content-Type": "application/json" } }
     );
 
-    // Agregar la nueva ruta al array de rutas
+    // Actualizar lista de rutas
     rutas.value.push(rutaGuardada);
     await cargarRutas();
-    Swal.close();
 
     await Swal.fire({
       icon: "success",
-      title: invertida
-        ? "Ruta de regreso creada correctamente"
-        : "Ruta duplicada correctamente",
+      title: invertida ? "Ruta de regreso creada correctamente" : "Ruta duplicada correctamente",
       text: `"${nuevoNombre}" ha sido guardada exitosamente.`,
       confirmButtonText: "Aceptar"
     });
@@ -1314,8 +1232,6 @@ async function duplicarRuta(ruta: any, invertida = false): Promise<any> {
     return rutaGuardada;
 
   } catch (error: any) {
-    Swal.close();
-
     const mensaje =
       error.response?.data?.message ||
       error.response?.data?.error ||
@@ -1330,8 +1246,12 @@ async function duplicarRuta(ruta: any, invertida = false): Promise<any> {
     });
 
     throw error;
+  } finally {
+    Swal.close(); // siempre cerrar modal de carga
   }
 }
+
+
 
 
 async function eliminarRuta(id?: number) {
@@ -1387,7 +1307,7 @@ async function eliminarRuta(id?: number) {
 }
 
 
-function toggleSegmentos(ruta: Ruta) {
+async function toggleSegmentos(ruta: Ruta) {
   // Si la ruta ya estaba expandida, la cerramos
   if (registroExpandido.value === ruta.id) {
     registroExpandido.value = null;
@@ -1396,18 +1316,33 @@ function toggleSegmentos(ruta: Ruta) {
   }
 
   // Cerramos otras rutas
-  rutas.value.forEach(r => r.mostrarSegmentos = r.id === ruta.id ? true : false);
+  rutas.value.forEach(r => r.mostrarSegmentos = false);
 
   // Abrimos la ruta actual
   ruta.mostrarSegmentos = true;
   registroExpandido.value = ruta.id ?? null;
 
-  // Aseguramos que cada segmento tenga un _tempId
-  if (ruta.segmentos?.length) {
-    ruta.segmentos = ruta.segmentos.map(segmento => ({
+  // Si ya tiene segmentos cargados, no volvemos a pedirlos
+  if (ruta.segmentos && ruta.segmentos.length > 0) return;
+
+  // Mostrar skeleton
+  ruta.segmentosCargando = true;
+
+  try {
+    // Simulamos una consulta a la API (reemplaza por tu endpoint real)
+    const respuesta = await fetch(`/api/rutas/${ruta.id}`);
+    const data = await respuesta.json();
+
+    // Procesamos los segmentos recibidos
+    ruta.segmentos = data.map((segmento: any) => ({
       ...segmento,
-      _tempId: segmento._tempId ?? generarTempId()
+      _tempId: generarTempId()
     }));
+  } catch (error) {
+    console.error('Error cargando segmentos:', error);
+    ruta.segmentos = [];
+  } finally {
+    ruta.segmentosCargando = false;
   }
 }
 
@@ -1508,7 +1443,82 @@ function allowDrop(event: DragEvent) {
             MAPA
 ============================ */
 
+function calcularCentro(cordenadas: { x: number; y: number }[]) {
+  const latitudes = cordenadas.map(c => c.y);
+  const longitudes = cordenadas.map(c => c.x);
+  const lat = latitudes.reduce((a, b) => a + b, 0) / latitudes.length;
+  const lng = longitudes.reduce((a, b) => a + b, 0) / longitudes.length;
+  return [lat, lng] as [number, number];
+}
 
+// Crear un icono tipo “card” para la etiqueta permanente
+function crearCardIcon(nombre: string) {
+  return L.divIcon({
+    className: 'segment-card',
+    html: `
+      <div style="
+        background-color: white;
+        border: 1px solid #888;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: bold;
+        text-align: center;
+        white-space: nowrap;
+      ">
+        ${nombre}
+      </div>
+    `,
+    iconSize: [80, 30],
+    iconAnchor: [40, 15], // centra el icono sobre el punto
+  });
+}
+
+const convertirColorConAlpha = (hex: string, alpha: number = 0.33): string => {
+  const cleanHex = hex.replace("#", "");
+  const bigint = parseInt(cleanHex, 16);
+  const r = (bigint >> 16) & 255;
+  const g = (bigint >> 8) & 255;
+  const b = bigint & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+};
+
+const centrarEnSegmento = (segmento) => {
+  const mapa = mapaRef.value?.leafletObject;
+  if (!mapa) {
+    console.warn("⚠️ No se encontró la referencia del mapa.");
+    return;
+  }
+
+  if (!segmento || !Array.isArray(segmento.cordenadas) || segmento.cordenadas.length === 0) {
+    console.warn("⚠️ El segmento no tiene coordenadas válidas.");
+    return;
+  }
+
+  try {
+    // Convertir coordenadas (asegurarse que vengan como números válidos)
+    const latLngs = segmento.cordenadas
+      .map(c => [parseFloat(c.y), parseFloat(c.x)])
+      .filter(([lat, lng]) => !isNaN(lat) && !isNaN(lng));
+
+    if (latLngs.length === 0) {
+      console.warn("⚠️ No hay coordenadas válidas para centrar el mapa.");
+      return;
+    }
+
+    const bounds = L.latLngBounds(latLngs);
+
+    // Centrar con animación suave
+    mapa.flyToBounds(bounds, {
+      padding: [60, 60],
+      duration: 1.2, // ligeramente más rápida
+      maxZoom: 16     // evita acercarse demasiado
+    });
+
+  } catch (err) {
+    console.error("❌ Error al centrar en el segmento:", err);
+  }
+};
 
 
 </script>
@@ -1662,5 +1672,70 @@ function allowDrop(event: DragEvent) {
   50% {
     opacity: 0.4;
   }
+}
+
+/* Clase principal del icono */
+.etiqueta-segmento {
+  pointer-events: none;
+  /* que no bloquee clicks en el mapa */
+  text-align: center;
+}
+
+/* Contenido de la etiqueta */
+.etiqueta-texto {
+  background-color: rgba(255, 255, 255, 0.9);
+  border: 1px solid #333;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 12px;
+  font-weight: bold;
+  white-space: nowrap;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.segmento-card .card-content {
+  background-color: white;
+  padding: 4px 8px;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  font-size: 12px;
+  text-align: center;
+  pointer-events: none;
+  /* para que no interfiera con el mapa */
+}
+
+.segmento-card {
+  background-color: white;
+  border-radius: 4px;
+  padding: 2px 6px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  font-weight: bold;
+  text-align: center;
+}
+
+
+.segment-card .card {
+  background-color: white;
+  padding: 4px 8px;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  text-align: center;
+  font-weight: bold;
+  white-space: nowrap;
+  pointer-events: none;
+  /* que no interfiera con el zoom o drag */
+}
+
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  min-height: 400px;
+}
+
+.map-wrapper {
+  width: 100%;
+  height: 100%;
+  min-height: 400px;
+  position: relative;
 }
 </style>

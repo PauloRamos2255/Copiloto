@@ -28,6 +28,7 @@ Route::middleware('auth:sanctum')->post('/logout', function (Request $request) {
 });
 Route::get('/rutas', [RutaController::class, 'index']);
 Route::get('/rutas/{id}', [RutaController::class, 'show']);
+Route::get('/rutasid/{id}', [RutaController::class, 'showID']);
 Route::post('/rutas', [RutaController::class, 'store']);
 Route::post('/duplicar', [RutaController::class, 'duplicar']);
 Route::put('/rutas/{id}', [RutaController::class, 'update']);

@@ -9,10 +9,7 @@ class Kernel extends ConsoleKernel
 {
     protected function schedule(Schedule $schedule)
     {
-        $schedule->command('app:sincronizar-segmentos')
-             ->everyMinute()        // 🔹 ahora se ejecuta cada minuto
-             ->withoutOverlapping() // 🔹 evita solapamiento si tarda mucho
-             ->runInBackground();   // 🔹 opcional: ejecuta en segundo plano
+        $schedule->command('app:sincronizar-segmentos')->everyThirtyMinutes();
     }
 
     protected function commands()
@@ -21,3 +18,4 @@ class Kernel extends ConsoleKernel
         require base_path('routes/console.php');
     }
 }
+

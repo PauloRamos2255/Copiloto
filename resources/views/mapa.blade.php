@@ -13,7 +13,7 @@
 
     <!-- Scripts de Vue -->
     <script src="{{ mix('js/app.js') }}"></script>
-    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAwIMAPTeuBV2TJghm-1VTnOVl4yi4Y3rE"></script>
+    
 
 </body>
 </html>

@@ -1,38 +1,28 @@
 <?php
-
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
-use App\Http\Controllers\Acceso\AuthController;
+use App\Http\Controllers\Api\UsuarioController;
 
-/*
-|--------------------------------------------------------------------------
-| Web Routes
-|--------------------------------------------------------------------------
-*/
-
-// 🔹 Página de login (acceso público)
 Route::get('/login', function () {
     return Inertia::render('Login');
 })->name('login');
 
-// 🔹 Acción de inicio de sesión
-Route::post('/acceso', [AuthController::class, 'acceso'])->name('acceso');
 
-// 🔹 Cierre de sesión (requiere autenticación)
-Route::post('/logout', [AuthController::class, 'logout'])
+Route::post('/acceso', [UsuarioController::class, 'login'])->name('acceso');
+
+Route::post('/logout', [UsuarioController::class, 'logout'])
     ->middleware('auth')
     ->name('logout');
 
-// 🔹 Rutas protegidas (solo usuarios autenticados)
 Route::middleware(['auth'])->group(function () {
-    Route::get('/dashboard', fn() => Inertia::render('Dashboard'))->name('dashboard');
-    Route::get('/zona', fn() => Inertia::render('ZonaComponent'))->name('zona');
-    Route::get('/mapa', fn() => Inertia::render('MapaComponent'))->name('mapa');
+    Route::get('/segmentos', fn() => Inertia::render('MapaComponent'))->name('mapa');
     Route::get('/listasegmento', fn() => Inertia::render('TablaSegmento'))->name('segmento');
     Route::get('/usuarios', fn() => Inertia::render('TablaUsuarios'))->name('usuarios');
     Route::get('/rutas', fn() => Inertia::render('Rutas'))->name('rutas');
+    Route::get('/empresa', fn() => Inertia::render('Empresa'))->name('empresa');
+    Route::get('/dashboard', fn() => Inertia::render('Dashboard'))->name('dashboard');
+    Route::get('/asignar', fn() => Inertia::render('AsignarRuta'))->name('asignar');
 });
 
-// 🔹 Catch-all 404 para cualquier ruta no definida
 Route::get('/{any}', fn() => Inertia::render('NotFound'))
     ->where('any', '.*');

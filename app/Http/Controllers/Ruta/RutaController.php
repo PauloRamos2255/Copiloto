@@ -104,56 +104,55 @@ class RutaController extends Controller
     }
 
 
-    public function showID($id)
-    {
-        // Obtener la ruta principal
-        $ruta = DB::table('ruta')
-            ->where('codruta', $id)
-            ->select('codruta', 'nombre', 'tipo', 'icono', 'limiteGeneral')
-            ->first();
+   public function showID($id)
+{
+    // Obtener la ruta principal
+    $ruta = DB::table('ruta')
+        ->where('codruta', $id)
+        ->select('codruta', 'nombre', 'tipo', 'icono', 'limiteGeneral')
+        ->first();
 
-        if (!$ruta) {
-            return response()->json(['error' => 'Ruta no encontrada'], 404);
-        }
-
-        // Obtener los detalles de la ruta con los segmentos asociados y su color
-        $detalles = DB::table('detalleRuta as d')
-            ->leftJoin('segmento as s', 'd.segmento_codsegmento', '=', 's.codsegmento')
-            ->where('d.ruta_codruta', $id)
-            ->select(
-                'd.id as detalle_id',
-                'd.segmento_codsegmento',
-                'd.mensaje',
-                'd.velocidadPermitida',
-                's.nombre as segmento_nombre',
-                's.color as segmento_color',
-                's.cordenadas' // <-- agregar aquí
-            )
-            ->get();
-
-
-        // Estructurar los detalles de la ruta
-        $detallesRuta = $detalles->map(function ($d) {
-            return [
-                'id' => $d->segmento_codsegmento,
-                'nombre' => $d->segmento_nombre ?? "Segmento {$d->segmento_codsegmento}",
-                'mensaje' => $d->mensaje ?? '',
-                'velocidadPermitida' => (float) ($d->velocidadPermitida ?? 0),
-                'color' => $d->segmento_color ?? '#ffffff',
-                'cordenadas' => json_decode($d->cordenadas) ?? [] // parsear JSON a array
-            ];
-        });
-
-        // Armar la respuesta final
-        return response()->json([
-            'id' => $ruta->codruta,
-            'nombre' => $ruta->nombre,
-            'tipo' => $ruta->tipo,
-            'icono' => $ruta->icono,
-            'limiteGeneral' => $ruta->limiteGeneral,
-            'detalles_ruta' => $detallesRuta,
-        ], 200);
+    if (!$ruta) {
+        return response()->json(['error' => 'Ruta no encontrada'], 404);
     }
+
+    // Obtener los detalles de la ruta con los segmentos asociados y su color
+    $detalles = DB::table('detalleRuta as d')
+        ->leftJoin('segmento as s', 'd.segmento_codsegmento', '=', 's.codsegmento')
+        ->where('d.ruta_codruta', $id)
+        ->select(
+            'd.iddetalleRuta as detalle_id', // corregido aquí
+            'd.segmento_codsegmento',
+            'd.mensaje',
+            'd.velocidadPermitida',
+            's.nombre as segmento_nombre',
+            's.color as segmento_color',
+            's.cordenadas'
+        )
+        ->get();
+
+    // Estructurar los detalles de la ruta
+    $detallesRuta = $detalles->map(function ($d) {
+        return [
+            'id' => $d->segmento_codsegmento,
+            'nombre' => $d->segmento_nombre ?? "Segmento {$d->segmento_codsegmento}",
+            'mensaje' => $d->mensaje ?? '',
+            'velocidadPermitida' => (float) ($d->velocidadPermitida ?? 0),
+            'color' => $d->segmento_color ?? '#ffffff',
+            'cordenadas' => json_decode($d->cordenadas) ?? []
+        ];
+    });
+
+    // Armar la respuesta final
+    return response()->json([
+        'id' => $ruta->codruta,
+        'nombre' => $ruta->nombre,
+        'tipo' => $ruta->tipo,
+        'icono' => $ruta->icono,
+        'limiteGeneral' => $ruta->limiteGeneral,
+        'detalles_ruta' => $detallesRuta,
+    ], 200);
+}
 
 
 

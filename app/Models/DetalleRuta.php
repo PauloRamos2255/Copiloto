@@ -8,7 +8,7 @@ class DetalleRuta extends Model
 {
     protected $table = 'detalleRuta';
     protected $primaryKey = 'iddetalleRuta';
-    public $timestamps = true; // Usa created_at y updated_at
+    public $timestamps = false; // Usa created_at y updated_at
 
     protected $fillable = [
         'ruta_codruta',

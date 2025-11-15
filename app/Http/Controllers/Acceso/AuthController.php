@@ -20,7 +20,7 @@ class AuthController extends Controller
     $user = Usuario::where('nombre', $request->nombre)->first();
 
     if (!$user || !Hash::check($request->clave, $user->clave)) {
-        return back()->withErrors(['nombre' => '❌ Credenciales incorrectas']);
+        return back()->withErrors(['nombre' => 'Credenciales incorrectas']);
     }
 
     Auth::login($user);
@@ -30,7 +30,6 @@ class AuthController extends Controller
         $user->save();
     }
 
-    // ✅ Redirigir con Inertia
     return redirect()->route('mapa');
 }
 
@@ -47,3 +46,5 @@ public function logout(Request $request)
     }
 
 }
+
+

@@ -14,7 +14,7 @@ class SincronizarSegmentos extends Command
 
     public function handle()
     {
-        $this->info("🚀 Iniciando sincronización de segmentos...");
+        $this->info("Iniciando sincronización de segmentos...");
 
         $host = env('WIALON_HOST');
         $itemId = env('WIALON_ITEM_ID');
@@ -22,10 +22,10 @@ class SincronizarSegmentos extends Command
         // Obtener SID
         $sidController = new WialonSidController();
         $sidData = $sidController->obtenerSid();
-        $sid = isset($sidData->getData()->sid) ? $sidData->getData()->sid : null;
+        $sid = $sidData->getData()->sid ?? null;
 
         if (!$sid) {
-            $this->error("❌ No se pudo obtener SID válido desde Wialon.");
+            $this->error("No se pudo obtener SID válido desde Wialon.");
             return 1;
         }
 
@@ -35,19 +35,19 @@ class SincronizarSegmentos extends Command
         $response = Http::withOptions(['verify' => false])->get($url);
 
         if ($response->failed()) {
-            $this->error("❌ Error al obtener datos desde Wialon.");
+            $this->error("Error al obtener datos desde Wialon.");
             return 1;
         }
 
         $data = $response->json();
 
         if (!is_array($data) || isset($data['error'])) {
-            $this->error("⚠️ Error en la respuesta de la API: " . ($data['reason'] ?? 'Desconocido'));
+            $this->error("Error en la respuesta de la API: " . ($data['reason'] ?? 'Desconocido'));
             return 1;
         }
 
         if (empty($data)) {
-            $this->warn("⚠️ No se encontraron segmentos en la respuesta.");
+            $this->warn("No se encontraron segmentos en la respuesta.");
             return 0;
         }
 
@@ -55,7 +55,7 @@ class SincronizarSegmentos extends Command
 
         foreach ($data as $segmento) {
             if (!is_array($segmento) || !isset($segmento['id'])) {
-                $this->warn("⚠️ Segmento inválido detectado y omitido.");
+                $this->warn("Segmento inválido detectado y omitido.");
                 continue;
             }
 
@@ -65,17 +65,55 @@ class SincronizarSegmentos extends Command
                 ? sprintf("#%06X", $segmento['c'] & 0xFFFFFF)
                 : '#000000';
 
-            // Coordenadas
+            // Normalizar coordenadas manteniendo x, y, z
             $coordenadas = [];
-            if (isset($segmento['p']) && is_array($segmento['p'])) {
-                foreach ($segmento['p'] as $punto) {
+            $raw = $segmento['coordenadas'] ?? $segmento['cordenadas'] ?? $segmento['p'] ?? [];
+
+            // Si viene como string JSON
+            if (is_string($raw)) {
+                $decoded = json_decode($raw, true);
+                $raw = is_array($decoded) ? $decoded : [];
+            }
+
+            if (is_array($raw)) {
+                $seen = [];
+                foreach ($raw as $punto) {
+                    $x = $y = $z = null;
+
+                    // Formato {x, y, z?}
                     if (isset($punto['x'], $punto['y'])) {
-                        $coordenadas[] = [
-                            'lat' => (float) $punto['y'],
-                            'lng' => (float) $punto['x'],
-                        ];
+                        $x = (float)$punto['x'];
+                        $y = (float)$punto['y'];
+                        $z = isset($punto['z']) ? (float)$punto['z'] : null;
+                    }
+                    // Formato {lon, lat, z?}
+                    elseif (isset($punto['lon'], $punto['lat'])) {
+                        $x = (float)$punto['lon'];
+                        $y = (float)$punto['lat'];
+                        $z = isset($punto['z']) ? (float)$punto['z'] : null;
+                    }
+                    // Formato array [x, y, z?]
+                    elseif (is_array($punto) && count($punto) >= 2) {
+                        $x = (float)$punto[0];
+                        $y = (float)$punto[1];
+                        $z = isset($punto[2]) ? (float)$punto[2] : null;
+                    }
+
+                    if ($x !== null && $y !== null) {
+                        $key = $x . '-' . $y . '-' . $z;
+                        if (!isset($seen[$key])) {
+                            $seen[$key] = true;
+                            $coord = ['x' => $x, 'y' => $y];
+                            if ($z !== null) $coord['z'] = $z;
+                            $coordenadas[] = $coord;
+                        }
                     }
                 }
+            }
+
+            // Opcional: limitar número de coordenadas
+            if (count($coordenadas) > 5000) {
+                $coordenadas = array_slice($coordenadas, 0, 5000);
             }
 
             // Bounds
@@ -86,49 +124,40 @@ class SincronizarSegmentos extends Command
                 'max_y' => 0,
             ];
 
-            // Buscar si existe el registro
+            // Buscar o crear registro
             $registro = Segmento::find($id);
 
+            $campos = [
+                'codsegmento' => $id,
+                'nombre' => $nombre,
+                'color' => $color,
+                'cordenadas' => $coordenadas,
+                'bounds' => $bounds,
+            ];
+
             if (!$registro) {
-                Segmento::create([
-                    'codsegmento' => $id,
-                    'nombre' => $nombre,
-                    'color' => $color,
-                    'cordenadas' => $coordenadas,
-                    'bounds' => $bounds,
-                ]);
-                $this->info("🆕 Segmento '{$nombre}' creado.");
+                Segmento::create($campos);
+                $this->info("Segmento '{$nombre}' creado.");
                 continue;
             }
 
-            // Comparar campo por campo
-            $camposActualizados = [];
-
-            if ($registro->nombre !== $nombre) {
-                $camposActualizados['nombre'] = $nombre;
+            // Actualizar solo si hay cambios
+            $actualizar = [];
+            foreach (['nombre', 'color', 'cordenadas', 'bounds'] as $campo) {
+                if (json_encode($registro->$campo) !== json_encode($campos[$campo])) {
+                    $actualizar[$campo] = $campos[$campo];
+                }
             }
 
-            if ($registro->color !== $color) {
-                $camposActualizados['color'] = $color;
-            }
-
-            if (json_encode($registro->cordenadas) !== json_encode($coordenadas)) {
-                $camposActualizados['cordenadas'] = $coordenadas;
-            }
-
-            if (json_encode($registro->bounds) !== json_encode($bounds)) {
-                $camposActualizados['bounds'] = $bounds;
-            }
-
-            // Si hay cambios, se actualiza
-            if (!empty($camposActualizados)) {
-                $registro->update($camposActualizados);
-                $this->info("♻️ Segmento '{$nombre}' actualizado (".implode(', ', array_keys($camposActualizados)).").");
+            if (!empty($actualizar)) {
+                $registro->update($actualizar);
+                $this->info("Segmento '{$nombre}' actualizado (".implode(', ', array_keys($actualizar)).").");
             } else {
-                $this->line("✔️ Segmento '{$nombre}' sin cambios.");
+                $this->line("Segmento '{$nombre}' sin cambios.");
             }
         }
 
-        $this->info("✅ Sincronización completada con éxito.");
+        $this->info("Sincronización completada con éxito.");
+        return 0;
     }
 }

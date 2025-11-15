@@ -346,7 +346,7 @@
                     class="bg-yellow-50 rounded-lg p-2 mb-2 border border-yellow-300 flex flex-col gap-1 flex-shrink-0">
                     <div class="flex items-center justify-between mb-1">
                       <span class="text-xs font-semibold text-gray-700">✏ Editando: <span class="text-yellow-700">{{
-                          segmentoSeleccionado.nombre }}</span></span>
+                        segmentoSeleccionado.nombre }}</span></span>
                       <button @click="segmentoSeleccionado = null"
                         class="text-gray-600 hover:text-gray-800 text-xs p-1 rounded" type="button">
                         <i class="fas fa-times"></i>
@@ -406,11 +406,11 @@
                       <div
                         v-if="segmentoSeleccionado && (!segmentoSeleccionado.mensaje || !segmentoSeleccionado.velocidad)"
                         class="p-1 rounded-lg bg-yellow-100 border border-yellow-300 text-yellow-800">
-                        ⚠ Completa los campos
+                        Completa los campos
                       </div>
                       <div v-else-if="segmentoSeleccionado"
                         class="p-1 rounded-lg bg-green-100 border border-green-300 text-green-800">
-                        ✓ Segmento completo
+                        Segmento completo
                       </div>
                     </div>
                   </div>
@@ -485,7 +485,9 @@ import Swal from "sweetalert2";
 import { LMap, LTileLayer, LMarker, LPolygon } from '@vue-leaflet/vue-leaflet';
 
 import type { LeafletMap } from "vue2-leaflet"; // o "vue3-leaflet" si usas Vue 3
-import type { Map as LeafletInstance } from "leaflet";
+import type { Map as LeafletInstance } from "vue2-leaflet";
+import L from 'leaflet';
+
 import "leaflet/dist/leaflet.css";
 
 
@@ -596,7 +598,7 @@ const dragToIndex = ref<number | null>(null);
 let tempIdCounter = 0;
 
 
-const mapaRef = ref(null);
+const mapaRef = ref<InstanceType<typeof LMap> | null>(null);
 
 const actualizarMapa = async () => {
   await nextTick();
@@ -743,7 +745,7 @@ async function cargarRutas() {
 
     // tu lógica...
     const arr = Array.isArray(data) ? data : data.data || data.rutas || [];
-    rutas.value = arr.map(r => ({ ...r }));
+    rutas.value = arr.map((r: any) => ({ ...r }));
 
   } catch (error) {
     console.error("Error al cargar rutas:", error);
@@ -961,35 +963,6 @@ function limpiarSegmentos() {
   });
 }
 
-function moverArribaSeleccionado() {
-  if (!segmentoSeleccionado.value) return;
-
-  const idComparar = segmentoSeleccionado.value._tempId ?? segmentoSeleccionado.value.id;
-  const index = segmentosRuta.value.findIndex(
-    s => (s._tempId ?? s.id) === idComparar
-  );
-
-  if (index > 0) {
-    [segmentosRuta.value[index - 1], segmentosRuta.value[index]] =
-      [segmentosRuta.value[index], segmentosRuta.value[index - 1]];
-  }
-}
-
-function moverAbajoSeleccionado() {
-  if (!segmentoSeleccionado.value) return;
-
-  const idComparar = segmentoSeleccionado.value._tempId ?? segmentoSeleccionado.value.id;
-  const index = segmentosRuta.value.findIndex(
-    s => (s._tempId ?? s.id) === idComparar
-  );
-
-  if (index < segmentosRuta.value.length - 1) {
-    [segmentosRuta.value[index], segmentosRuta.value[index + 1]] =
-      [segmentosRuta.value[index + 1], segmentosRuta.value[index]];
-  }
-}
-
-
 function calcularRegistrosPorPantalla() {
   const altoPantalla = window.innerHeight;
   const altoCabecera = 150; // navbar + headers
@@ -1103,12 +1076,13 @@ async function editarRuta(id?: number) {
       cordenadas: Array.isArray(d.cordenadas) ? d.cordenadas : [], // siempre array
     }));
 
-    const icono = ruta.icono ?? "";
-    const logoPreviewUrl = icono
-      ? icono.startsWith("http") || icono.startsWith("/storage")
-        ? icono
-        : `/storage/${icono}`
-      : "";
+    const icono = ruta.icono ? 'http://localhost:8000/storage/' + ruta.icono : "";
+
+
+    const logoPreviewUrl = icono || "";
+
+
+
 
     Object.assign(nuevaRuta, {
       id: ruta.id ?? ruta.codruta,
@@ -1352,12 +1326,37 @@ function abrirSelectorLogo() {
   logoInput.value?.click();
 }
 
+import { useToast } from "vue-toastification";
+
+const toast = useToast();
+
 function previewLogo(event: Event) {
   const input = event.target as HTMLInputElement;
-  if (input.files?.[0]) {
-    cargarPreview(input.files[0]);
+  const file = input.files?.[0];
+
+  if (!file) {
+    toast.warning("No se seleccionó ningún archivo.");
+    nuevaRuta.logoPreview = ""; // Limpiar preview
+    return;
   }
+
+  const tiposPermitidos = ['image/jpeg', 'image/png', 'image/gif', 'image/svg+xml', 'image/webp', 'image/avif'];
+
+  if (!tiposPermitidos.includes(file.type)) {
+    toast.error("Formato no permitido. Solo se aceptan JPEG, PNG, GIF, SVG, WebP o AVIF.");
+    nuevaRuta.logoPreview = ""; // Limpiar preview
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    nuevaRuta.logoPreview = reader.result as string;
+    nuevaRuta.logoFile = file;
+  };
+  reader.readAsDataURL(file);
 }
+
+
 
 function dropLogo(event: DragEvent) {
   dragOverLogo.value = false;
@@ -1368,8 +1367,23 @@ function dropLogo(event: DragEvent) {
 }
 
 function cargarPreview(file: File) {
-  if (!file.type.startsWith('image/')) return alert('Seleccione una imagen válida');
-  if (file.size > 5 * 1024 * 1024) return alert('La imagen no debe superar los 5MB');
+  if (!file) {
+    toast.warning("No se seleccionó ningún archivo.");
+    nuevaRuta.logoPreview = "";
+    return;
+  }
+
+  if (!file.type.startsWith('image/')) {
+    toast.error("Seleccione una imagen válida.");
+    nuevaRuta.logoPreview = "";
+    return;
+  }
+
+  if (file.size > 5 * 1024 * 1024) {
+    toast.error("La imagen no debe superar los 5MB.");
+    nuevaRuta.logoPreview = "";
+    return;
+  }
 
   const reader = new FileReader();
   reader.onload = e => {
@@ -1378,6 +1392,7 @@ function cargarPreview(file: File) {
   };
   reader.readAsDataURL(file);
 }
+
 
 function iniciarDragSegmento(segmento: Segmento, origen: 'disponibles' | 'ruta') {
   draggedSegment.value = segmento;
@@ -1483,22 +1498,22 @@ const convertirColorConAlpha = (hex: string, alpha: number = 0.33): string => {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
 
-const centrarEnSegmento = (segmento) => {
+const centrarEnSegmento = (segmento: Segmento) => {
   const mapa = mapaRef.value?.leafletObject;
   if (!mapa) {
     console.warn("⚠️ No se encontró la referencia del mapa.");
     return;
   }
 
-  if (!segmento || !Array.isArray(segmento.cordenadas) || segmento.cordenadas.length === 0) {
+  if (!segmento.cordenadas || segmento.cordenadas.length === 0) {
     console.warn("⚠️ El segmento no tiene coordenadas válidas.");
     return;
   }
 
   try {
-    // Convertir coordenadas (asegurarse que vengan como números válidos)
+    // Convertir coordenadas válidas y filtrar NaN
     const latLngs = segmento.cordenadas
-      .map(c => [parseFloat(c.y), parseFloat(c.x)])
+      .map(c => [parseFloat(c.y as any), parseFloat(c.x as any)])
       .filter(([lat, lng]) => !isNaN(lat) && !isNaN(lng));
 
     if (latLngs.length === 0) {
@@ -1511,10 +1526,9 @@ const centrarEnSegmento = (segmento) => {
     // Centrar con animación suave
     mapa.flyToBounds(bounds, {
       padding: [60, 60],
-      duration: 1.2, // ligeramente más rápida
-      maxZoom: 16     // evita acercarse demasiado
+      duration: 1.2,
+      maxZoom: 16
     });
-
   } catch (err) {
     console.error("❌ Error al centrar en el segmento:", err);
   }

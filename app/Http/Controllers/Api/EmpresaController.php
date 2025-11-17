@@ -9,7 +9,7 @@ use App\Models\Empresa;
 
 class EmpresaController extends Controller
 {
-    // LISTAR
+
     public function index()
     {
         $empresas = Empresa::select(
@@ -17,7 +17,9 @@ class EmpresaController extends Controller
             'nombre',
             'observacion',
             'empresacol as empresa_col'
-        )->get();
+        )
+        ->withCount('usuarios')
+        ->get();
 
         return response()->json([
             'ok' => true,
@@ -25,7 +27,22 @@ class EmpresaController extends Controller
         ]);
     }
 
-    // AGREGAR
+    public function listarUsuarios($idEmpresa)
+    {
+        $empresa = Empresa::find($idEmpresa);
+
+        if (!$empresa) {
+            return response()->json([
+                'message' => 'Empresa no encontrada'
+            ], 404);
+        }
+
+        $usuarios = $empresa->usuarios()->get();
+
+        return response()->json($usuarios, 200);
+    }
+
+ 
     public function store(Request $request)
     {
         $request->validate([
@@ -46,16 +63,16 @@ class EmpresaController extends Controller
             'ok' => true,
             'msg' => 'Creado correctamente',
             'empresa' => [
-                'id'           => $empresa->codempresa,     // PK real
+                'id'           => $empresa->codempresa,     
                 'nombre'       => $empresa->nombre,
                 'observacion'  => $empresa->observacion,
-                'empresa_col'  => $empresa->empresacol      // nombre real BD
+                'empresa_col'  => $empresa->empresacol      
             ]
         ]);
     }
 
 
-    // EDITAR
+
     public function update(Request $request, $id)
     {
         $empresa = Empresa::find($id);
@@ -88,35 +105,9 @@ class EmpresaController extends Controller
         ]);
     }
 
-    // Verificar usuarios vinculados a una empresa
-    public function verificarUsuarios($id)
-    {
-        $empresa = Empresa::with('usuarios')->find($id);
+   
 
-        if (!$empresa) {
-            return response()->json(['ok' => false, 'msg' => 'Empresa no encontrada'], 404);
-        }
 
-        return response()->json([
-            'ok' => true,
-            'empresa' => [
-                'id' => $empresa->codempresa,
-                'nombre' => $empresa->nombre
-            ],
-            'tiene_usuarios' => $empresa->tieneUsuarios(),
-            'total_usuarios' => $empresa->contarUsuarios(),
-            'usuarios' => $empresa->usuarios->map(function ($usuario) {
-                return [
-                    'id' => $usuario->codusuario,
-                    'nombre' => $usuario->nombre,
-                    'tipo' => $usuario->tipo,
-                    'identificador' => $usuario->identificador
-                ];
-            })
-        ]);
-    }
-
-    // ELIMINAR
     public function destroy($id)
     {
         try {

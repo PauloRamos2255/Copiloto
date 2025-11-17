@@ -50,7 +50,7 @@ Route::prefix('empresas')->group(function () {
     Route::get('/{id}', [EmpresaController::class, 'show']);
     Route::put('/{id}', [EmpresaController::class, 'update']);
     Route::delete('/{id}', [EmpresaController::class, 'destroy']);
-    Route::get('/{id}/usuarios', [EmpresaController::class, 'verificarUsuarios']);
+    Route::get('/{id}/usuarios', [EmpresaController::class, 'listarUsuarios']);
 });
 
 

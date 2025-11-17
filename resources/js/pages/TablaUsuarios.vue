@@ -177,11 +177,14 @@ const modalVisible = ref(false);
 const usuarioSeleccionado = ref(null);
 
 const abrirModalUsuario = (usuario = null) => {
-  usuarioSeleccionado.value = usuario ? { ...usuario } : { nombre: "", tipo: "", empresa_codempresa: null };
+  usuarioSeleccionado.value = usuario
+    ? { ...usuario }
+    : { codusuario: null, nombre: "", tipo: "U", empresa_codempresa: 1 };
+
   modalVisible.value = true;
 };
 
-// Precargar usuarios al inicializar
+// Precargar usuarios
 onMounted(async () => {
   try {
     const { data } = await axios.get("http://localhost:8000/api/usuarios");
@@ -217,16 +220,23 @@ const confirmarEliminar = async (usuario) => {
   }
 };
 
-// Filtros y paginación
+// Filtros seguros
 const usuariosFiltrados = computed(() => {
   return usuarios.value.filter(u => {
-    const matchNombre = u.nombre.toLowerCase().includes(filtroNombre.value.toLowerCase());
+    const nombreSeguro = (u.nombre ?? "").toLowerCase();
+    const filtroSeguro = filtroNombre.value.toLowerCase();
+
+    const matchNombre = nombreSeguro.includes(filtroSeguro);
     const matchTipo = filtroTipo.value ? u.tipo === filtroTipo.value : true;
+
     return matchNombre && matchTipo;
   });
 });
 
-const totalPaginas = computed(() => Math.ceil(usuariosFiltrados.value.length / registrosPorPagina));
+// Paginación
+const totalPaginas = computed(() =>
+  Math.ceil(usuariosFiltrados.value.length / registrosPorPagina)
+);
 
 const usuariosPaginados = computed(() => {
   const start = (paginaActual.value - 1) * registrosPorPagina;
@@ -238,9 +248,10 @@ const cambiarPagina = (n) => {
 };
 
 // Estilos dinámicos
-const tipoBadge = (tipo) => tipo === "A"
-  ? "px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold"
-  : "px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold";
+const tipoBadge = (tipo) =>
+  tipo === "A"
+    ? "px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold"
+    : "px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold";
 
-const mostrarTipo = (tipo) => tipo === "A" ? "Administrador" : "Usuario";
+const mostrarTipo = (tipo) => (tipo === "A" ? "Administrador" : "Usuario");
 </script>

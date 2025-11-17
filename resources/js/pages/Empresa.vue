@@ -1,237 +1,3 @@
-<script setup>
-import { ref, computed, onMounted, watch } from 'vue';
-import axios from 'axios';
-import Header from '@/pages/Header.vue';
-import ModalEmpresa from '@/components/ModalEmpresa.vue';
-
-const nombreUsuario = 'Paulo';
-const empresas = ref([]);
-const cargando = ref(false);
-
-const filtro = ref('');
-const paginaActual = ref(1);
-const registrosPorPagina = 5;
-
-const modalVisible = ref(false);
-const empresaSeleccionada = ref(null);
-
-const modalUsuariosVisible = ref(false);
-const empresaConUsuarios = ref(null);
-
-// Cache para prefetch
-const prefetchedUrls = new Set();
-
-// Prefetch nativo
-function prefetchNativo(url) {
-  if (prefetchedUrls.has(url)) return;
-  
-  prefetchedUrls.add(url);
-  
-  fetch(url, {
-    method: 'GET',
-    headers: {
-      'X-Requested-With': 'XMLHttpRequest',
-    },
-  }).catch(error => {
-    console.warn(`Prefetch fallido para ${url}:`, error);
-    prefetchedUrls.delete(url);
-  });
-}
-
-// Abrir formulario (crear o editar)
-function abrirFormularioEmpresa(empresa = null) {
-    if (empresa) {
-        empresaSeleccionada.value = { ...empresa };
-    } else {
-        empresaSeleccionada.value = null;
-    }
-    modalVisible.value = true;
-}
-
-// Cerrar modal
-function cerrarModal() {
-    modalVisible.value = false;
-    empresaSeleccionada.value = null;
-}
-
-// Editar empresa
-function editarEmpresa(emp) {
-    abrirFormularioEmpresa(emp);
-}
-
-// Ver usuarios de una empresa con prefetch
-async function verUsuarios(idEmpresa) {
-    try {
-        const response = await axios.get(`/api/empresas/${idEmpresa}/usuarios`);
-        
-        if (response.data.ok) {
-            empresaConUsuarios.value = response.data;
-            modalUsuariosVisible.value = true;
-        }
-    } catch (error) {
-        console.error('Error al obtener usuarios:', error);
-        alert('Error al obtener los usuarios de la empresa');
-    }
-}
-
-// Prefetch al hover en usuarios
-function prefetchUsuarios(idEmpresa) {
-    prefetchNativo(`/api/empresas/${idEmpresa}/usuarios`);
-}
-
-// Cerrar modal de usuarios
-function cerrarModalUsuarios() {
-    modalUsuariosVisible.value = false;
-    empresaConUsuarios.value = null;
-}
-
-// Actualizar tabla después de guardar
-async function actualizarTabla(empresaGuardada) {
-    try {
-        if (empresaGuardada.id) {
-            const index = empresas.value.findIndex(e => e.id === empresaGuardada.id);
-            if (index !== -1) {
-                empresas.value[index] = empresaGuardada;
-            } else {
-                await cargarEmpresas();
-                prefetchTodosLosUsuarios();
-            }
-        } else {
-            await cargarEmpresas();
-            prefetchTodosLosUsuarios();
-        }
-        
-        cerrarModal();
-    } catch (error) {
-        console.error('Error al actualizar tabla:', error);
-    }
-}
-
-// Cargar empresas desde la API
-const cargarEmpresas = async () => {
-    try {
-        cargando.value = true;
-        const response = await axios.get('/api/empresas');
-
-        if (response.data && response.data.ok) {
-            empresas.value = response.data.empresas || [];
-        } else {
-            empresas.value = [];
-            console.warn('La respuesta no contiene el formato esperado:', response.data);
-        }
-
-        console.log('Empresas cargadas:', empresas.value.length);
-
-    } catch (error) {
-        console.error("Error al cargar empresas:", error);
-        if (error.response) {
-            alert(`Error del servidor: ${error.response.status} - ${error.response.data.msg || 'Error desconocido'}`);
-        } else if (error.request) {
-            alert('No se pudo conectar con el servidor. Verifica tu conexión.');
-        } else {
-            alert('Error al cargar las empresas.');
-        }
-        empresas.value = [];
-    } finally {
-        cargando.value = false;
-    }
-};
-
-// Prefetch de todos los usuarios al cargar
-async function prefetchTodosLosUsuarios() {
-    for (const empresa of empresas.value) {
-        if (empresa.usuarios_count > 0) {
-            prefetchNativo(`/api/empresas/${empresa.id}/usuarios`);
-        }
-    }
-}
-
-// Cargar empresas al montar
-onMounted(async () => {
-    await cargarEmpresas();
-    // Prefetch automático después de cargar empresas
-    prefetchTodosLosUsuarios();
-});
-
-// Filtrar empresas
-const empresasFiltradas = computed(() => {
-    if (!filtro.value) return empresas.value;
-    
-    const textoFiltro = filtro.value.toLowerCase().trim();
-    
-    return empresas.value.filter(e => {
-        const nombre = (e.nombre || '').toLowerCase();
-        const telefono = (e.empresa_col || '').toLowerCase();
-        const observacion = (e.observacion || '').toLowerCase();
-        
-        return nombre.includes(textoFiltro) || 
-               telefono.includes(textoFiltro) || 
-               observacion.includes(textoFiltro);
-    });
-});
-
-// Total de páginas
-const totalPaginas = computed(() => {
-    return Math.ceil(empresasFiltradas.value.length / registrosPorPagina) || 1;
-});
-
-// Empresas paginadas
-const empresasFiltradasPaginadas = computed(() => {
-    const start = (paginaActual.value - 1) * registrosPorPagina;
-    return empresasFiltradas.value.slice(start, start + registrosPorPagina);
-});
-
-// Cambiar página
-const cambiarPagina = (num) => {
-    if (num < 1 || num > totalPaginas.value) return;
-    paginaActual.value = num;
-};
-
-// Watch para resetear página al filtrar
-watch(filtro, () => {
-    paginaActual.value = 1;
-});
-
-// Eliminar empresa
-const eliminarEmpresa = async (empresa) => {
-    if (empresa.usuarios_count > 0) {
-        alert(`No se puede eliminar la empresa "${empresa.nombre}" porque tiene ${empresa.usuarios_count} usuario(s) vinculado(s).`);
-        return;
-    }
-
-    console.log(empresa)
-
-    if (!confirm(`¿Seguro que deseas eliminar la empresa "${empresa.nombre}"?`)) return;
-
-    try {
-        const response = await axios.delete(`/api/empresas/${empresa.id}`);
-        
-        if (response.data.ok) {
-            empresas.value = empresas.value.filter(e => e.id !== empresa.id);
-            
-            if (empresasFiltradasPaginadas.value.length === 0 && paginaActual.value > 1) {
-                paginaActual.value--;
-            }
-            
-            alert(response.data.msg || 'Empresa eliminada exitosamente');
-        } else {
-            alert(response.data.msg || 'No se pudo eliminar la empresa');
-        }
-    } catch (error) {
-        console.error('Error al eliminar empresa:', error);
-        
-        if (error.response?.status === 400) {
-            alert(error.response.data.msg || 'Esta empresa tiene usuarios vinculados y no puede ser eliminada.');
-        } else if (error.response?.status === 404) {
-            alert('La empresa no existe o ya fue eliminada.');
-            await cargarEmpresas();
-        } else {
-            alert(error.response?.data?.msg || "Error al eliminar la empresa.");
-        }
-    }
-};
-</script>
-
 <template>
     <div class="min-h-screen bg-gray-100 font-sans">
         <!-- Header -->
@@ -247,8 +13,7 @@ const eliminarEmpresa = async (empresa) => {
                     <i class="fas fa-building mr-2"></i>Gestión de Empresas
                 </h1>
 
-                <button @click="abrirFormularioEmpresa()" 
-                    class="flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-blue-500 
+                <button @click="abrirFormularioEmpresa()" class="flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-blue-500 
                        hover:from-blue-700 hover:to-blue-600 text-white px-5 py-2 rounded-xl 
                        shadow-lg hover:shadow-xl transition-all font-semibold w-full md:w-auto justify-center">
                     <i class="fas fa-plus"></i>
@@ -258,8 +23,7 @@ const eliminarEmpresa = async (empresa) => {
 
             <!-- Filtro de empresas -->
             <div class="mb-6 max-w-md">
-                <input type="text" v-model="filtro" placeholder="Filtrar por nombre o teléfono..."
-                    class="w-full px-4 py-3 border-2 border-blue-300 rounded-xl focus:border-blue-600 
+                <input type="text" v-model="filtro" placeholder="Filtrar por nombre o teléfono..." class="w-full px-4 py-3 border-2 border-blue-300 rounded-xl focus:border-blue-600 
                     focus:ring-4 focus:ring-blue-100 shadow-lg hover:shadow-xl transition-all duration-300 
                     text-gray-800 placeholder-blue-300 font-medium" />
             </div>
@@ -297,43 +61,43 @@ const eliminarEmpresa = async (empresa) => {
 
                                 <td class="px-6 py-4 text-gray-700">{{ empresa.observacion || '-' }}</td>
 
-                                <td class="px-6 py-4 text-gray-700">{{ empresa.empresa_col || '-' }}</td>
+                                <td class="px-6 py-4 text-gray-700">
+                                    {{ formatearTelefonoTabla(empresa.empresa_col) || '-' }}
+                                </td>
+
 
                                 <!-- Columna de Usuarios CON PREFETCH -->
                                 <td class="px-6 py-4 text-center">
-                                    <span v-if="empresa.usuarios_count > 0" 
-                                          class="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold cursor-pointer hover:bg-blue-200 transition-colors"
-                                          @mouseenter="prefetchUsuarios(empresa.id)"
-                                          @click="verUsuarios(empresa.id)"
-                                          title="Click para ver usuarios">
-                                        <i class="fas fa-users mr-1"></i>
-                                        {{ empresa.usuarios_count }}
-                                    </span>
-                                    <span v-else class="inline-flex items-center px-3 py-1 bg-gray-100 text-gray-500 rounded-full text-xs">
-                                        <i class="fas fa-user-slash mr-1"></i>
+
+                                    <div v-if="empresa.usuarios_count > 0" class="inline-flex items-center gap-2 px-5 py-2 text-xs font-semibold text-white 
+              rounded-full bg-gradient-to-r from-emerald-500 to-emerald-700 shadow">
+                                        <i class="fas fa-users"></i>
+                                        {{ empresa.usuarios_count }} usuarios
+                                    </div>
+
+                                    <div v-else class="inline-flex items-center gap-2 px-5 py-2 text-xs font-medium text-gray-700 
+              rounded-full bg-gradient-to-r from-gray-300 to-gray-400 shadow">
+                                        <i class="fas fa-user-slash"></i>
                                         Sin usuarios
-                                    </span>
+                                    </div>
+
                                 </td>
+
 
                                 <!-- Acciones -->
                                 <td class="px-6 py-4 text-center space-x-2">
                                     <button
                                         class="p-2 rounded-full bg-yellow-50 text-yellow-600 hover:bg-yellow-100 transition-colors"
-                                        @click.stop="editarEmpresa(empresa)" 
-                                        title="Editar empresa">
+                                        @click.stop="editarEmpresa(empresa)" title="Editar empresa">
                                         <i class="fas fa-edit"></i>
                                     </button>
 
-                                    <button
-                                        class="p-2 rounded-full transition-colors"
-                                        :class="empresa.usuarios_count > 0 
-                                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                                            : 'bg-red-50 text-red-600 hover:bg-red-100'"
-                                        @click.stop="eliminarEmpresa(empresa)" 
-                                        :title="empresa.usuarios_count > 0 
-                                            ? 'No se puede eliminar (tiene usuarios vinculados)' 
-                                            : 'Eliminar empresa'"
-                                        :disabled="empresa.usuarios_count > 0">
+                                    <button class="p-2 rounded-full transition-colors" :class="empresa.usuarios_count > 0
+                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                        : 'bg-red-50 text-red-600 hover:bg-red-100'"
+                                        @click.stop="eliminarEmpresa(empresa)" :title="empresa.usuarios_count > 0
+                                            ? 'No se puede eliminar (tiene usuarios vinculados)'
+                                            : 'Eliminar empresa'" :disabled="empresa.usuarios_count > 0">
                                         <i class="fas fa-trash"></i>
                                     </button>
                                 </td>
@@ -351,18 +115,15 @@ const eliminarEmpresa = async (empresa) => {
             </div>
 
             <!-- Paginación -->
-            <div v-if="!cargando && empresasFiltradas.length > 0" 
+            <div v-if="!cargando && empresasFiltradas.length > 0"
                 class="mt-4 flex flex-col md:flex-row justify-between items-center space-y-2 md:space-y-0">
-                
+
                 <div class="text-sm text-gray-600">
-                    Mostrando {{ Math.min((paginaActual - 1) * registrosPorPagina + 1, empresasFiltradas.length) }} 
-                    - {{ Math.min(paginaActual * registrosPorPagina, empresasFiltradas.length) }} 
-                    de {{ empresasFiltradas.length }} empresas
+
                 </div>
 
                 <div class="flex space-x-2">
-                    <button @click="cambiarPagina(paginaActual - 1)" :disabled="paginaActual === 1"
-                        class="px-4 py-2 border rounded disabled:opacity-50 disabled:cursor-not-allowed 
+                    <button @click="cambiarPagina(paginaActual - 1)" :disabled="paginaActual === 1" class="px-4 py-2 border rounded disabled:opacity-50 disabled:cursor-not-allowed 
                         hover:bg-gray-100 transition-all">
                         Anterior
                     </button>
@@ -371,8 +132,7 @@ const eliminarEmpresa = async (empresa) => {
                         Página {{ paginaActual }} de {{ totalPaginas }}
                     </span>
 
-                    <button @click="cambiarPagina(paginaActual + 1)" :disabled="paginaActual >= totalPaginas"
-                        class="px-4 py-2 border rounded disabled:opacity-50 disabled:cursor-not-allowed 
+                    <button @click="cambiarPagina(paginaActual + 1)" :disabled="paginaActual >= totalPaginas" class="px-4 py-2 border rounded disabled:opacity-50 disabled:cursor-not-allowed 
                         hover:bg-gray-100 transition-all">
                         Siguiente
                     </button>
@@ -380,22 +140,183 @@ const eliminarEmpresa = async (empresa) => {
             </div>
 
             <!-- Modal Crear/Editar Empresa -->
-            <ModalEmpresa 
-                :visible="modalVisible" 
-                :empresaData="empresaSeleccionada" 
-                @close="cerrarModal"
-                @saved="actualizarTabla" 
-            />
+            <ModalEmpresa :visible="modalVisible" :empresaData="empresaSeleccionada" @close="cerrarModal"
+                @saved="actualizarTabla" />
 
             <!-- Modal Ver Usuarios -->
-            <ModalUsuarios
-                :visible="modalUsuariosVisible"
-                :empresa="empresaConUsuarios"
-                @close="cerrarModalUsuarios"
-            />
+            <ModalUsuarios :visible="modalUsuariosVisible" :empresa="empresaConUsuarios" @close="cerrarModalUsuarios" />
         </main>
     </div>
 </template>
+
+<script setup>
+import { ref, computed, onMounted, watch } from 'vue';
+import axios from 'axios';
+import Header from '@/pages/Header.vue';
+import ModalEmpresa from '@/components/ModalEmpresa.vue';
+
+const nombreUsuario = 'Paulo';
+const empresas = ref([]);
+const cargando = ref(false);
+
+const filtro = ref('');
+const paginaActual = ref(1);
+const registrosPorPagina = 5;
+
+const modalVisible = ref(false);
+const empresaSeleccionada = ref(null);
+
+const modalUsuariosVisible = ref(false);
+const empresaConUsuarios = ref(null);
+
+
+// ---------------------------
+//  CRUD EMPRESAS
+// ---------------------------
+function abrirFormularioEmpresa(empresa = null) {
+    empresaSeleccionada.value = empresa ? { ...empresa } : null;
+    modalVisible.value = true;
+}
+
+function cerrarModal() {
+    modalVisible.value = false;
+    empresaSeleccionada.value = null;
+}
+
+function editarEmpresa(emp) {
+    abrirFormularioEmpresa(emp);
+}
+
+
+
+function cerrarModalUsuarios() {
+    modalUsuariosVisible.value = false;
+    empresaConUsuarios.value = null;
+}
+
+// ---------------------------
+//  TABLA / LISTADO
+// ---------------------------
+async function actualizarTabla(empresaGuardada) {
+    try {
+
+        if (empresaGuardada.id) {
+            const index = empresas.value.findIndex(e => e.id === empresaGuardada.id);
+
+            if (index !== -1) {
+                empresas.value[index] = empresaGuardada;
+            } else {
+                await cargarEmpresas();
+                prefetchTodosLosUsuarios();
+            }
+        } else {
+            await cargarEmpresas();
+            prefetchTodosLosUsuarios();
+        }
+
+        cerrarModal();
+    } catch (err) {
+        console.error("Error actualizando tabla:", err);
+    }
+}
+
+const cargarEmpresas = async () => {
+    try {
+        cargando.value = true;
+
+        const response = await axios.get('/api/empresas');
+
+        if (response.data.ok) {
+            empresas.value = response.data.empresas || [];
+        } else {
+            empresas.value = [];
+        }
+
+    } catch (err) {
+        console.error("Error al cargar empresas:", err);
+        empresas.value = [];
+    } finally {
+        cargando.value = false;
+    }
+};
+
+function formatearTelefonoTabla(valor) {
+  if (!valor) return '';
+  const numeros = valor.replace(/\D/g, '').slice(0, 9);
+  let formatted = '';
+  for (let i = 0; i < numeros.length; i++) {
+    formatted += numeros[i];
+    if (i === 2 || i === 5) formatted += '-';
+  }
+  return formatted;
+}
+
+
+onMounted(async () => {
+    await cargarEmpresas();
+});
+
+// ---------------------------
+//  FILTRO + PAGINACIÓN
+// ---------------------------
+const empresasFiltradas = computed(() => {
+    if (!filtro.value) return empresas.value;
+
+    const t = filtro.value.toLowerCase().trim();
+    return empresas.value.filter(e =>
+        (e.nombre || '').toLowerCase().includes(t) ||
+        (e.empresa_col || '').toLowerCase().includes(t) ||
+        (e.observacion || '').toLowerCase().includes(t)
+    );
+});
+
+const totalPaginas = computed(() => {
+    return Math.ceil(empresasFiltradas.value.length / registrosPorPagina) || 1;
+});
+
+const empresasFiltradasPaginadas = computed(() => {
+    const start = (paginaActual.value - 1) * registrosPorPagina;
+    return empresasFiltradas.value.slice(start, start + registrosPorPagina);
+});
+
+function cambiarPagina(p) {
+    if (p < 1 || p > totalPaginas.value) return;
+    paginaActual.value = p;
+}
+
+watch(filtro, () => paginaActual.value = 1);
+
+// ---------------------------
+//  ELIMINAR EMPRESA
+// ---------------------------
+const eliminarEmpresa = async (empresa) => {
+    if (empresa.usuarios_count > 0) {
+        alert(`No se puede eliminar la empresa "${empresa.nombre}" porque tiene usuarios.`);
+        return;
+    }
+
+    if (!confirm(`¿Seguro que deseas eliminar "${empresa.nombre}"?`)) return;
+
+    try {
+        const response = await axios.delete(`/api/empresas/${empresa.id}`);
+
+        if (response.data.ok) {
+            empresas.value = empresas.value.filter(e => e.id !== empresa.id);
+
+            if (empresasFiltradasPaginadas.value.length === 0 && paginaActual.value > 1) {
+                paginaActual.value--;
+            }
+
+            alert(response.data.msg || 'Empresa eliminada correctamente');
+        }
+
+    } catch (err) {
+        console.error("Error al eliminar:", err);
+        alert("No se pudo eliminar la empresa");
+    }
+};
+</script>
+
 
 <style scoped>
 button:disabled {

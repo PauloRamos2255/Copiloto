@@ -265,11 +265,17 @@
                     <i class="fas fa-gauge-high text-blue-600 mr-1"></i>Límite
                   </label>
                   <div class="relative">
-                    <input type="number" :value="velocidadPromedio" disabled
-                      class="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-100 text-sm cursor-not-allowed font-semibold h-10" />
+                    <input type="number" v-model="velocidadPromedio" class="w-full border border-gray-300 rounded-lg pl-3 pr-10 py-2 bg-white text-sm 
+           font-semibold h-10 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="0" oninput="
+          if (this.value.length > 3) this.value = this.value.slice(0, 3);
+          if (this.value > 120) this.value = 120;
+       " />
                     <span
-                      class="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-blue-700">km/h</span>
+                      class="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-blue-700 pointer-events-none">
+                      km/h
+                    </span>
                   </div>
+
                 </div>
 
                 <div class="col-span-3 flex flex-col">
@@ -467,12 +473,6 @@
       </div>
     </transition>
 
-
-
-
-
-
-
   </div>
 </template>
 
@@ -484,12 +484,9 @@ import Swal from "sweetalert2";
 // imports
 import { LMap, LTileLayer, LMarker, LPolygon } from '@vue-leaflet/vue-leaflet';
 
-import type { LeafletMap } from "vue2-leaflet"; // o "vue3-leaflet" si usas Vue 3
-import type { Map as LeafletInstance } from "vue2-leaflet";
 import L from 'leaflet';
 
 import "leaflet/dist/leaflet.css";
-
 
 
 interface Punto {
@@ -604,9 +601,8 @@ const actualizarMapa = async () => {
   await nextTick();
   if (mapaRef.value && mapaRef.value.leafletObject) {
     mapaRef.value.leafletObject.invalidateSize();
-    console.log("✅ Mapa actualizado correctamente");
   } else {
-    console.warn("⚠️ No se encontró instancia del mapa para actualizar");
+    console.warn("No se encontró instancia del mapa para actualizar");
   }
 };
 
@@ -631,23 +627,6 @@ function asignarTempId(segmento: Segmento): Segmento {
 
 
 
-
-function debugEstado() {
-  console.log("=== DEBUG ESTADO ACTUAL ===");
-  console.log("formularioSegmentoAbierto:", formularioSegmentoAbierto.value);
-  console.log("segmentosDisponibles.value.length:", segmentosDisponibles.value.length);
-  console.log("segmentosDisponibles.value:", segmentosDisponibles.value);
-  console.log("segmentosDisponiblesFiltrados.value.length:", segmentosDisponiblesFiltrados.value.length);
-  console.log("segmentosDisponiblesFiltrados.value:", segmentosDisponiblesFiltrados.value);
-  console.log("filtroSegmentos.value:", filtroSegmentos.value);
-  console.log("segmentosRuta.value:", segmentosRuta.value);
-  console.log("=========================");
-}
-
-if (typeof window !== 'undefined') {
-  (window as any).debugRutasEstado = debugEstado;
-}
-
 async function cargarSegmentos() {
   try {
     cargando.value = true;
@@ -655,8 +634,6 @@ async function cargarSegmentos() {
 
     const response = await axios.get("http://localhost:8000/api/segmentos", { timeout: 10000 });
     const data = response.data;
-
-    console.log("Respuesta completa del API:", data);
 
     // Intentamos obtener el array de segmentos
     let arr: Segmento[] = [];
@@ -666,7 +643,7 @@ async function cargarSegmentos() {
 
     if (arr.length === 0) {
       errorCarga.value = "No se encontraron segmentos";
-      console.warn("⚠️ No hay segmentos disponibles");
+      console.warn("No hay segmentos disponibles");
       todosSegmentos.value = [];
       segmentosDisponibles.value = [];
       return;
@@ -698,8 +675,6 @@ async function cargarSegmentos() {
 
     // Inicializamos la lista de disponibles considerando los que ya están en la ruta
     resetearSegmentosDisponibles();
-
-    console.log("Segmentos cargados:", todosSegmentos.value);
   } catch (error: any) {
     if (error.code === 'ECONNABORTED') {
       errorCarga.value = "Timeout: El servidor tardó demasiado en responder";
@@ -752,7 +727,7 @@ async function cargarRutas() {
   } finally {
     const fin = performance.now(); // ⏱ fin
     const duracion = (fin - inicio) / 1000; // en segundos
-    console.log(`⏳ cargarRutas() tardó ${duracion.toFixed(2)} segundos`);
+    console.log(`cargarRutas() tardó ${duracion.toFixed(2)} segundos`);
     cargando.value = false;
   }
 }
@@ -828,17 +803,10 @@ watch(filtro, () => {
 });
 
 onMounted(async () => {
-  try {
-    await cargarSegmentos();
-    await cargarRutas();
-    calcularRegistrosPorPantalla();
-
-
-
-    window.addEventListener('resize', calcularRegistrosPorPantalla);
-  } catch (error) {
-    console.error("Error en la carga inicial:", error);
-  }
+  await cargarSegmentos();
+  await cargarRutas();
+  calcularRegistrosPorPantalla();
+  window.addEventListener('resize', calcularRegistrosPorPantalla);
 });
 onUnmounted(() => {
   window.removeEventListener('resize', calcularRegistrosPorPantalla);
@@ -850,7 +818,6 @@ async function abrirFormulario() {
 
   try {
     await cargarSegmentos();
-    debugEstado();
   } catch (error) {
     console.error("Error cargando segmentos:", error);
   } finally {
@@ -947,7 +914,6 @@ function removerSegmento(segmento: Segmento) {
     segmentoSeleccionado.value = null;
   }
 
-  console.log("Segmento removido:", segmento.nombre);
 }
 
 function eliminarSeleccionado() {
@@ -981,15 +947,78 @@ async function guardarRuta() {
   if (cargandoFormulario.value) return;
   cargandoFormulario.value = true;
 
-  if (!nuevaRuta.nombre.trim()) { alert("Por favor, ingrese un nombre para la ruta"); cargandoFormulario.value = false; return; }
-  if (!nuevaRuta.tipo) { alert("Por favor, seleccione un tipo de ruta"); cargandoFormulario.value = false; return; }
-  if (!nuevaRuta.limite || isNaN(Number(nuevaRuta.limite))) { alert("Por favor, ingrese un límite válido"); cargandoFormulario.value = false; return; }
-  if (segmentosRuta.value.length === 0) { alert("Por favor, agregue al menos un segmento a la ruta"); cargandoFormulario.value = false; return; }
+  // Validaciones básicas de la ruta
+  if (!nuevaRuta.nombre.trim()) {
+    toast.error("Por favor, ingrese un nombre para la ruta");
+    cargandoFormulario.value = false;
+    return;
+  }
 
+  if (!nuevaRuta.tipo) {
+    toast.error("Por favor, seleccione un tipo de ruta");
+    cargandoFormulario.value = false;
+    return;
+  }
+
+  if (!nuevaRuta.limite || isNaN(Number(nuevaRuta.limite))) {
+    toast.error("Por favor, ingrese un límite válido");
+    cargandoFormulario.value = false;
+    return;
+  }
+
+  if (segmentosRuta.value.length === 0) {
+    toast.error("Por favor, agregue al menos un segmento a la ruta");
+    cargandoFormulario.value = false;
+    return;
+  }
+
+  // Validar segmento actualmente en edición (si existe)
+  if (segmentoSeleccionado.value) {
+    const errores = [];
+
+    if (!segmentoSeleccionado.value.mensaje || segmentoSeleccionado.value.mensaje.trim() === '') {
+      errores.push('El mensaje del segmento en edición es requerido');
+    }
+
+    if (segmentoSeleccionado.value.velocidad === null ||
+      segmentoSeleccionado.value.velocidad === undefined ||
+      segmentoSeleccionado.value.velocidad < 0) {
+      errores.push('La velocidad del segmento en edición debe ser mayor o igual a 0');
+    }
+
+    if (errores.length > 0) {
+      toast.error(errores.join('\n'));
+      cargandoFormulario.value = false;
+      return;
+    }
+  }
+
+  // Validar todos los segmentos de la ruta
   const segmentosInvalidos = segmentosRuta.value.filter(s => s.id == null || s.id === 0);
   if (segmentosInvalidos.length > 0) {
     const nombres = segmentosInvalidos.map(s => s.nombre).join(", ");
-    alert(`Los siguientes segmentos no tienen ID válido: ${nombres}`);
+    toast.error(`Los siguientes segmentos no tienen ID válido: ${nombres}`);
+    cargandoFormulario.value = false;
+    return;
+  }
+
+  // Validar que todos los segmentos tengan mensaje y velocidad
+  const segmentosSinMensaje = segmentosRuta.value.filter(s =>
+    !s.mensaje || s.mensaje.trim() === ''
+  );
+  if (segmentosSinMensaje.length > 0) {
+    const nombres = segmentosSinMensaje.map(s => s.nombre).join(", ");
+    toast.error(`Los siguientes segmentos no tienen mensaje: ${nombres}`);
+    cargandoFormulario.value = false;
+    return;
+  }
+
+  const segmentosSinVelocidad = segmentosRuta.value.filter(s =>
+    s.velocidad === null || s.velocidad === undefined || s.velocidad < 0
+  );
+  if (segmentosSinVelocidad.length > 0) {
+    const nombres = segmentosSinVelocidad.map(s => s.nombre).join(", ");
+    toast.error(`Los siguientes segmentos tienen velocidad inválida: ${nombres}`);
     cargandoFormulario.value = false;
     return;
   }
@@ -1023,6 +1052,7 @@ async function guardarRuta() {
       headers: { "Content-Type": "multipart/form-data" }
     });
 
+    toast.success(nuevaRuta.id ? "Ruta actualizada exitosamente" : "Ruta creada exitosamente");
     cerrarFormulario();
     await cargarRutas();
     return data;
@@ -1033,14 +1063,13 @@ async function guardarRuta() {
       const mensajes = Object.entries(error.response.data.errors)
         .map(([campo, msgs]) => `${campo}: ${Array.isArray(msgs) ? msgs.join(", ") : msgs}`)
         .join("\n");
-      alert(`Errores de validación:\n\n${mensajes}`);
+      toast.error(`Errores de validación:\n\n${mensajes}`);
     } else if (error.response?.data?.message) {
-      alert(`Error: ${error.response.data.message}`);
+      toast.error(`Error: ${error.response.data.message}`);
     } else {
-      alert("Error al guardar la ruta. Por favor, intente nuevamente.");
+      toast.error("Error al guardar la ruta. Por favor, intente nuevamente.");
     }
-  }
-  finally {
+  } finally {
     cargandoFormulario.value = false;
   }
 }
@@ -1100,10 +1129,9 @@ async function editarRuta(id?: number) {
     resetearSegmentosDisponibles();
     setTimeout(actualizarMapa, 300);
 
-    console.log("Ruta lista para edición:", nuevaRuta);
   } catch (error: any) {
     console.error("Error al cargar la ruta:", error);
-    alert("No se pudo cargar la ruta para editar");
+    toast.error("No se pudo cargar la ruta para editar");
   } finally {
     cargandoFormulario.value = false;
   }
@@ -1501,12 +1529,12 @@ const convertirColorConAlpha = (hex: string, alpha: number = 0.33): string => {
 const centrarEnSegmento = (segmento: Segmento) => {
   const mapa = mapaRef.value?.leafletObject;
   if (!mapa) {
-    console.warn("⚠️ No se encontró la referencia del mapa.");
+    console.warn(" No se encontró la referencia del mapa.");
     return;
   }
 
   if (!segmento.cordenadas || segmento.cordenadas.length === 0) {
-    console.warn("⚠️ El segmento no tiene coordenadas válidas.");
+    console.warn(" El segmento no tiene coordenadas válidas.");
     return;
   }
 
@@ -1517,7 +1545,7 @@ const centrarEnSegmento = (segmento: Segmento) => {
       .filter(([lat, lng]) => !isNaN(lat) && !isNaN(lng));
 
     if (latLngs.length === 0) {
-      console.warn("⚠️ No hay coordenadas válidas para centrar el mapa.");
+      console.warn(" No hay coordenadas válidas para centrar el mapa.");
       return;
     }
 
@@ -1530,7 +1558,7 @@ const centrarEnSegmento = (segmento: Segmento) => {
       maxZoom: 16
     });
   } catch (err) {
-    console.error("❌ Error al centrar en el segmento:", err);
+    console.error(" Error al centrar en el segmento:", err);
   }
 };
 
@@ -1751,5 +1779,11 @@ const centrarEnSegmento = (segmento: Segmento) => {
   height: 100%;
   min-height: 400px;
   position: relative;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 </style>

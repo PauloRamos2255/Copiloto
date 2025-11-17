@@ -420,15 +420,13 @@ export default defineComponent({
         this.loadingActualizar = true;
         const { data } = await axios.get(`${this.API_BASE}/segmentos`);
 
-        console.log("Segmentos desde BD:", data.segmentos);
 
         this.segmentos = (data.segmentos || []).map(seg => {
           const coords = (seg.cordenadas || []).map(p => [Number(p.y), Number(p.x)]);
-          const tipo = coords.length === 1 ? 'circulo' : 
-                       coords.length === 2 ? 'linea' : 'poligono';
+          const tipo = coords.length === 1 ? 'circulo' :
+            coords.length === 2 ? 'linea' : 'poligono';
           const colorObj = this.hexToRgba(seg.color);
 
-          console.log(`Segmento cargado: ID=${seg.codsegmento || seg.id}, Nombre=${seg.nombre}`);
 
           return {
             id: seg.codsegmento || seg.id,
@@ -446,7 +444,6 @@ export default defineComponent({
           };
         });
 
-        console.log("Total segmentos en UI:", this.segmentos.length);
 
       } catch (e) {
         console.error("Error al cargar segmentos:", e);
@@ -583,9 +580,9 @@ export default defineComponent({
           : '#0046FF';
 
         const coordenadas = (z.p || []).map(p => [Number(p.y), Number(p.x)]);
-        
-        const tipo = coordenadas.length === 1 ? 'circulo' : 
-                     coordenadas.length === 2 ? 'linea' : 'poligono';
+
+        const tipo = coordenadas.length === 1 ? 'circulo' :
+          coordenadas.length === 2 ? 'linea' : 'poligono';
 
         const colorObj = this.hexToRgba(colorHex);
 
@@ -624,9 +621,9 @@ export default defineComponent({
         const segmentosEliminados = this.segmentos.filter(s => !idsWialon.has(s.id));
 
         if (segmentosEliminados.length > 0) {
-          console.warn(`⚠️ Detectados ${segmentosEliminados.length} segmento(s) eliminado(s) en Wialon:`, 
+          console.warn(` Detectados ${segmentosEliminados.length} segmento(s) eliminado(s) en Wialon:`,
             segmentosEliminados.map(s => s.nombre));
-          
+
           await this.procesarSegmentosEliminados(segmentosEliminados);
         }
 
@@ -649,12 +646,12 @@ export default defineComponent({
         });
 
         const totalSegmentos = segmentosParaSincronizar.length;
-        const mensajeEliminados = segmentosEliminados.length > 0 
-          ? ` | ❌ ${segmentosEliminados.length} eliminado(s)` 
+        const mensajeEliminados = segmentosEliminados.length > 0
+          ? ` |  ${segmentosEliminados.length} eliminado(s)`
           : '';
 
         this.mostrarNotificacion(
-          `✅ ${totalSegmentos} segmento(s) sincronizado(s)${mensajeEliminados}`, 
+          ` ${totalSegmentos} segmento(s) sincronizado(s)${mensajeEliminados}`,
           'exito'
         );
 
@@ -672,19 +669,18 @@ export default defineComponent({
     async procesarSegmentosEliminados(segmentosEliminados) {
       const promesas = segmentosEliminados.map(async (seg) => {
         if (!seg.id) return;
-        
+
         try {
           const resp = await axios.get(`${this.API_BASE}/segmentos/${seg.id}/detalles-rutas`);
 
           if (resp.data.existe) {
             const rutas = [...new Set(resp.data.detalles.map(r => r.ruta_nombre))];
             const rutasStr = rutas.join(', ');
-            
-            console.warn(`⚠️ Segmento "${seg.nombre}" tiene ${rutas.length} ruta(s): ${rutasStr}`);
-            
+
+
             await this.eliminarSegmentoConDetalles(seg.id);
             this.mostrarNotificacion(
-              `Segmento "${seg.nombre}" eliminado (estaba en ${rutas.length} ruta(s))`, 
+              `Segmento "${seg.nombre}" eliminado (estaba en ${rutas.length} ruta(s))`,
               'exito'
             );
           } else {
@@ -741,13 +737,13 @@ export default defineComponent({
         }
 
         const { data } = await axios.delete(`${this.API_BASE}/segmentos/${idSegmento}`);
-        
+
         this.segmentos = this.segmentos.filter(s => s.id !== idSegmento);
-        
+
         this.mostrarNotificacion(data.mensaje || "Segmento eliminado correctamente", "exito");
       } catch (e) {
         console.error("Error al eliminar:", e);
-        
+
         const mensaje = e.response?.data?.error || e.response?.data?.mensaje || "Error al eliminar el segmento";
         this.mostrarNotificacion(mensaje, "error");
       }
@@ -827,9 +823,10 @@ export default defineComponent({
     }
   },
 
-  mounted() {
+  created() {
     this.cargarSegmentos();
   }
+
 });
 </script>
 

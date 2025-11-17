@@ -9,7 +9,7 @@ class Kernel extends ConsoleKernel
 {
     protected function schedule(Schedule $schedule)
     {
-        $schedule->command('app:sincronizar-segmentos')->everyThirtyMinutes();
+        $schedule->command('app:sincronizar-segmentos')->everyMinute();
     }
 
     protected function commands()

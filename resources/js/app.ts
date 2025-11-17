@@ -7,6 +7,7 @@ import Toast, { PluginOptions, POSITION } from 'vue-toastification';
 import 'vue-toastification/dist/index.css';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 import axios from 'axios';
+import { createPinia } from "pinia";
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
@@ -30,6 +31,7 @@ if (token) {
 
 // Cache de componentes para evitar doble render
 const pages = import.meta.glob('./pages/**/*.vue');
+const pinia = createPinia();
 
 createInertiaApp({
   title: (title) => (title ? `${title} - ${appName}` : appName),
@@ -41,6 +43,7 @@ createInertiaApp({
     // Solo un mount para evitar duplicados
     if (!el.hasAttribute('data-inertia-mounted')) {
       const app = createApp({ render: () => h(App, props) });
+      app.use(pinia);
       app.use(plugin);
       app.use(Toast, toastOptions);
       app.mount(el);

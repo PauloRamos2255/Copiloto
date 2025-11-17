@@ -14,4 +14,12 @@ class Empresa extends Model
         'observacion',
         'empresacol'
     ];
+
+
+    public function usuarios()
+    {
+        return $this->hasMany(Usuario::class, 'empresa_codempresa', 'codempresa');
+    }
+
+
 }

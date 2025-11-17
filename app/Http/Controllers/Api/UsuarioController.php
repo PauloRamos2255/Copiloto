@@ -14,14 +14,12 @@ use Illuminate\Support\Facades\DB;
 
 class UsuarioController extends Controller
 {
-   
-     public function index()
+    public function index()
     {
-        $usuarios = Usuario::all(); // Trae todos los usuarios
+        $usuarios = Usuario::all();
         return response()->json($usuarios);
     }
 
-    // GET /api/usuarios/{id}
     public function show($id)
     {
         $usuario = Usuario::find($id);
@@ -33,73 +31,126 @@ class UsuarioController extends Controller
         return response()->json($usuario);
     }
 
-    // POST /api/usuarios
     public function store(Request $request)
-{
-    $request->validate([
-        'empresa_codempresa' => 'required|integer',
-        'nombre'             => 'required|string|max:100',
-        'clave'              => 'required|string|max:500',
-        'tipo'               => 'required|string|max:1',
-        'identificador'      => 'required|string|max:30'
-    ]);
+    {
+        try {
+            // Log completo para debug
+            Log::info('Request completo:', [
+                'all' => $request->all(),
+                'input' => $request->input(),
+                'json' => $request->json()->all(),
+                'content' => $request->getContent(),
+                'headers' => $request->headers->all()
+            ]);
 
-    $usuario = DB::transaction(function () use ($request) {
-        return Usuario::create([
-            'empresa_codempresa' => $request->empresa_codempresa,
-            'nombre'             => $request->nombre,
-            'clave'              => bcrypt($request->clave),
-            'tipo'               => $request->tipo,
-            'identificador'      => $request->identificador
-        ]);
-    });
+       
+            $validated = $request->validate([
+                'empresa_codempresa' => 'required|integer',
+                'nombre'             => 'required|string|max:100',
+                'clave'              => 'required|string|min:6',
+                'tipo'               => 'required|string|in:A,U,C',
+                'identificador'      => 'nullable|string|max:30'
+            ]);
 
-    return response()->json([
-        'ok' => true,
-        'msg' => 'Usuario creado correctamente',
-        'usuario' => [
-            'id'              => $usuario->codusuario,
-            'empresa'         => $usuario->empresa_codempresa,
-            'nombre'          => $usuario->nombre,
-            'identificador'   => $usuario->identificador,
-            'tipo'            => $usuario->tipo
-        ]
-    ]);
-}
+            Log::info('Datos validados:', $validated);
 
+            // Generar identificador si no se proporciona
+            $identificador = $validated['identificador'] ?? substr(bin2hex(random_bytes(15)), 0, 30);
 
-    // PUT /api/usuarios/{id}
+            $usuario = Usuario::create([
+                'empresa_codempresa' => $validated['empresa_codempresa'],
+                'nombre'             => $validated['nombre'],
+                'clave'              => Hash::make($validated['clave']),
+                'tipo'               => $validated['tipo'],
+                'identificador'      => $identificador
+            ]);
+
+            Log::info('Usuario creado exitosamente:', ['id' => $usuario->codusuario]);
+
+            return response()->json([
+                'ok' => true,
+                'msg' => 'Usuario creado correctamente',
+                'usuario' => [
+                    'id'            => $usuario->codusuario,
+                    'empresa'       => $usuario->empresa_codempresa,
+                    'nombre'        => $usuario->nombre,
+                    'identificador' => $usuario->identificador,
+                    'tipo'          => $usuario->tipo
+                ]
+            ], 201);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::error('Error de validación:', $e->errors());
+            return response()->json([
+                'ok' => false,
+                'msg' => 'Error de validación',
+                'errors' => $e->errors()
+            ], 422);
+
+        } catch (\Exception $e) {
+            Log::error('Error al crear usuario:', [
+                'message' => $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile()
+            ]);
+            return response()->json([
+                'ok' => false,
+                'msg' => 'Error al crear usuario',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function update(Request $request, $id)
     {
         $usuario = Usuario::find($id);
+        
         if (!$usuario) {
             return response()->json(['message' => 'Usuario no encontrado'], 404);
         }
 
         $request->validate([
             'empresa_codempresa' => 'sometimes|required|integer',
-            'nombre' => 'sometimes|required|string|max:100',
-            'clave' => 'sometimes|nullable|string|min:6',
-            'tipo' => ['sometimes','required', Rule::in(['A','U','C'])],
-            'identificador' => 'nullable|string|max:30',
+            'nombre'             => ['sometimes', 'required', 'string', 'max:100', Rule::unique('usuarios')->ignore($id, 'codusuario')],
+            'clave'              => 'sometimes|nullable|string|min:6',
+            'tipo'               => ['sometimes', 'required', Rule::in(['A', 'U', 'C'])],
+            'identificador'      => ['nullable', 'string', 'max:30', Rule::unique('usuarios')->ignore($id, 'codusuario')],
         ]);
 
-        if ($request->has('clave') && $request->clave) {
+        // Actualizar solo los campos proporcionados
+        if ($request->has('empresa_codempresa')) {
+            $usuario->empresa_codempresa = $request->empresa_codempresa;
+        }
+
+        if ($request->has('nombre')) {
+            $usuario->nombre = $request->nombre;
+        }
+
+        if ($request->has('clave') && !empty($request->clave)) {
             $usuario->clave = Hash::make($request->clave);
         }
 
-        $usuario->empresa_codempresa = $request->empresa_codempresa ?? $usuario->empresa_codempresa;
-        $usuario->nombre = $request->nombre ?? $usuario->nombre;
-        $usuario->tipo = $request->tipo ?? $usuario->tipo;
-        $usuario->identificador = $request->identificador ?? $usuario->identificador;
-        $usuario->ultimoIngreso = $request->ultimoIngreso ?? $usuario->ultimoIngreso;
+        if ($request->has('tipo')) {
+            $usuario->tipo = $request->tipo;
+        }
+
+        if ($request->has('identificador')) {
+            $usuario->identificador = $request->identificador;
+        }
+
+        if ($request->has('ultimoIngreso')) {
+            $usuario->ultimoIngreso = $request->ultimoIngreso;
+        }
 
         $usuario->save();
 
-        return response()->json($usuario);
+        return response()->json([
+            'ok' => true,
+            'msg' => 'Usuario actualizado correctamente',
+            'usuario' => $usuario
+        ]);
     }
 
-    // DELETE /api/usuarios/{id}
     public function destroy($id)
     {
         $usuario = Usuario::find($id);
@@ -110,10 +161,11 @@ class UsuarioController extends Controller
 
         $usuario->delete();
 
-        return response()->json(['message' => 'Usuario eliminado correctamente']);
+        return response()->json([
+            'ok' => true,
+            'message' => 'Usuario eliminado correctamente'
+        ]);
     }
-
-
 
     public function login(Request $request)
     {
@@ -129,20 +181,20 @@ class UsuarioController extends Controller
         if (!$usuario) {
             $fin = microtime(true);
             Log::info('Login fallido: usuario no encontrado. Tiempo: ' . ($fin - $inicio));
-            return redirect()->route('login')->with('error', 'Usuario no encontrado');
+            return redirect()->route('login')->withErrors(['error' => 'Usuario no encontrado']);
         }
 
         if (!Hash::check($request->clave, $usuario->clave)) {
             $fin = microtime(true);
             Log::info('Login fallido: clave incorrecta. Tiempo: ' . ($fin - $inicio));
-            return redirect()->route('login')->with('error', 'Clave incorrecta');
+            return redirect()->route('login')->withErrors(['error' => 'Clave incorrecta']);
         }
 
-        // Validación del tipo REAL desde la BD
+        // Validación del tipo de usuario
         if (!in_array($usuario->tipo, ['A', 'U'])) {
             $fin = microtime(true);
             Log::info('Login fallido: tipo no permitido. Tiempo: ' . ($fin - $inicio));
-            return redirect()->route('login')->with('error', 'Tipo de usuario inválido');
+            return redirect()->route('login')->withErrors(['error' => 'Tipo de usuario inválido']);
         }
 
         // Guardar último ingreso
@@ -152,11 +204,10 @@ class UsuarioController extends Controller
         Auth::login($usuario);
 
         $fin = microtime(true);
-        Log::info('Login exitoso. Tiempo: ' . ($fin - $inicio));
+        Log::info('Login exitoso para usuario: ' . $usuario->nombre . '. Tiempo: ' . ($fin - $inicio));
 
         return Inertia::location('/rutas');
     }
-
 
     public function logout(Request $request)
     {

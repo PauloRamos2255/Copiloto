@@ -54,6 +54,7 @@ Route::prefix('empresas')->group(function () {
     Route::get('/{id}/usuarios', [EmpresaController::class, 'listarUsuarios']);
 });
 Route::get('/asignacion', [AsignacionController::class, 'index']);
+Route::get('/asignacion/{id}', [AsignacionController::class, 'obtenerRutasPorUsuario']);
 Route::get('/asignacion_segmen', [AsignacionController::class, 'obtenerTodasLasRutas']);
 Route::post('/asignacion_save', [AsignacionController::class, 'guardarAsignaciones']);
 

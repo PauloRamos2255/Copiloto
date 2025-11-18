@@ -32,6 +32,9 @@ class AsignacionController extends Controller
         return response()->json($usuarios);
     }
 
+
+
+
     public function obtenerTodasLasRutas()
     {
         $rows = DB::table('ruta as r')
@@ -75,6 +78,53 @@ class AsignacionController extends Controller
             'rutas' => array_values($rutas)
         ]);
     }
+
+
+    public function obtenerRutasPorUsuario($idUsuario)
+    {
+        $rows = DB::table('ruta as r')
+            ->join('detalleRuta as d', 'd.ruta_codruta', '=', 'r.codruta')
+            ->join('segmento as s', 's.codsegmento', '=', 'd.segmento_codsegmento')
+            ->join('asignacion as a', 'a.ruta_codruta', '=', 'r.codruta')
+            ->where('a.usuario_codusuario', $idUsuario)
+            ->select(
+                'r.codruta as idRuta',
+                'r.nombre as nombreRuta',
+                's.nombre',
+                's.color',
+                's.codsegmento as idSegmento',
+                's.cordenadas',
+                's.bounds'
+            )
+            ->orderBy('r.codruta')
+            ->get();
+
+        $rutas = [];
+
+        foreach ($rows as $row) {
+            if (!isset($rutas[$row->idRuta])) {
+                $rutas[$row->idRuta] = [
+                    'id' => $row->idRuta,
+                    'nombre' => $row->nombreRuta,
+                    'segmentos' => []
+                ];
+            }
+
+            $rutas[$row->idRuta]['segmentos'][] = [
+                'id' => $row->idSegmento,
+                'nombre' => $row->nombre,
+                'color' => $row->color,
+                'cordenadas' => $row->cordenadas,
+                'bounds' => $row->bounds
+            ];
+        }
+
+        return response()->json([
+            'status' => true,
+            'rutas' => array_values($rutas)
+        ]);
+    }
+
 
 
     public function guardarAsignaciones(Request $request)

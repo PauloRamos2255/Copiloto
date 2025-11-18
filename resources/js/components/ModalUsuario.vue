@@ -15,22 +15,22 @@
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
+            <!-- Empresa -->
             <div>
               <label class="block text-gray-700 font-semibold mb-1">Empresa vinculada</label>
               <select v-model="form.empresa_codempresa"
                 :class="['w-full border rounded-xl px-4 py-2 focus:ring-2 focus:ring-blue-400',
                 errores.empresa ? 'border-red-500' : 'border-gray-300']">
                 <option value="">Seleccione empresa</option>
-                <option v-for="e in empresas" :key="e.id" :value="e.id">
-                  {{ e.nombre }}
-                </option>
+                <option v-for="e in empresas" :key="e.id" :value="e.id">{{ e.nombre }}</option>
               </select>
               <p v-if="errores.empresa" class="text-red-600 text-xs mt-1">{{ errores.empresa }}</p>
             </div>
 
+            <!-- Tipo -->
             <div>
               <label class="block text-gray-700 font-semibold mb-1">Tipo</label>
-              <select v-model="form.tipo" @change="reordenarConductor"
+              <select v-model="form.tipo" @change="cambiarTipo"
                 :class="['w-full border rounded-xl px-4 py-2 focus:ring-2 focus:ring-blue-400',
                 errores.tipo ? 'border-red-500' : 'border-gray-300']">
                 <option value="">Seleccione tipo</option>
@@ -43,7 +43,7 @@
 
           </div>
 
-          <!-- Nombre para usuario/administrador -->
+          <!-- Nombre solo para Usuario / Administrador -->
           <div v-if="form.tipo !== 'C'">
             <label class="block text-gray-700 font-semibold mb-1">Nombre</label>
             <input v-model="form.nombre" type="text"
@@ -53,9 +53,10 @@
             <p v-if="errores.nombre" class="text-red-600 text-xs mt-1">{{ errores.nombre }}</p>
           </div>
 
-          <!-- Campos para conductor -->
+          <!-- Campos para Conductor -->
           <div v-if="form.tipo === 'C'" class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
+            <!-- Placa -->
             <div>
               <label class="block text-gray-700 font-semibold mb-1">Placa del vehículo</label>
               <div class="relative">
@@ -68,7 +69,8 @@
               <p v-if="errores.placa" class="text-red-600 text-xs mt-1">{{ errores.placa }}</p>
             </div>
 
-            <div>
+            <!-- Clave conductor (solo crear) -->
+            <div v-if="!form.codusuario">
               <label class="block text-gray-700 font-semibold mb-1">Clave</label>
               <div class="relative">
                 <input :type="showClave ? 'text' : 'password'" v-model="form.clave" @input="evaluarFuerzaClave"
@@ -88,6 +90,7 @@
               <p class="text-[0.65rem] mt-0.5 text-gray-600">{{ fuerzaTexto }}</p>
             </div>
 
+            <!-- Datos conductor -->
             <div class="md:col-span-2">
               <label class="block text-gray-700 font-semibold mb-1">Datos del conductor</label>
               <textarea ref="datosTextArea" v-model="form.datos_conductor" @input="ajustarAltura"
@@ -100,8 +103,8 @@
 
           </div>
 
-          <!-- Clave para usuario/administrador -->
-          <div v-if="form.tipo !== 'C'">
+          <!-- Clave para usuario/administrador (solo crear) -->
+          <div v-if="form.tipo !== 'C' && !form.codusuario">
             <label class="block text-gray-700 font-semibold mb-1">Clave</label>
             <div class="relative">
               <input :type="showClave2 ? 'text' : 'password'" v-model="form.clave" @input="evaluarFuerzaClave"
@@ -141,30 +144,30 @@
 </template>
 
 <script setup>
-import { reactive, ref, watch, onMounted, nextTick } from 'vue';
-import axios from 'axios';
+import { reactive, ref, watch, onMounted, nextTick } from "vue";
+import axios from "axios";
 
 const props = defineProps({ visible: Boolean, usuario: Object });
-const emit = defineEmits(['close', 'saved']);
-const emitClose = () => emit('close');
+const emit = defineEmits(["close", "saved"]);
+const emitClose = () => emit("close");
 
-// Datos
 const empresas = ref([]);
+
 const errores = reactive({
-  empresa: '',
-  tipo: '',
-  nombre: '',
-  placa: '',
-  clave: '',
-  datos_conductor: ''
+  empresa: "",
+  tipo: "",
+  nombre: "",
+  placa: "",
+  clave: "",
+  datos_conductor: "",
 });
 
-// Fuerza de clave
+// Fuerza contraseña
 const showClave = ref(false);
 const showClave2 = ref(false);
-const fuerzaTexto = ref('');
+const fuerzaTexto = ref("");
 const fuerzaPorcentaje = ref(0);
-const fuerzaClase = ref('bg-red-500');
+const fuerzaClase = ref("bg-red-500");
 
 // Altura textarea
 const baseAltura = 100;
@@ -174,13 +177,13 @@ const maxAltura = baseAltura * 1.15;
 // Formulario
 const form = reactive({
   codusuario: null,
-  empresa_codempresa: '',
-  nombre: '',
-  placa: '',
-  clave: '',
-  tipo: '',
-  identificador: '',
-  datos_conductor: ''
+  empresa_codempresa: "",
+  nombre: "",
+  placa: "",
+  clave: "",
+  tipo: "",
+  identificador: "",
+  datos_conductor: "",
 });
 
 // Cargar empresas
@@ -193,176 +196,122 @@ onMounted(async () => {
   }
 });
 
-// Cargar usuario a editar
-watch(() => props.usuario, (u) => {
-  if (!u) return;
+// Cargar usuario para edición
+watch(
+  () => props.usuario,
+  (u) => {
+    if (!u) return;
 
-  Object.assign(form, {
-    codusuario: u.codusuario || null,
-    empresa_codempresa: u.empresa_codempresa || '',
-    nombre: u.nombre || '',
-    placa: '',
-    clave: '',
-    tipo: u.tipo || '',
-    identificador: u.identificador || '',
-    datos_conductor: ''
-  });
+    Object.assign(form, {
+      codusuario: u.codusuario || null,
+      empresa_codempresa: u.empresa_codempresa || "",
+      nombre: u.tipo !== "C" ? u.nombre : "",
+      placa: u.tipo === "C" ? u.nombre : "",
+      clave: "",
+      tipo: u.tipo || "",
+      identificador: u.identificador || "",
+      datos_conductor: u.tipo === "C" ? u.identificador : "",
+    });
 
-  nextTick(ajustarAltura);
-  evaluarFuerzaClave();
-}, { immediate: true });
+    nextTick(ajustarAltura);
+  },
+  { immediate: true }
+);
 
-// Formato de placa
+// Cambio de tipo
+const cambiarTipo = () => {
+  if (form.tipo !== "C") {
+    form.placa = "";
+    form.datos_conductor = "";
+  }
+};
+
+// Placa formato
 const enFormatoPlaca = () => {
-  let v = form.placa.toUpperCase().replace(/[^A-Z0-9]/g, '');
-  if (v.length > 3) v = v.slice(0, 3) + '-' + v.slice(3);
+  let v = form.placa.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (v.length > 3) v = v.slice(0, 3) + "-" + v.slice(3);
   form.placa = v.slice(0, 7);
 };
 
-// Validar duplicado
+// Validar placa duplicada
 const validarPlacaDuplicada = async () => {
   if (!form.placa) return;
   try {
-    const { data } = await axios.get(`http://localhost:8000/api/usuarios/placa/${form.placa}`);
+    const { data } = await axios.get(
+      `http://localhost:8000/api/usuarios/placa/${form.placa}`
+    );
     if (data.existe && data.id !== form.codusuario) {
       errores.placa = "Esta placa ya está registrada.";
     } else {
       errores.placa = "";
     }
-  } catch (_) { }
+  } catch (_) {}
 };
 
-// Limpiar datos al cambiar tipo
-const reordenarConductor = () => {
-  errores.placa = '';
-  form.nombre = '';
-};
-
-// Evaluar fuerza de clave
+// Fuerza clave
 const evaluarFuerzaClave = () => {
-  const clave = form.clave || '';
+  const c = form.clave || "";
   let score = 0;
-  if (clave.length >= 6) score++;
-  if (/[A-Z]/.test(clave)) score++;
-  if (/[0-9]/.test(clave)) score++;
-  if (/[^A-Za-z0-9]/.test(clave)) score++;
+  if (c.length >= 6) score++;
+  if (/[A-Z]/.test(c)) score++;
+  if (/[0-9]/.test(c)) score++;
+  if (/[^A-Za-z0-9]/.test(c)) score++;
 
-  switch (score) {
-    case 1:
-      fuerzaTexto.value = "Débil";
-      fuerzaClase.value = "bg-red-500";
-      fuerzaPorcentaje.value = 25;
-      break;
-    case 2:
-      fuerzaTexto.value = "Normal";
-      fuerzaClase.value = "bg-yellow-400";
-      fuerzaPorcentaje.value = 50;
-      break;
-    case 3:
-      fuerzaTexto.value = "Fuerte";
-      fuerzaClase.value = "bg-green-400";
-      fuerzaPorcentaje.value = 75;
-      break;
-    case 4:
-      fuerzaTexto.value = "Muy fuerte";
-      fuerzaClase.value = "bg-green-600";
-      fuerzaPorcentaje.value = 100;
-      break;
-    default:
-      fuerzaTexto.value = "";
-      fuerzaClase.value = "bg-red-500";
-      fuerzaPorcentaje.value = 0;
-  }
+  fuerzaPorcentaje.value = score * 25;
+
+  const clases = ["bg-red-500", "bg-yellow-400", "bg-green-400", "bg-green-600"];
+  fuerzaClase.value = clases[score - 1] || "bg-red-500";
+
+  const textos = ["Débil", "Normal", "Fuerte", "Muy fuerte"];
+  fuerzaTexto.value = textos[score - 1] || "";
 };
 
-// Ajustar altura de textarea
+// Textarea auto-height
 const ajustarAltura = () => {
   nextTick(() => {
-    const ta = document.querySelector('textarea');
+    const ta = document.querySelector("textarea");
     if (!ta) return;
-    ta.style.height = 'auto';
+    ta.style.height = "auto";
     alturaTextArea.value = Math.min(ta.scrollHeight, maxAltura);
   });
 };
 
-// Validar campos
-const validarCampos = () => {
-  errores.empresa = '';
-  errores.tipo = '';
-  errores.nombre = '';
-  errores.placa = '';
-  errores.clave = '';
-  errores.datos_conductor = '';
-
-  let valido = true;
-
-  if (!form.empresa_codempresa) {
-    errores.empresa = "Seleccione una empresa.";
-    valido = false;
-  }
-
-  if (!form.tipo) {
-    errores.tipo = "Seleccione un tipo.";
-    valido = false;
-  }
-
-  if (form.tipo === "C") {
-    if (!form.placa || form.placa.length < 6) {
-      errores.placa = "Ingrese una placa válida (mínimo 6 caracteres).";
-      valido = false;
-    }
-
-    if (!form.clave || form.clave.length < 6) {
-      errores.clave = "La clave debe tener mínimo 6 caracteres.";
-      valido = false;
-    }
-
-    if (!form.datos_conductor || form.datos_conductor.trim().length < 3) {
-      errores.datos_conductor = "Ingrese datos del conductor.";
-      valido = false;
-    }
-  } else { // Usuario/Admin
-    if (!form.nombre || form.nombre.trim().length < 3) {
-      errores.nombre = "El nombre es obligatorio y debe tener mínimo 3 caracteres.";
-      valido = false;
-    }
-
-    if (!form.clave || form.clave.length < 6) {
-      errores.clave = "La clave debe tener mínimo 6 caracteres.";
-      valido = false;
-    }
-  }
-
-  return valido;
-};
-
-// Generar identificador
-const generarIdentificador = () => {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let result = '';
-  for (let i = 0; i < 30; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return result;
-};
-
 // Guardar usuario
 const guardarUsuario = async () => {
-  if (!validarCampos()) return;
+  errores.empresa = "";
+  errores.tipo = "";
+  errores.nombre = "";
+  errores.placa = "";
+  errores.clave = "";
 
-  if (form.tipo !== 'C' && !form.identificador) {
-    form.identificador = generarIdentificador();
+  if (!form.empresa_codempresa) {
+    errores.empresa = "Seleccione una empresa";
+    return;
+  }
+  if (!form.tipo) {
+    errores.tipo = "Seleccione un tipo de usuario";
+    return;
+  }
+  if (form.tipo !== "C" && !form.nombre.trim()) {
+    errores.nombre = "El nombre es requerido";
+    return;
+  }
+  if (!form.codusuario && !form.clave) {
+    errores.clave = "La clave es obligatoria";
+    return;
   }
 
   const payload = {
     empresa_codempresa: form.empresa_codempresa,
-    nombre: form.tipo === 'C' ? form.placa : form.nombre,
+    nombre: form.tipo === "C" ? form.placa : form.nombre,
     tipo: form.tipo,
-    clave: form.clave ,
-    identificador:form.tipo === 'C' ?form.datos_conductor : form.identificador,
+    identificador: form.tipo === "C" ? form.datos_conductor : form.identificador,
   };
 
-  console.log(payload)
+  if (!form.codusuario) {
+    payload.clave = form.clave;
+  }
+
   const url = form.codusuario
     ? `http://localhost:8000/api/usuarios/${form.codusuario}`
     : `http://localhost:8000/api/usuarios`;
@@ -371,24 +320,39 @@ const guardarUsuario = async () => {
 
   try {
     const { data } = await axios({ method, url, data: payload });
-    emit('saved', data);
+
+    const empresa = empresas.value.find((e) => e.id == form.empresa_codempresa);
+
+    const respuestaFormateada = {
+      usuario: {
+        codusuario: data.usuario?.id || form.codusuario,
+        nombre: form.tipo === "C" ? form.placa : form.nombre,
+        tipo: form.tipo,
+        empresa_codempresa: form.empresa_codempresa,
+        identificador:
+          form.tipo === "C" ? form.datos_conductor : form.identificador,
+      },
+      empresa_nombre: empresa?.nombre || "Sin empresa",
+    };
+
+    emit("saved", respuestaFormateada);
     emitClose();
   } catch (err) {
     console.error("Error guardando usuario:", err);
+    alert("Error al guardar el usuario");
   }
 };
 </script>
 
-
 <style>
 .zoom-fade-enter-active {
-  animation: zoomFade .25s ease-out;
+  animation: zoomFade 0.25s ease-out;
 }
 
 @keyframes zoomFade {
   from {
     opacity: 0;
-    transform: scale(.85);
+    transform: scale(0.85);
   }
   to {
     opacity: 1;

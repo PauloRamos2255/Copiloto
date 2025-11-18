@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\WialonController;
 use App\Http\Controllers\Api\SegmentoController;
 use App\Http\Controllers\Api\GeoController;
 use App\Http\Controllers\Acceso\AuthController;
+use App\Http\Controllers\Api\AsignacionController;
 use App\Http\Controllers\Api\EmpresaController;
 use App\Http\Controllers\Api\UsuarioController;
 use Illuminate\Http\Request;
@@ -19,8 +20,8 @@ Route::post('/segmentos', [SegmentoController::class, 'store']);
 Route::post('/segmentos/guardar', [SegmentoController::class, 'guardar']);
 Route::get('/geocode', [GeoController::class, 'geocode']);
 Route::post('/acceso', [AuthController::class, 'acceso']);
-Route::get('/users', [UsuarioController::class, 'index']);
 Route::get('/usuarios', [UsuarioController::class, 'index']);
+Route::get('/conductores', [UsuarioController::class, 'listarTipoC']);
 Route::get('/usuarios/{id}', [UsuarioController::class, 'show']);
 Route::post('/usuarios', [UsuarioController::class, 'store']);
 Route::put('/usuarios/{id}', [UsuarioController::class, 'update']);
@@ -52,6 +53,9 @@ Route::prefix('empresas')->group(function () {
     Route::delete('/{id}', [EmpresaController::class, 'destroy']);
     Route::get('/{id}/usuarios', [EmpresaController::class, 'listarUsuarios']);
 });
+Route::get('/asignacion', [AsignacionController::class, 'index']);
+Route::get('/asignacion_segmen', [AsignacionController::class, 'obtenerTodasLasRutas']);
+Route::post('/asignacion_save', [AsignacionController::class, 'guardarAsignaciones']);
 
 
 

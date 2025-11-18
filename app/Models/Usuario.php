@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -12,7 +13,7 @@ class Usuario extends Authenticatable
 
     protected $table = 'usuario'; 
     protected $primaryKey = 'codusuario'; 
-    public $incrementing = false; 
+    public $incrementing = true; 
    protected $keyType = 'int';
     public $timestamps = false;
 
@@ -36,6 +37,11 @@ class Usuario extends Authenticatable
     public function empresa()
     {
         return $this->belongsTo(Empresa::class, 'empresa_codempresa', 'codempresa');
+    }
+
+     public function asignaciones(): HasMany
+    {
+        return $this->hasMany(Asignacion::class, 'usuario_codusuario', 'codusuario');
     }
 
 }

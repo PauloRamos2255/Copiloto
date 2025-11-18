@@ -16,9 +16,19 @@ class UsuarioController extends Controller
 {
     public function index()
     {
-        $usuarios = Usuario::all();
-        return response()->json($usuarios);
+        $usuarios = Usuario::with('empresa')->get();
+
+        return $usuarios->map(function ($u) {
+            return [
+                'codusuario' => $u->codusuario,
+                'nombre' => $u->nombre,
+                'tipo' => $u->tipo,
+                'empresa_codempresa' => $u->empresa_codempresa,
+                'empresa_nombre' => $u->empresa->nombre ?? 'Sin empresa',
+            ];
+        });
     }
+
 
     public function show($id)
     {
@@ -29,6 +39,12 @@ class UsuarioController extends Controller
         }
 
         return response()->json($usuario);
+    }
+
+    public function listarTipoC()
+    {
+        $usuarios = Usuario::where('tipo', 'C')->get();
+        return response()->json($usuarios);
     }
 
     public function store(Request $request)
@@ -43,7 +59,7 @@ class UsuarioController extends Controller
                 'headers' => $request->headers->all()
             ]);
 
-       
+
             $validated = $request->validate([
                 'empresa_codempresa' => 'required|integer',
                 'nombre'             => 'required|string|max:100',
@@ -78,7 +94,6 @@ class UsuarioController extends Controller
                     'tipo'          => $usuario->tipo
                 ]
             ], 201);
-
         } catch (\Illuminate\Validation\ValidationException $e) {
             Log::error('Error de validación:', $e->errors());
             return response()->json([
@@ -86,7 +101,6 @@ class UsuarioController extends Controller
                 'msg' => 'Error de validación',
                 'errors' => $e->errors()
             ], 422);
-
         } catch (\Exception $e) {
             Log::error('Error al crear usuario:', [
                 'message' => $e->getMessage(),
@@ -104,17 +118,38 @@ class UsuarioController extends Controller
     public function update(Request $request, $id)
     {
         $usuario = Usuario::find($id);
-        
+
         if (!$usuario) {
             return response()->json(['message' => 'Usuario no encontrado'], 404);
         }
 
         $request->validate([
             'empresa_codempresa' => 'sometimes|required|integer',
-            'nombre'             => ['sometimes', 'required', 'string', 'max:100', Rule::unique('usuarios')->ignore($id, 'codusuario')],
-            'clave'              => 'sometimes|nullable|string|min:6',
-            'tipo'               => ['sometimes', 'required', Rule::in(['A', 'U', 'C'])],
-            'identificador'      => ['nullable', 'string', 'max:30', Rule::unique('usuarios')->ignore($id, 'codusuario')],
+
+            // ✓ Validación correcta del nombre (tabla usuario, columna nombre)
+            'nombre' => [
+                'sometimes',
+                'required',
+                'string',
+                'max:100',
+                Rule::unique('usuario', 'nombre')->ignore($id, 'codusuario')
+            ],
+
+            'clave' => 'sometimes|nullable|string|min:6',
+
+            'tipo' => [
+                'sometimes',
+                'required',
+                Rule::in(['A', 'U', 'C'])
+            ],
+
+            // ✓ Validación correcta del identificador
+            'identificador' => [
+                'nullable',
+                'string',
+                'max:30',
+                Rule::unique('usuario', 'identificador')->ignore($id, 'codusuario')
+            ],
         ]);
 
         // Actualizar solo los campos proporcionados
@@ -150,6 +185,7 @@ class UsuarioController extends Controller
             'usuario' => $usuario
         ]);
     }
+
 
     public function destroy($id)
     {
@@ -202,11 +238,18 @@ class UsuarioController extends Controller
         $usuario->save();
 
         Auth::login($usuario);
+        $request->session()->regenerate(); // Regenera la sesión
+
+        Log::info('Después de Auth::login():', [
+            'user_id' => Auth::id(),
+            'authenticated' => Auth::check(),
+            'user' => Auth::user(),
+        ]);
 
         $fin = microtime(true);
         Log::info('Login exitoso para usuario: ' . $usuario->nombre . '. Tiempo: ' . ($fin - $inicio));
 
-        return Inertia::location('/rutas');
+        return redirect()->intended('/rutas'); // Cambia esto
     }
 
     public function logout(Request $request)

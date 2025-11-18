@@ -20,37 +20,37 @@
         </button>
       </div>
 
-      <!-- Filtro de rutas -->
-      <div class="mb-6 relative z-10">
-        <div
-          class="bg-white shadow-2xl rounded-2xl p-6 flex flex-col md:flex-row md:items-center md:space-x-6 max-w-3xl mx-auto border border-blue-200">
 
-          <!-- Input de búsqueda -->
-          <div class="relative flex-1 mb-4 md:mb-0">
-            <span class="absolute left-4 top-1/2 transform -translate-y-1/2 text-blue-500">
-              <i class="fas fa-search"></i>
-            </span>
-            <input type="text" v-model="filtro" placeholder="Filtrar por nombre..."
-              class="w-full pl-12 pr-4 py-3 border-2 border-blue-300 rounded-xl focus:border-blue-600 focus:ring-4 focus:ring-blue-100 shadow-lg hover:shadow-xl transition-all duration-300 text-gray-800 placeholder-blue-300 font-medium" />
+      <div class="bg-white/70 backdrop-blur-md border border-gray-200 shadow-xl rounded-2xl p-5 mb-6 
+         max-w-4xl mx-auto transition-all">
+        <h3 class="text-lg font-bold text-blue-400 mb-4 flex items-center">
+          <i class="fas fa-filter mr-2"></i> Filtros de búsqueda
+        </h3>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+          <div class="relative">
+            <i class="fas fa-search absolute left-3 top-3 text-blue-300"></i>
+            <input type="text" v-model="filtro" placeholder="Filtrar por nombre..." class="w-full pl-10 px-4 py-3 border border-blue-300 rounded-xl 
+               focus:border-blue-400 focus:ring-4 focus:ring-blue-100 
+               shadow-md hover:shadow-lg transition-all" />
           </div>
 
           <!-- Select de tipo -->
-          <div class="relative w-full md:w-48">
-            <select v-model="filtroTipo"
-              class="w-full appearance-none px-4 py-3 border-2 border-blue-300 rounded-xl focus:border-blue-600 focus:ring-4 focus:ring-blue-100 shadow-lg hover:shadow-xl transition-all duration-300 text-gray-800 font-medium">
+          <div class="relative">
+            <i class="fas fa-user-tag absolute left-3 top-3 text-blue-300"></i>
+            <select v-model="filtroTipo" class="w-full pl-10 px-4 py-3 border border-blue-300 rounded-xl bg-white
+               focus:border-blue-400 focus:ring-4 focus:ring-blue-100 
+               shadow-md hover:shadow-lg transition-all">
               <option value="">Todos los tipos</option>
               <option value="G">General</option>
               <option value="V">Vuelta</option>
             </select>
-
-
-            <span class="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
-              <i class="fas fa-chevron-down"></i>
-            </span>
           </div>
 
         </div>
       </div>
+
 
       <!-- Tabla de rutas -->
       <div class="bg-white shadow-lg rounded-2xl overflow-hidden border border-gray-200">
@@ -1785,5 +1785,19 @@ input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
   -webkit-appearance: none;
   margin: 0;
+}
+/* Ocultar zoom buttons (+ y -) */
+:deep(.leaflet-control-zoom) {
+  display: none !important;
+}
+
+/* Ocultar atribución (OpenStreetMap) */
+:deep(.leaflet-control-attribution) {
+  display: none !important;
+}
+
+/* Ocultar escala */
+:deep(.leaflet-control-scale) {
+  display: none !important;
 }
 </style>

@@ -52,7 +52,10 @@ import { ref } from 'vue';
 import { usePage, router, Link } from '@inertiajs/vue3';
 
 const page = usePage();
-const nombreUsuario = ref(page.props.auth?.user?.name || 'Usuario');
+const usuarioObj = page.props.auth?.user?.['App\\Models\\Usuario'] || {};
+const nombreUsuario = ref(usuarioObj.nombre || 'Usuario');
+
+
 const menuUsuarioAbierto = ref(false);
 
 function toggleMenuUsuario() {

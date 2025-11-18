@@ -143,8 +143,6 @@
             <ModalEmpresa :visible="modalVisible" :empresaData="empresaSeleccionada" @close="cerrarModal"
                 @saved="actualizarTabla" />
 
-            <!-- Modal Ver Usuarios -->
-            <ModalUsuarios :visible="modalUsuariosVisible" :empresa="empresaConUsuarios" @close="cerrarModalUsuarios" />
         </main>
     </div>
 </template>
@@ -241,14 +239,14 @@ const cargarEmpresas = async () => {
 };
 
 function formatearTelefonoTabla(valor) {
-  if (!valor) return '';
-  const numeros = valor.replace(/\D/g, '').slice(0, 9);
-  let formatted = '';
-  for (let i = 0; i < numeros.length; i++) {
-    formatted += numeros[i];
-    if (i === 2 || i === 5) formatted += '-';
-  }
-  return formatted;
+    if (!valor) return '';
+    const numeros = valor.replace(/\D/g, '').slice(0, 9);
+    let formatted = '';
+    for (let i = 0; i < numeros.length; i++) {
+        formatted += numeros[i];
+        if (i === 2 || i === 5) formatted += '-';
+    }
+    return formatted;
 }
 
 

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Ruta extends Model
 {
@@ -30,10 +31,13 @@ class Ruta extends Model
     // Relación con DetalleRuta
 
 
-   public function detallesRuta()
-{
-    return $this->hasMany(DetalleRuta::class, 'ruta_codruta', 'codruta');
-}
+    public function detallesRuta()
+    {
+        return $this->hasMany(DetalleRuta::class, 'ruta_codruta', 'codruta');
+    }
 
-    
+    public function asignaciones(): HasMany
+    {
+        return $this->hasMany(Asignacion::class, 'ruta_codruta', 'codruta');
+    }
 }

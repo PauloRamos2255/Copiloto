@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -34,18 +35,23 @@ class HandleInertiaRequests extends Middleware
      *
      * @return array<string, mixed>
      */
-    public function share(Request $request): array
-    {
-        [$message, $author] = str(Inspiring::quotes()->random())->explode('-');
+   public function share(Request $request): array
+{
+    Log::info('HandleInertiaRequests - Debug:', [
+        'url' => $request->url(),
+        'authenticated' => $request->user() !== null,
+        'guard' => config('auth.defaults.guard'),
+        'provider' => config('auth.guards.web.provider'),
+        'user' => $request->user()?->toArray(),
+    ]);
 
-        return [
-            ...parent::share($request),
-            'name' => config('app.name'),
-            'quote' => ['message' => trim($message), 'author' => trim($author)],
-            'auth' => [
-                'user' => $request->user(),
-            ],
-            'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
-        ];
-    }
+    return [
+        ...parent::share($request),
+        'name' => config('app.name'),
+        'quote' => ['message' => 'test', 'author' => 'test'],
+        'auth' => [
+            'user' => $request->user(),
+        ],
+    ];
+}
 }

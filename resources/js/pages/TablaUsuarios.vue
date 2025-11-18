@@ -13,9 +13,7 @@
           <i class="fas fa-users mr-2"></i> Gestión de Usuarios
         </h1>
 
-        <button 
-          @click="abrirModalUsuario()"
-          class="flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-blue-500 
+        <button @click="abrirModalUsuario()" class="flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-blue-500 
                  hover:from-blue-700 hover:to-blue-600 text-white px-5 py-2 rounded-xl 
                  shadow-lg hover:shadow-xl transition-all font-semibold w-full md:w-auto justify-center">
           <i class="fas fa-plus"></i>
@@ -24,25 +22,54 @@
       </div>
 
       <!-- Filtro -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 max-w-2xl">
-        <input
-          type="text"
-          v-model="filtroNombre"
-          placeholder="Filtrar por nombre..."
-          class="w-full px-4 py-3 border-2 border-blue-300 rounded-xl focus:border-blue-600 
-                 focus:ring-4 focus:ring-blue-100 shadow-lg hover:shadow-xl transition-all"
-        />
+      <!-- Filtros rediseñados -->
+      <div class="bg-white/70 backdrop-blur-md border border-gray-200 shadow-xl rounded-2xl p-5 mb-6 
+         max-w-4xl mx-auto transition-all">
 
-        <select
-          v-model="filtroTipo"
-          class="w-full px-4 py-3 border-2 border-blue-300 rounded-xl bg-white focus:border-blue-600 
-                 focus:ring-4 focus:ring-blue-100 shadow-lg hover:shadow-xl transition-all"
-        >
-          <option value="">Todos los tipos</option>
-          <option value="A">Administrador</option>
-          <option value="U">Usuario</option>
-        </select>
+        <h3 class="text-lg font-bold text-blue-400 mb-4 flex items-center">
+          <i class="fas fa-filter mr-2"></i> Filtros de búsqueda
+        </h3>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+          <!-- Buscar por nombre -->
+          <div class="relative flex items-center">
+            <i class="fas fa-search absolute left-3 text-blue-300"></i>
+            <input type="text" v-model="filtroNombre" placeholder="Buscar nombre..." class="w-full pl-10 pr-4 h-12 border border-blue-300 rounded-xl 
+               focus:border-blue-400 focus:ring-4 focus:ring-blue-100 
+               shadow-md hover:shadow-lg transition-all" />
+          </div>
+
+          <!-- Filtro por empresa -->
+          <div class="relative flex items-center">
+            <i class="fas fa-building absolute left-3 text-blue-300"></i>
+            <select v-model="filtroEmpresa" class="w-full pl-10 pr-4 h-12 border border-blue-300 rounded-xl bg-white
+               focus:border-blue-400 focus:ring-4 focus:ring-blue-100 
+               shadow-md hover:shadow-lg transition-all">
+              <option value="">Todas las empresas</option>
+              <option v-for="emp in empresas" :key="emp.id" :value="emp.id">
+                {{ emp.nombre }}
+              </option>
+            </select>
+          </div>
+
+          <!-- Filtro por tipo -->
+          <div class="relative flex items-center">
+            <i class="fas fa-user-tag absolute left-3 text-blue-300"></i>
+            <select v-model="filtroTipo" class="w-full pl-10 pr-4 h-12 border border-blue-300 rounded-xl bg-white
+               focus:border-blue-400 focus:ring-4 focus:ring-blue-100
+               shadow-md hover:shadow-lg transition-all">
+              <option value="">Todos los tipos</option>
+              <option value="A">Administrador</option>
+              <option value="U">Usuario</option>
+              <option value="C">Conductor</option>
+            </select>
+          </div>
+
+        </div>
       </div>
+
+
 
       <!-- Loading -->
       <div v-if="cargando" class="flex justify-center py-10">
@@ -54,22 +81,19 @@
         <div class="overflow-x-auto">
           <table class="min-w-full text-sm text-gray-800">
             <thead
-              class="bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800 uppercase text-xs font-semibold tracking-wide"
-            >
+              class="bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800 uppercase text-xs font-semibold tracking-wide">
               <tr>
                 <th class="px-6 py-4 text-left">#</th>
                 <th class="px-6 py-4 text-left">Nombre</th>
                 <th class="px-6 py-4 text-left">Tipo</th>
+                <th class="px-6 py-4 text-left">Empresa</th>
                 <th class="px-6 py-4 text-center">Acciones</th>
               </tr>
             </thead>
 
             <tbody>
-              <tr
-                v-for="(usuario, index) in usuariosPaginados"
-                :key="usuario.codusuario"
-                class="border-b border-gray-100 hover:bg-blue-50 transition-all"
-              >
+              <tr v-for="(usuario, index) in usuariosPaginados" :key="usuario.codusuario"
+                class="border-b border-gray-100 hover:bg-blue-50 transition-all">
                 <td class="px-6 py-4 font-semibold">
                   {{ index + 1 + (paginaActual - 1) * registrosPorPagina }}
                 </td>
@@ -82,27 +106,25 @@
                   </span>
                 </td>
 
+                <td class="px-6 py-4 font-medium">
+                  {{ usuario.empresa_nombre ?? 'Sin empresa' }}
+                </td>
+
                 <td class="px-6 py-4 text-center space-x-2">
-                  <button
-                    class="p-2 rounded-full bg-yellow-50 text-yellow-600 hover:bg-yellow-100 transition-colors"
-                    @click="abrirModalUsuario(usuario)"
-                    title="Editar usuario"
-                  >
+                  <button class="p-2 rounded-full bg-yellow-50 text-yellow-600 hover:bg-yellow-100 transition-colors"
+                    @click="abrirModalUsuario(usuario)" title="Editar usuario">
                     <i class="fas fa-edit"></i>
                   </button>
 
-                  <button
-                    class="p-2 rounded-full bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
-                    @click="confirmarEliminar(usuario)"
-                    title="Eliminar usuario"
-                  >
+                  <button class="p-2 rounded-full bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+                    @click="confirmarEliminar(usuario)" title="Eliminar usuario">
                     <i class="fas fa-trash"></i>
                   </button>
                 </td>
               </tr>
 
               <tr v-if="usuariosFiltrados.length === 0">
-                <td colspan="4" class="text-center py-10 text-gray-500">
+                <td colspan="5" class="text-center py-10 text-gray-500">
                   <i class="fas fa-inbox text-4xl mb-2 block text-gray-400"></i>
                   <p>{{ filtroNombre || filtroTipo ? 'No se encontraron resultados' : 'No hay usuarios' }}</p>
                 </td>
@@ -113,9 +135,10 @@
       </div>
 
       <!-- Paginación -->
-      <div v-if="usuariosFiltrados.length > 0" class="mt-4 flex flex-col md:flex-row justify-between items-center space-y-2 md:space-y-0">
+      <div v-if="usuariosFiltrados.length > 0"
+        class="mt-4 flex flex-col md:flex-row justify-between items-center space-y-2 md:space-y-0">
         <div class="text-sm text-gray-600">
-          Mostrando 
+          Mostrando
           {{ Math.min((paginaActual - 1) * registrosPorPagina + 1, usuariosFiltrados.length) }}
           -
           {{ Math.min(paginaActual * registrosPorPagina, usuariosFiltrados.length) }}
@@ -123,11 +146,8 @@
         </div>
 
         <div class="flex space-x-2">
-          <button
-            @click="cambiarPagina(paginaActual - 1)"
-            :disabled="paginaActual === 1"
-            class="px-4 py-2 border rounded disabled:opacity-50 hover:bg-gray-100"
-          >
+          <button @click="cambiarPagina(paginaActual - 1)" :disabled="paginaActual === 1"
+            class="px-4 py-2 border rounded disabled:opacity-50 hover:bg-gray-100">
             Anterior
           </button>
 
@@ -135,23 +155,16 @@
             Página {{ paginaActual }} de {{ totalPaginas }}
           </span>
 
-          <button
-            @click="cambiarPagina(paginaActual + 1)"
-            :disabled="paginaActual >= totalPaginas"
-            class="px-4 py-2 border rounded disabled:opacity-50 hover:bg-gray-100"
-          >
+          <button @click="cambiarPagina(paginaActual + 1)" :disabled="paginaActual >= totalPaginas"
+            class="px-4 py-2 border rounded disabled:opacity-50 hover:bg-gray-100">
             Siguiente
           </button>
         </div>
       </div>
 
       <!-- Modal Usuario -->
-      <ModalUsuario
-        :visible="modalVisible"
-        :usuario="usuarioSeleccionado"
-        @close="modalVisible = false"
-        @saved="actualizarLista"
-      />
+      <ModalUsuario :visible="modalVisible" :usuario="usuarioSeleccionado" @close="modalVisible = false"
+        @saved="actualizarLista" />
     </main>
   </div>
 </template>
@@ -161,13 +174,17 @@ import { ref, computed, onMounted } from "vue";
 import Header from "@/pages/Header.vue";
 import ModalUsuario from "@/components/ModalUsuario.vue";
 import axios from "axios";
+import Swal from "sweetalert2";
+
 
 const nombreUsuario = "Paulo Ramos";
 const usuarios = ref([]);
+const empresas = ref([]);
 const cargando = ref(true);
 
 const filtroNombre = ref("");
 const filtroTipo = ref("");
+const filtroEmpresa = ref("");
 
 const paginaActual = ref(1);
 const registrosPorPagina = 10;
@@ -184,38 +201,91 @@ const abrirModalUsuario = (usuario = null) => {
   modalVisible.value = true;
 };
 
-// Precargar usuarios
-onMounted(async () => {
+onMounted(() => {
+  cargarUsuarios();
+  cargarEmpresas();
+});
+
+// Cargar usuarios
+const cargarUsuarios = async () => {
   try {
     const { data } = await axios.get("http://localhost:8000/api/usuarios");
     usuarios.value = data;
   } catch (error) {
     console.error("Error al cargar usuarios:", error);
-    alert("No se pudieron cargar los usuarios.");
   } finally {
     cargando.value = false;
   }
-});
+};
 
-// Guardar usuario desde modal
-const actualizarLista = (usuario) => {
-  const index = usuarios.value.findIndex(u => u.codusuario === usuario.codusuario);
-  if (index !== -1) {
-    usuarios.value[index] = { ...usuario };
-  } else {
-    usuarios.value.push(usuario);
+// Cargar empresas
+const cargarEmpresas = async () => {
+  try {
+    const { data } = await axios.get("http://localhost:8000/api/empresas");
+    empresas.value = data.empresas;
+  } catch (error) {
+    console.error("Error al cargar empresas:", error);
   }
 };
 
+
+
+
+const actualizarLista = (respuestaApi) => {
+  const usuario = {
+    ...respuestaApi.usuario,
+    codusuario: respuestaApi.usuario.codusuario,
+    empresa_nombre: respuestaApi.empresa_nombre ?? "Sin empresa"
+  };
+
+  // Buscar por codusuario (ID real del usuario)
+  const index = usuarios.value.findIndex(u => u.codusuario === usuario.codusuario);
+
+  if (index !== -1) {
+    usuarios.value[index] = { ...usuario }; // actualizar usuario existente
+  } else {
+    usuarios.value.push(usuario); // agregar uno nuevo
+  }
+};
+
+
+
 // Eliminar usuario
 const confirmarEliminar = async (usuario) => {
-  if (confirm(`¿Eliminar a ${usuario.nombre}?`)) {
+  const result = await Swal.fire({
+    title: "¿Estás seguro?",
+    text: `Se eliminará a ${usuario.nombre}`,
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonColor: "#3085d6",
+    cancelButtonColor: "#d33",
+    confirmButtonText: "Sí, eliminar",
+    cancelButtonText: "Cancelar"
+  });
+
+  if (result.isConfirmed) {
     try {
       await axios.delete(`http://localhost:8000/api/usuarios/${usuario.codusuario}`);
+
+      // Quitar de la lista
       usuarios.value = usuarios.value.filter(u => u.codusuario !== usuario.codusuario);
+
+      Swal.fire({
+        title: "Eliminado",
+        text: "El usuario ha sido eliminado correctamente.",
+        icon: "success",
+        timer: 1500,
+        showConfirmButton: false
+      });
+
     } catch (error) {
       console.error(error);
-      alert("No se pudo eliminar el usuario.");
+
+      Swal.fire({
+        title: "Error",
+        text: "No se pudo eliminar el usuario.",
+        icon: "error",
+      });
     }
   }
 };
@@ -228,8 +298,9 @@ const usuariosFiltrados = computed(() => {
 
     const matchNombre = nombreSeguro.includes(filtroSeguro);
     const matchTipo = filtroTipo.value ? u.tipo === filtroTipo.value : true;
+    const matchEmpresa = filtroEmpresa.value ? u.empresa_codempresa == filtroEmpresa.value : true;
 
-    return matchNombre && matchTipo;
+    return matchNombre && matchTipo && matchEmpresa;
   });
 });
 
@@ -248,10 +319,18 @@ const cambiarPagina = (n) => {
 };
 
 // Estilos dinámicos
-const tipoBadge = (tipo) =>
-  tipo === "A"
-    ? "px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold"
-    : "px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold";
+const tipoBadge = (tipo) => {
+  if (tipo === "A") return "px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold";
+  if (tipo === "U") return "px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold";
+  if (tipo === "C") return "px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold";
+  return "";
+};
 
-const mostrarTipo = (tipo) => (tipo === "A" ? "Administrador" : "Usuario");
+const mostrarTipo = (tipo) => {
+  if (tipo === "A") return "Administrador";
+  if (tipo === "U") return "Usuario";
+  if (tipo === "C") return "Conductor";
+  return "";
+};
+
 </script>

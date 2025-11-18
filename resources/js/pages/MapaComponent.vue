@@ -856,4 +856,18 @@ export default defineComponent({
 .segment-highlight-pulse {
   animation: highlightPulse 1s infinite;
 }
+/* Ocultar zoom buttons (+ y -) */
+:deep(.leaflet-control-zoom) {
+  display: none !important;
+}
+
+/* Ocultar atribución (OpenStreetMap) */
+:deep(.leaflet-control-attribution) {
+  display: none !important;
+}
+
+/* Ocultar escala */
+:deep(.leaflet-control-scale) {
+  display: none !important;
+}
 </style>

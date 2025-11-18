@@ -105,15 +105,11 @@ class EmpresaController extends Controller
         ]);
     }
 
-   
-
-
     public function destroy($id)
     {
         try {
             $empresa = Empresa::findOrFail($id);
 
-            // Verificar si tiene usuarios
             if ($empresa->usuarios()->count() > 0) {
                 return response()->json([
                     'ok' => false,

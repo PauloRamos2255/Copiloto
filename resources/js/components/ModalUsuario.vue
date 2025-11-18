@@ -47,6 +47,7 @@
           <div v-if="form.tipo !== 'C'">
             <label class="block text-gray-700 font-semibold mb-1">Nombre</label>
             <input v-model="form.nombre" type="text"
+             maxlength="100"
               :class="['w-full border rounded-xl px-4 py-2 focus:ring-2 focus:ring-blue-400',
               errores.nombre ? 'border-red-500' : 'border-gray-300']"
               placeholder="Nombre del usuario" />
@@ -74,6 +75,7 @@
               <label class="block text-gray-700 font-semibold mb-1">Clave</label>
               <div class="relative">
                 <input :type="showClave ? 'text' : 'password'" v-model="form.clave" @input="evaluarFuerzaClave"
+                 maxlength="100"
                   :class="['w-full border rounded-xl px-4 py-2 focus:ring-2 focus:ring-blue-400',
                   errores.clave ? 'border-red-500' : 'border-gray-300']"
                   placeholder="Clave del conductor" />
@@ -93,7 +95,7 @@
             <!-- Datos conductor -->
             <div class="md:col-span-2">
               <label class="block text-gray-700 font-semibold mb-1">Datos del conductor</label>
-              <textarea ref="datosTextArea" v-model="form.datos_conductor" @input="ajustarAltura"
+              <textarea ref="datosTextArea"  maxlength="30" v-model="form.datos_conductor" @input="ajustarAltura"
                 :style="{ height: alturaTextArea + 'px', maxHeight: maxAltura + 'px' }"
                 :class="['w-full border rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-400',
                 errores.datos_conductor ? 'border-red-500' : 'border-gray-300']"
@@ -146,6 +148,8 @@
 <script setup>
 import { reactive, ref, watch, onMounted, nextTick } from "vue";
 import axios from "axios";
+import Swal from "sweetalert2";
+
 
 const props = defineProps({ visible: Boolean, usuario: Object });
 const emit = defineEmits(["close", "saved"]);
@@ -153,6 +157,7 @@ const emitClose = () => emit("close");
 
 const empresas = ref([]);
 
+// Errores
 const errores = reactive({
   empresa: "",
   tipo: "",
@@ -169,7 +174,8 @@ const fuerzaTexto = ref("");
 const fuerzaPorcentaje = ref(0);
 const fuerzaClase = ref("bg-red-500");
 
-// Altura textarea
+// Textarea
+const datosTextArea = ref(null);
 const baseAltura = 100;
 const alturaTextArea = ref(baseAltura);
 const maxAltura = baseAltura * 1.15;
@@ -196,7 +202,7 @@ onMounted(async () => {
   }
 });
 
-// Cargar usuario para edición
+// Cargar usuario
 watch(
   () => props.usuario,
   (u) => {
@@ -218,7 +224,7 @@ watch(
   { immediate: true }
 );
 
-// Cambio de tipo
+// Cambiar tipo
 const cambiarTipo = () => {
   if (form.tipo !== "C") {
     form.placa = "";
@@ -266,51 +272,118 @@ const evaluarFuerzaClave = () => {
   fuerzaTexto.value = textos[score - 1] || "";
 };
 
-// Textarea auto-height
+// Ajustar altura textarea
 const ajustarAltura = () => {
   nextTick(() => {
-    const ta = document.querySelector("textarea");
-    if (!ta) return;
-    ta.style.height = "auto";
-    alturaTextArea.value = Math.min(ta.scrollHeight, maxAltura);
+    if (!datosTextArea.value) return;
+    datosTextArea.value.style.height = "auto";
+    alturaTextArea.value = Math.min(
+      datosTextArea.value.scrollHeight,
+      maxAltura
+    );
   });
 };
 
 // Guardar usuario
+const procesando = ref(false);
+
 const guardarUsuario = async () => {
+  if (procesando.value) return;
+  procesando.value = true;
+
   errores.empresa = "";
   errores.tipo = "";
   errores.nombre = "";
   errores.placa = "";
   errores.clave = "";
+  errores.datos_conductor = "";
 
+  const Toast = Swal.mixin({
+    toast: true,
+    position: "top-end",
+    showConfirmButton: false,
+    timer: 2000,
+    timerProgressBar: true,
+  });
+
+  // VALIDACIONES
   if (!form.empresa_codempresa) {
-    errores.empresa = "Seleccione una empresa";
+    Toast.fire({ icon: "warning", title: "Seleccione una empresa" });
+    procesando.value = false;
     return;
   }
+
   if (!form.tipo) {
-    errores.tipo = "Seleccione un tipo de usuario";
+    Toast.fire({ icon: "warning", title: "Seleccione un tipo de usuario" });
+    procesando.value = false;
     return;
   }
-  if (form.tipo !== "C" && !form.nombre.trim()) {
-    errores.nombre = "El nombre es requerido";
+
+  const nombreFinal = form.tipo === "C" ? form.placa : form.nombre;
+
+  if (!nombreFinal.trim()) {
+    Toast.fire({
+      icon: "warning",
+      title:
+        form.tipo === "C"
+          ? "La placa es obligatoria"
+          : "El nombre es obligatorio",
+    });
+    procesando.value = false;
     return;
   }
-  if (!form.codusuario && !form.clave) {
-    errores.clave = "La clave es obligatoria";
+
+  if (nombreFinal.length > 100) {
+    Toast.fire({
+      icon: "warning",
+      title: "El nombre/placa no puede superar 100 caracteres",
+    });
+    procesando.value = false;
     return;
   }
+
+  if (!form.codusuario && (!form.clave || !form.clave.trim())) {
+    Toast.fire({ icon: "warning", title: "La clave es obligatoria" });
+    procesando.value = false;
+    return;
+  }
+
+  if (form.clave && form.clave.length > 100) {
+    Toast.fire({
+      icon: "warning",
+      title: "La clave no puede superar 100 caracteres",
+    });
+    procesando.value = false;
+    return;
+  }
+
+  const identificadorFinal =
+    form.tipo === "C" ? form.datos_conductor : form.identificador;
+
+  if (identificadorFinal && identificadorFinal.length > 30) {
+    Toast.fire({
+      icon: "warning",
+      title: "El identificador no puede superar 30 caracteres",
+    });
+    procesando.value = false;
+    return;
+  }
+
+  // PROCESO GUARDADO
+  Swal.fire({
+    title: form.codusuario ? "Actualizando usuario..." : "Guardando usuario...",
+    allowOutsideClick: false,
+    didOpen: () => Swal.showLoading(),
+  });
 
   const payload = {
     empresa_codempresa: form.empresa_codempresa,
-    nombre: form.tipo === "C" ? form.placa : form.nombre,
+    nombre: nombreFinal,
     tipo: form.tipo,
-    identificador: form.tipo === "C" ? form.datos_conductor : form.identificador,
+    identificador: identificadorFinal,
   };
 
-  if (!form.codusuario) {
-    payload.clave = form.clave;
-  }
+  if (!form.codusuario) payload.clave = form.clave;
 
   const url = form.codusuario
     ? `http://localhost:8000/api/usuarios/${form.codusuario}`
@@ -321,28 +394,46 @@ const guardarUsuario = async () => {
   try {
     const { data } = await axios({ method, url, data: payload });
 
-    const empresa = empresas.value.find((e) => e.id == form.empresa_codempresa);
+    Swal.close();
 
-    const respuestaFormateada = {
+    Swal.fire({
+      icon: "success",
+      title: form.codusuario ? "Usuario actualizado" : "Usuario registrado",
+      timer: 1500,
+      showConfirmButton: false,
+    });
+
+    const empresa = empresas.value.find(
+      (e) => e.id == form.empresa_codempresa
+    );
+
+    emit("saved", {
       usuario: {
         codusuario: data.usuario?.id || form.codusuario,
-        nombre: form.tipo === "C" ? form.placa : form.nombre,
+        nombre: nombreFinal,
         tipo: form.tipo,
         empresa_codempresa: form.empresa_codempresa,
-        identificador:
-          form.tipo === "C" ? form.datos_conductor : form.identificador,
+        identificador: identificadorFinal,
       },
       empresa_nombre: empresa?.nombre || "Sin empresa",
-    };
+    });
 
-    emit("saved", respuestaFormateada);
     emitClose();
   } catch (err) {
+    Swal.close();
+
     console.error("Error guardando usuario:", err);
-    alert("Error al guardar el usuario");
+
+    Toast.fire({
+      icon: "error",
+      title: "Error al guardar el usuario",
+    });
+  } finally {
+    procesando.value = false;
   }
 };
 </script>
+
 
 <style>
 .zoom-fade-enter-active {

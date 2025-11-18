@@ -189,11 +189,13 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted ,watch} from "vue";
 import Header from "@/pages/Header.vue";
 import ModalUsuario from "@/components/ModalUsuario.vue";
 import axios from "axios";
 import Swal from "sweetalert2";
+
+
 
 
 const nombreUsuario = "Paulo Ramos";
@@ -208,7 +210,7 @@ const filtroEmpresa = ref("");
 const paginaActual = ref(1);
 const registrosPorPagina = 10;
 
-// Modal
+
 const modalVisible = ref(false);
 const usuarioSeleccionado = ref(null);
 
@@ -231,7 +233,7 @@ onMounted(() => {
   cargarEmpresas();
 });
 
-// Cargar usuarios
+
 const cargarUsuarios = async () => {
   try {
     const { data } = await axios.get("http://localhost:8000/api/usuarios");
@@ -243,7 +245,7 @@ const cargarUsuarios = async () => {
   }
 };
 
-// Cargar empresas
+
 const cargarEmpresas = async () => {
   try {
     const { data } = await axios.get("http://localhost:8000/api/empresas");
@@ -263,27 +265,25 @@ const actualizarLista = (respuestaApi) => {
     empresa_nombre: respuestaApi.empresa_nombre ?? "Sin empresa"
   };
 
-  // Buscar por codusuario (ID real del usuario)
+
   const index = usuarios.value.findIndex(u => u.codusuario === usuario.codusuario);
 
   if (index !== -1) {
-    usuarios.value[index] = { ...usuario }; // actualizar usuario existente
+    usuarios.value[index] = { ...usuario }; 
   } else {
-    usuarios.value.push(usuario); // agregar uno nuevo
+    usuarios.value.push(usuario); 
   }
 };
 
 
 
-// Eliminar usuario
+
 const confirmarEliminar = async (usuario) => {
   
-  // ⛔ Si NO es tipo C, no se necesita verificar nada
   if (usuario.tipo !== "C") {
     return eliminarDirecto(usuario);
   }
 
-  // ✔️ Si es tipo C, sí verificamos en la API
   Swal.fire({
     title: "Verificando usuario...",
     allowOutsideClick: false,
@@ -306,7 +306,7 @@ const confirmarEliminar = async (usuario) => {
     return;
   }
 
-  // Si pasa la verificación, eliminar
+
   return eliminarDirecto(usuario);
 };
 
@@ -350,21 +350,27 @@ const eliminarDirecto = async (usuario) => {
 
 
 
-// Filtros seguros
+
 const usuariosFiltrados = computed(() => {
+  const buscar = filtroNombre.value.trim().toLowerCase();
+  const tipo = filtroTipo.value;
+  const empresa = filtroEmpresa.value;
+
   return usuarios.value.filter(u => {
-    const nombreSeguro = (u.nombre ?? "").toLowerCase();
-    const filtroSeguro = filtroNombre.value.toLowerCase();
+    const nombre = (u.nombre ?? "").toLowerCase();
+    const empresaUsuario = String(u.empresa_codempresa ?? "");
 
-    const matchNombre = nombreSeguro.includes(filtroSeguro);
-    const matchTipo = filtroTipo.value ? u.tipo === filtroTipo.value : true;
-    const matchEmpresa = filtroEmpresa.value ? u.empresa_codempresa == filtroEmpresa.value : true;
+    const coincideNombre = buscar === "" ? true : nombre.includes(buscar);
+    const coincideTipo = tipo === "" ? true : u.tipo === tipo;
+    const coincideEmpresa = empresa === "" ? true : empresaUsuario === String(empresa);
 
-    return matchNombre && matchTipo && matchEmpresa;
+    return coincideNombre && coincideTipo && coincideEmpresa;
   });
 });
 
-// Paginación
+
+
+
 const totalPaginas = computed(() =>
   Math.ceil(usuariosFiltrados.value.length / registrosPorPagina)
 );
@@ -375,10 +381,13 @@ const usuariosPaginados = computed(() => {
 });
 
 const cambiarPagina = (n) => {
-  if (n >= 1 && n <= totalPaginas.value) paginaActual.value = n;
+  if (n < 1) return;
+  if (n > totalPaginas.value) return;
+  paginaActual.value = n;
 };
 
-// Estilos dinámicos
+
+
 const tipoBadge = (tipo) => {
   if (tipo === "A") return "px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold";
   if (tipo === "U") return "px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold";
@@ -392,5 +401,12 @@ const mostrarTipo = (tipo) => {
   if (tipo === "C") return "Conductor";
   return "";
 };
+watch(usuariosFiltrados, () => {
+  if (paginaActual.value > totalPaginas.value) {
+    paginaActual.value = 1;
+  }
+});
+
+
 
 </script>

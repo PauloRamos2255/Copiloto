@@ -228,6 +228,7 @@ import { ref, reactive, computed, watch, onMounted, nextTick, onUnmounted } from
 import axios from 'axios';
 import Header from '@/pages/Header.vue';
 import ModalEmpresa from '@/components/ModalEmpresa.vue';
+import Swal from "sweetalert2";
 
 const nombreUsuario = 'Paulo';
 const empresas = ref([]);
@@ -368,30 +369,77 @@ watch(filtro, () => paginaActual.value = 1);
 //  ELIMINAR EMPRESA
 // ---------------------------
 const eliminarEmpresa = async (empresa) => {
-    if (empresa.usuarios_count > 0) {
-        alert(`No se puede eliminar la empresa "${empresa.nombre}" porque tiene usuarios.`);
-        return;
+
+  // 1) Verificar si tiene usuarios
+  if (empresa.usuarios_count > 0) {
+    await Swal.fire({
+      icon: "warning",
+      title: "No se puede eliminar",
+      text: `La empresa "${empresa.nombre}" tiene usuarios asociados.`,
+      confirmButtonText: "Aceptar"
+    });
+    return;
+  }
+
+  // 2) Confirmar eliminación
+  const confirmacion = await Swal.fire({
+    title: "¿Eliminar empresa?",
+    text: `Se eliminará "${empresa.nombre}". Esta acción no se puede deshacer.`,
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonColor: "#d33",
+    cancelButtonColor: "#3085d6",
+    confirmButtonText: "Sí, eliminar",
+    cancelButtonText: "Cancelar",
+    reverseButtons: true
+  });
+
+  if (!confirmacion.isConfirmed) return;
+
+  // 3) Mostrar loading mientras se elimina
+  Swal.fire({
+    title: "Eliminando...",
+    allowOutsideClick: false,
+    didOpen: () => Swal.showLoading()
+  });
+
+  try {
+    const response = await axios.delete(`/api/empresas/${empresa.id}`);
+
+    Swal.close();
+
+    if (response.data.ok) {
+
+      // Actualizar listas
+      empresas.value = empresas.value.filter(e => e.id !== empresa.id);
+
+      if (
+        empresasFiltradasPaginadas.value.length === 0 &&
+        paginaActual.value > 1
+      ) {
+        paginaActual.value--;
+      }
+
+      await Swal.fire({
+        icon: "success",
+        title: "Empresa eliminada",
+        text: response.data.msg || "La empresa se eliminó correctamente.",
+        confirmButtonText: "Aceptar"
+      });
     }
 
-    if (!confirm(`¿Seguro que deseas eliminar "${empresa.nombre}"?`)) return;
+  } catch (err) {
+    console.error("Error al eliminar:", err);
 
-    try {
-        const response = await axios.delete(`/api/empresas/${empresa.id}`);
+    Swal.close();
 
-        if (response.data.ok) {
-            empresas.value = empresas.value.filter(e => e.id !== empresa.id);
-
-            if (empresasFiltradasPaginadas.value.length === 0 && paginaActual.value > 1) {
-                paginaActual.value--;
-            }
-
-            alert(response.data.msg || 'Empresa eliminada correctamente');
-        }
-
-    } catch (err) {
-        console.error("Error al eliminar:", err);
-        alert("No se pudo eliminar la empresa");
-    }
+    await Swal.fire({
+      icon: "error",
+      title: "Error",
+      text: "No se pudo eliminar la empresa.",
+      confirmButtonText: "Aceptar"
+    });
+  }
 };
 </script>
 

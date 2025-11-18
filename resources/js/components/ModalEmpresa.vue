@@ -20,7 +20,7 @@
             <label class="block text-gray-700 font-medium mb-1">
               Nombre <span class="text-red-500">*</span>
             </label>
-            <input v-model="empresa.nombre" type="text" required
+            <input v-model="empresa.nombre" type="text" required  maxlength="90"
                    class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-400 focus:outline-none" />
             <p v-if="errores.nombre" class="text-red-600 text-xs mt-1">{{ errores.nombre }}</p>
           </div>
@@ -28,7 +28,7 @@
           <!-- Observación -->
           <div>
             <label class="block text-gray-700 font-medium mb-1">Observación</label>
-            <textarea v-model="empresa.observacion"
+            <textarea maxlength="100" v-model="empresa.observacion" 
                       :style="{ resize: 'vertical', maxHeight: maxAlturaObservacion + 'px' }"
                       rows="3"
                       class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-400 focus:outline-none">
@@ -51,7 +51,7 @@
                   class="px-6 py-2 border rounded-lg hover:bg-gray-200 transition-all font-medium w-full md:w-auto text-sm">
             <i class="fas fa-times mr-1"></i>Cancelar
           </button>
-          <button type="button" @click="guardarEmpresa"
+          <button type="button" @click="guardarEmpresa" :disabled="procesando"
                   class="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-all font-medium shadow-md hover:shadow-lg w-full md:w-auto flex items-center justify-center gap-2 text-sm">
             <i class="fas fa-save mr-1"></i> Guardar
           </button>
@@ -66,12 +66,16 @@
 <script setup>
 import { ref, watch, computed } from 'vue';
 import axios from 'axios';
+import Swal from "sweetalert2";
 
 const props = defineProps({
   visible: Boolean,
   empresaData: Object
 });
 const emit = defineEmits(['close', 'saved']);
+
+const procesando = ref(false);
+
 
 const empresa = ref({
   id: null,
@@ -85,7 +89,7 @@ const errores = ref({
   empresa_col: ''
 });
 
-const maxAlturaObservacion = computed(() => 150); // 15% tamaño máximo
+const maxAlturaObservacion = computed(() => 150); 
 
 watch(() => props.empresaData, (newVal) => {
   if (newVal) {
@@ -115,22 +119,20 @@ function emitClose() {
 
 function formatearTelefono(e) {
   const input = e.target;
-  let val = input.value.replace(/\D/g, '').slice(0, 9); // solo dígitos
-
+  let val = input.value.replace(/\D/g, '').slice(0, 9); 
   let formatted = '';
   for (let i = 0; i < val.length; i++) {
     formatted += val[i];
     if (i === 2 || i === 5) formatted += '-';
   }
 
-  // Si el último carácter es guion y el usuario está borrando, lo eliminamos
   if (e.inputType === 'deleteContentBackward' && formatted.endsWith('-')) {
     formatted = formatted.slice(0, -1);
   }
 
   empresa.value.empresa_col = formatted;
 
-  // Ajustamos la posición del cursor
+
   let cursorPos = input.selectionStart;
   input.setSelectionRange(cursorPos, cursorPos);
 }
@@ -140,44 +142,118 @@ function formatearTelefono(e) {
 async function guardarEmpresa() {
   errores.value = { nombre: '', empresa_col: '' };
 
+  if (procesando.value) return;
+  procesando.value = true;
+
+  const Toast = Swal.mixin({
+    toast: true,
+    position: 'top-end',
+    showConfirmButton: false,
+    timer: 2000,
+    timerProgressBar: true
+  });
+
+
   if (!empresa.value.nombre || empresa.value.nombre.trim() === '') {
-    errores.value.nombre = 'El nombre es obligatorio';
+    Toast.fire({ icon: 'warning', title: 'El nombre es obligatorio' });
+    procesando.value = false;
     return;
   }
 
-  const telefonoNumeros = empresa.value.empresa_col.replace(/\D/g, ''); // quitar guiones
 
+  if (empresa.value.nombre.length > 90) {
+    Toast.fire({ icon: 'warning', title: 'El nombre no puede exceder 90 caracteres' });
+    procesando.value = false;
+    return;
+  }
+
+
+  if (empresa.value.observacion && empresa.value.observacion.length > 100) {
+    Toast.fire({ icon: 'warning', title: 'La observación no puede exceder 30 caracteres' });
+    procesando.value = false;
+    return;
+  }
+
+
+  const telefonoNumeros = empresa.value.empresa_col.replace(/\D/g, '');
   if (telefonoNumeros.length !== 9 && empresa.value.empresa_col.length > 0) {
-    errores.value.empresa_col = 'El teléfono debe tener 9 números';
+    Toast.fire({ icon: 'warning', title: 'El teléfono debe tener 9 dígitos' });
+    procesando.value = false;
     return;
   }
+
+
+  const mensajeCargando = empresa.value.id
+    ? 'Actualizando empresa...'
+    : 'Guardando empresa...';
+
+  Swal.fire({
+    title: mensajeCargando,
+    allowOutsideClick: false,
+    didOpen: () => Swal.showLoading()
+  });
 
   try {
-    const payload = { ...empresa.value, empresa_col: telefonoNumeros }; // enviamos sin guiones
+    const payload = { ...empresa.value, empresa_col: telefonoNumeros };
 
-    const url = empresa.value.id ? `/api/empresas/${empresa.value.id}` : '/api/empresas';
+    const url = empresa.value.id
+      ? `/api/empresas/${empresa.value.id}`
+      : '/api/empresas';
+
     const method = empresa.value.id ? 'put' : 'post';
 
     const response = await axios({ method, url, data: payload });
 
+    Swal.close();
+
     if (response.data.ok) {
       emit('saved', response.data.empresa);
       emitClose();
-      alert(response.data.msg || 'Empresa guardada exitosamente');
+
+
+      Swal.fire({
+        icon: 'success',
+        title: empresa.value.id
+          ? 'Empresa actualizada'
+          : 'Empresa creada',
+        text: empresa.value.id
+          ? 'Los cambios se actualizaron correctamente.'
+          : 'La empresa se guardó correctamente.',
+        timer: 1500,
+        showConfirmButton: false
+      });
     } else {
-      alert(response.data.msg || 'No se pudo guardar la empresa');
+      Swal.fire({
+        icon: 'warning',
+        title: 'Atención',
+        text: response.data.msg || 'No se pudo guardar la empresa'
+      });
     }
   } catch (err) {
+    Swal.close();
     console.error('Error al guardar empresa:', err);
+
     if (err.response?.data?.errors) {
       const errors = Object.values(err.response.data.errors).flat().join('\n');
-      alert('Errores de validación:\n' + errors);
+      Swal.fire({
+        icon: 'error',
+        title: 'Errores de validación',
+        text: errors
+      });
     } else {
       const errorMsg = err.response?.data?.msg || 'Error al guardar la empresa';
-      alert(errorMsg);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: errorMsg
+      });
     }
+  } finally {
+    procesando.value = false;
   }
 }
+
+
 
 </script>
 

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Asignacion;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
@@ -46,6 +47,25 @@ class UsuarioController extends Controller
         $usuarios = Usuario::where('tipo', 'C')->get();
         return response()->json($usuarios);
     }
+
+    public function verificarUsuario($id)
+    {
+        $existe = Asignacion::where('usuario_codusuario', $id)->exists();
+
+        if ($existe) {
+            return response()->json([
+                'success' => true,
+                'mensaje' => 'El usuario está asignado y no puede eliminarse'
+            ]);
+        }
+
+        return response()->json([
+            'success' => false,
+            'mensaje' => 'El usuario se puede eliminar'
+        ]);
+    }
+
+
 
     public function store(Request $request)
     {

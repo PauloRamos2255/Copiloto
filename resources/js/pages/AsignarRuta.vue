@@ -32,13 +32,8 @@
         </div>
       </div>
 
-      <!-- Loading -->
-      <div v-if="cargando" class="flex justify-center py-10">
-        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-
       <!-- Tabla de conductores -->
-      <div v-else class="bg-white shadow-lg rounded-2xl overflow-hidden border border-gray-200">
+      <div class="bg-white shadow-lg rounded-2xl overflow-hidden border border-gray-200">
         <div class="overflow-x-auto">
           <table class="min-w-full text-sm text-gray-800">
             <thead
@@ -52,35 +47,180 @@
                 <th class="px-6 py-4 text-center">Acciones</th>
               </tr>
             </thead>
-            <tbody>
-              <tr v-for="(conductor, index) in conductoresPaginados" :key="conductor.id"
-                class="border-b border-gray-100 hover:bg-blue-50 transition-all">
-                <td class="px-6 py-4 font-semibold">
-                  {{ index + 1 + (paginaActual - 1) * registrosPorPagina }}
-                </td>
-                <td class="px-6 py-4 font-medium">{{ conductor.nombre ?? 'Sin placa' }}</td>
-                <td class="px-6 py-4 font-medium">{{ conductor.identificador ?? 'Sin datos' }}</td>
-                <td class="px-6 py-4 font-medium text-center">{{ conductor.total_rutas ?? 0 }}</td>
-                <td class="px-6 py-4 font-medium text-center">{{ conductor.total_viajes ?? 0 }}</td>
-                <td class="px-6 py-4 text-center space-x-2">
-                  <button class="p-2 rounded-full bg-yellow-50 text-yellow-600 hover:bg-yellow-100 transition-colors"
-                    @click="abrirModalAsignarRuta(conductor)" title="Asignar ruta">
-                    <i class="fas fa-edit"></i>
-                  </button>
-                  <button class="p-2 rounded-full bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
-                    @click="confirmarEliminar(conductor)" title="Eliminar">
-                    <i class="fas fa-trash"></i>
-                  </button>
-                </td>
-              </tr>
 
-              <tr v-if="conductoresFiltrados.length === 0">
+            <tbody>
+
+              <!-- SKELETON CUANDO CARGA -->
+              <template v-if="cargando">
+                <tr v-for="n in registrosPorPagina" :key="n">
+                  <td colspan="6" class="px-6 py-4">
+                    <div class="flex gap-2 items-center">
+                      <div class="h-6 w-6 bg-gray-300 rounded-full relative overflow-hidden">
+                        <div
+                          class="absolute inset-0 bg-gradient-to-r from-gray-300 via-gray-200 to-gray-300 animate-shimmer">
+                        </div>
+                      </div>
+                      <div class="flex-1 flex gap-2">
+                        <div class="h-4 bg-gray-300 rounded w-1/6 relative overflow-hidden">
+                          <div
+                            class="absolute inset-0 bg-gradient-to-r from-gray-300 via-gray-200 to-gray-300 animate-shimmer">
+                          </div>
+                        </div>
+                        <div class="h-4 bg-gray-300 rounded w-1/4 relative overflow-hidden">
+                          <div
+                            class="absolute inset-0 bg-gradient-to-r from-gray-300 via-gray-200 to-gray-300 animate-shimmer">
+                          </div>
+                        </div>
+                        <div class="h-4 bg-gray-300 rounded w-1/4 relative overflow-hidden">
+                          <div
+                            class="absolute inset-0 bg-gradient-to-r from-gray-300 via-gray-200 to-gray-300 animate-shimmer">
+                          </div>
+                        </div>
+                        <div class="h-4 bg-gray-300 rounded w-1/6 relative overflow-hidden">
+                          <div
+                            class="absolute inset-0 bg-gradient-to-r from-gray-300 via-gray-200 to-gray-300 animate-shimmer">
+                          </div>
+                        </div>
+                        <div class="h-4 bg-gray-300 rounded w-1/6 relative overflow-hidden">
+                          <div
+                            class="absolute inset-0 bg-gradient-to-r from-gray-300 via-gray-200 to-gray-300 animate-shimmer">
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              </template>
+
+              <!-- FILAS REALES -->
+              <template v-else v-for="(conductor, index) in conductoresPaginados" :key="conductor.codusuario">
+
+                <!-- FILA PRINCIPAL -->
+                <tr @click="toggleExpandirFila(conductor.codusuario)"
+                  class="border-b border-gray-100 hover:bg-blue-50 transition-all cursor-pointer">
+                  <td class="px-6 py-4 font-semibold">
+                    {{ index + 1 + (paginaActual - 1) * registrosPorPagina }}
+                  </td>
+                  <td class="px-6 py-4 font-medium">{{ conductor.nombre ?? 'Sin placa' }}</td>
+                  <td class="px-6 py-4 font-medium">{{ conductor.identificador ?? 'Sin datos' }}</td>
+                  <td class="px-6 py-4 font-medium text-center">{{ conductor.total_rutas ?? 0 }}</td>
+                  <td class="px-6 py-4 font-medium text-center">{{ conductor.total_viajes ?? 0 }}</td>
+                  <td class="px-6 py-4">
+                    <div class="flex justify-center">
+                      <button
+                        class="flex items-center justify-center px-4 py-2 bg-yellow-500 text-white rounded-lg shadow transition-colors duration-200 hover:bg-yellow-600"
+                        @click.stop="abrirModalAsignarRuta(conductor)" title="Editar">
+                        <i class="fas fa-edit mr-2"></i>
+                        Editar
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+
+                <!-- FILA EXPANDIDA CON SKELETON COINCIDENTE -->
+                <tr v-if="filaExpandida === conductor.codusuario" :key="`detalle-${conductor.codusuario}`">
+                  <td colspan="6" class="bg-blue-50">
+                    <div class="p-3">
+
+                      <!-- Skeleton loading state -->
+                      <template v-if="rutasDetalle.length === 0">
+                        <div class="flex flex-wrap gap-2">
+                          <div v-for="n in 4" :key="n"
+                            class="bg-white border border-gray-200 rounded-lg shadow overflow-hidden w-28">
+
+                            <!-- Skeleton imagen -->
+                            <div class="w-full h-20 bg-gray-300 relative overflow-hidden">
+                              <div
+                                class="absolute inset-0 bg-gradient-to-r from-gray-300 via-gray-200 to-gray-300 animate-shimmer">
+                              </div>
+                            </div>
+
+                            <!-- Skeleton contenido -->
+                            <div class="p-2 space-y-1">
+                              <!-- Skeleton nombre y badge -->
+                              <div class="flex items-start justify-between gap-1">
+                                <div class="h-3 bg-gray-300 rounded w-16 relative overflow-hidden flex-1">
+                                  <div
+                                    class="absolute inset-0 bg-gradient-to-r from-gray-300 via-gray-200 to-gray-300 animate-shimmer">
+                                  </div>
+                                </div>
+                                <div class="w-4 h-4 rounded-full bg-gray-300 flex-shrink-0 relative overflow-hidden">
+                                  <div
+                                    class="absolute inset-0 bg-gradient-to-r from-gray-300 via-gray-200 to-gray-300 animate-shimmer">
+                                  </div>
+                                </div>
+                              </div>
+
+                              <!-- Skeleton información -->
+                              <div class="space-y-0.5">
+                                <div class="h-2 bg-gray-300 rounded w-20 relative overflow-hidden">
+                                  <div
+                                    class="absolute inset-0 bg-gradient-to-r from-gray-300 via-gray-200 to-gray-300 animate-shimmer">
+                                  </div>
+                                </div>
+                                <div class="h-2 bg-gray-300 rounded w-16 relative overflow-hidden">
+                                  <div
+                                    class="absolute inset-0 bg-gradient-to-r from-gray-300 via-gray-200 to-gray-300 animate-shimmer">
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </template>
+
+                      <!-- Actual content -->
+                      <template v-else>
+                        <div class="flex flex-wrap gap-2">
+                          <div v-for="ruta in rutasDetalle" :key="ruta.codruta"
+                            class="bg-white border border-gray-200 rounded-lg shadow hover:shadow-md transition-shadow overflow-hidden w-28">
+
+                            <!-- Imagen -->
+                            <div class="w-full h-20 overflow-hidden bg-gray-100">
+                              <img :src="`storage/${ruta.icono}`" class="w-full h-full object-cover"
+                                :alt="ruta.nombre" />
+                            </div>
+
+                            <!-- Contenido -->
+                            <div class="p-2 space-y-1">
+                              <!-- Nombre y Badge -->
+                              <div class="flex items-start justify-between gap-1">
+                                <h3 class="font-semibold text-xs text-gray-800 line-clamp-1 flex-1">
+                                  {{ ruta.nombre }}
+                                </h3>
+                                <div
+                                  class="w-4 h-4 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+                                  :class="ruta.tipo === 'G' ? 'bg-blue-500' : ruta.tipo === 'V' ? 'bg-green-500' : 'bg-gray-500'">
+                                  {{ ruta.tipo }}
+                                </div>
+                              </div>
+
+                              <!-- Información compacta -->
+                              <div class="space-y-0.5 text-xs">
+                                <p class="text-gray-600"><strong>Límite:</strong> {{ ruta.limiteGeneral }} km/h</p>
+                                <p class="text-gray-600"><strong>Seg:</strong> {{ ruta.cantidadSegmentos }}</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </template>
+
+                    </div>
+                  </td>
+                </tr>
+
+              </template>
+
+              <!-- SIN RESULTADOS -->
+              <tr v-if="!cargando && conductoresFiltrados.length === 0">
                 <td colspan="6" class="text-center py-10 text-gray-500">
                   <i class="fas fa-inbox text-4xl mb-2 block text-gray-400"></i>
                   <p>No se encontraron resultados</p>
                 </td>
               </tr>
+
             </tbody>
+
           </table>
         </div>
       </div>
@@ -104,17 +244,13 @@
         </div>
       </div>
 
-      <!-- Modal -->
-      <ModalAsignarRuta
-        :visible="modalVisible"
-        :conductorData="conductorSeleccionado"
-        @close="cerrarModal"
-        @saved="actualizarTabla"
-      />
+      <ModalAsignarRuta :visible="modalVisible" :conductorData="conductorSeleccionado" :rutas="rutasCache"
+        :conductores="conductores" @close="cerrarModal" @saved="actualizarTabla" />
 
     </main>
   </div>
 </template>
+
 
 <script setup>
 import { ref, computed, onMounted, watch } from "vue";
@@ -124,17 +260,43 @@ import ModalAsignarRuta from "@/components/ModalAsignarRuta.vue";
 
 const nombreUsuario = "Paulo Ramos";
 const conductores = ref([]);
+const rutasCache = ref(null);
 const cargando = ref(true);
 const filtroBusqueda = ref("");
-
 
 const modalVisible = ref(false);
 const conductorSeleccionado = ref(null);
 
-
 const paginaActual = ref(1);
 const registrosPorPagina = 10;
 
+const filaExpandida = ref(null);
+const rutasDetalle = ref([]);
+const rutasDetalleCache = ref({});
+
+const cargarDetalleRuta = async (id) => {
+  try {
+    if (rutasDetalleCache.value[id]) {
+      rutasDetalle.value = rutasDetalleCache.value[id];
+      return;
+    }
+    const { data } = await axios.get(`/api/asignacion_get/${id}`);
+    rutasDetalleCache.value[id] = data;
+    rutasDetalle.value = data;
+  } catch (e) {
+    console.error("Error detalle:", e);
+  }
+};
+
+const toggleExpandirFila = async (id) => {
+  if (filaExpandida.value === id) {
+    filaExpandida.value = null;
+    rutasDetalle.value = [];
+  } else {
+    filaExpandida.value = id;
+    await cargarDetalleRuta(id);
+  }
+};
 
 const cargarConductores = async () => {
   try {
@@ -148,16 +310,27 @@ const cargarConductores = async () => {
   }
 };
 
+const cargarRutas = async () => {
+  try {
+    const { data } = await axios.get("/api/asignacion_segmen");
+    rutasCache.value = data;
+  } catch (error) {
+    console.error("Error al cargar rutas:", error);
+  }
+};
+
 onMounted(() => {
-  cargarConductores();
+  Promise.all([
+    cargarConductores(),
+    cargarRutas()
+  ]);
 });
 
-// Filtros
 const conductoresFiltrados = computed(() =>
   conductores.value.filter(c => {
     const texto = filtroBusqueda.value.toLowerCase();
     return (c.placa ?? "").toLowerCase().includes(texto) ||
-           (c.identificador ?? "").toLowerCase().includes(texto);
+      (c.identificador ?? "").toLowerCase().includes(texto);
   })
 );
 
@@ -174,10 +347,8 @@ const cambiarPagina = n => {
   if (n >= 1 && n <= totalPaginas.value) paginaActual.value = n;
 };
 
-// Reset paginación al filtrar
 watch(filtroBusqueda, () => paginaActual.value = 1);
 
-// -------- MODAL --------
 const abrirModalAsignarRuta = (conductor = null) => {
   conductorSeleccionado.value = conductor ? { ...conductor } : null;
   modalVisible.value = true;
@@ -189,11 +360,11 @@ const cerrarModal = () => {
 };
 
 const actualizarTabla = async () => {
+  rutasDetalleCache.value = {};
   await cargarConductores();
   cerrarModal();
 };
 
-// Eliminar
 const confirmarEliminar = async conductor => {
   if (confirm(`¿Eliminar a ${conductor.identificador}?`)) {
     try {

@@ -125,6 +125,30 @@ class AsignacionController extends Controller
         ]);
     }
 
+   public function obtenerRutasPorConductor($idUsuario)
+{
+    $rutas = DB::table('asignacion AS a')
+        ->join('usuario AS u', 'u.codusuario', '=', 'a.usuario_codusuario')
+        ->join('ruta AS r', 'r.codruta', '=', 'a.ruta_codruta')
+        ->leftJoin('detalleRuta AS d', 'd.ruta_codruta', '=', 'r.codruta')
+        ->where('u.codusuario', $idUsuario)
+        ->where('u.tipo', 'C') // Ajusta según tu columna
+        ->select(
+            'r.codruta',
+            'r.nombre',
+            'r.limiteGeneral',
+            'r.tipo',
+            'r.icono',
+            DB::raw('COUNT(d.iddetalleRuta) AS cantidadSegmentos')
+        )
+        ->groupBy('r.codruta','r.nombre','r.limiteGeneral','r.tipo','r.icono')
+        ->get();
+
+    return response()->json($rutas);
+}
+
+
+
 
 
     public function guardarAsignaciones(Request $request)
@@ -152,5 +176,43 @@ class AsignacionController extends Controller
         return response()->json([
             'message' => 'Asignaciones guardadas correctamente'
         ]);
+    }
+
+
+    public function editarAsignaciones(Request $request)
+    {
+        $usuarioId = $request->input('usuario');
+        $nuevasRutas = $request->input('rutas', []);
+
+        if (!$usuarioId || !is_array($nuevasRutas)) {
+            return response()->json(['error' => 'Datos de entrada inválidos.'], 422);
+        }
+
+        try {
+            Asignacion::where('usuario_codusuario', $usuarioId)->delete();
+
+            $asignacionesAInsertar = [];
+            $fechaActual = now();
+
+            foreach ($nuevasRutas as $rutaId) {
+                $asignacionesAInsertar[] = [
+                    'usuario_codusuario' => $usuarioId,
+                    'ruta_codruta' => $rutaId,
+                    'ultimaActualizacion' => $fechaActual,
+                    'created_at' => $fechaActual,
+                    'updated_at' => $fechaActual,
+                ];
+            }
+
+            if (!empty($asignacionesAInsertar)) {
+                Asignacion::insert($asignacionesAInsertar);
+            }
+
+            return response()->json([
+                'message' => 'Asignaciones editadas y reemplazadas correctamente.',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Ocurrió un error al procesar las asignaciones: ' . $e->getMessage()], 500);
+        }
     }
 }

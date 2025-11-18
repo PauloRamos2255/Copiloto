@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Ruta;
 
 use App\Http\Controllers\Controller;
+use App\Models\Asignacion;
 use App\Models\Ruta;
 use App\Models\DetalleRuta;
 use App\Models\Segmento;
@@ -104,55 +105,55 @@ class RutaController extends Controller
     }
 
 
-   public function showID($id)
-{
-    // Obtener la ruta principal
-    $ruta = DB::table('ruta')
-        ->where('codruta', $id)
-        ->select('codruta', 'nombre', 'tipo', 'icono', 'limiteGeneral')
-        ->first();
+    public function showID($id)
+    {
+        // Obtener la ruta principal
+        $ruta = DB::table('ruta')
+            ->where('codruta', $id)
+            ->select('codruta', 'nombre', 'tipo', 'icono', 'limiteGeneral')
+            ->first();
 
-    if (!$ruta) {
-        return response()->json(['error' => 'Ruta no encontrada'], 404);
+        if (!$ruta) {
+            return response()->json(['error' => 'Ruta no encontrada'], 404);
+        }
+
+        // Obtener los detalles de la ruta con los segmentos asociados y su color
+        $detalles = DB::table('detalleRuta as d')
+            ->leftJoin('segmento as s', 'd.segmento_codsegmento', '=', 's.codsegmento')
+            ->where('d.ruta_codruta', $id)
+            ->select(
+                'd.iddetalleRuta as detalle_id', // corregido aquí
+                'd.segmento_codsegmento',
+                'd.mensaje',
+                'd.velocidadPermitida',
+                's.nombre as segmento_nombre',
+                's.color as segmento_color',
+                's.cordenadas'
+            )
+            ->get();
+
+        // Estructurar los detalles de la ruta
+        $detallesRuta = $detalles->map(function ($d) {
+            return [
+                'id' => $d->segmento_codsegmento,
+                'nombre' => $d->segmento_nombre ?? "Segmento {$d->segmento_codsegmento}",
+                'mensaje' => $d->mensaje ?? '',
+                'velocidadPermitida' => (float) ($d->velocidadPermitida ?? 0),
+                'color' => $d->segmento_color ?? '#ffffff',
+                'cordenadas' => json_decode($d->cordenadas) ?? []
+            ];
+        });
+
+        // Armar la respuesta final
+        return response()->json([
+            'id' => $ruta->codruta,
+            'nombre' => $ruta->nombre,
+            'tipo' => $ruta->tipo,
+            'icono' => $ruta->icono,
+            'limiteGeneral' => $ruta->limiteGeneral,
+            'detalles_ruta' => $detallesRuta,
+        ], 200);
     }
-
-    // Obtener los detalles de la ruta con los segmentos asociados y su color
-    $detalles = DB::table('detalleRuta as d')
-        ->leftJoin('segmento as s', 'd.segmento_codsegmento', '=', 's.codsegmento')
-        ->where('d.ruta_codruta', $id)
-        ->select(
-            'd.iddetalleRuta as detalle_id', // corregido aquí
-            'd.segmento_codsegmento',
-            'd.mensaje',
-            'd.velocidadPermitida',
-            's.nombre as segmento_nombre',
-            's.color as segmento_color',
-            's.cordenadas'
-        )
-        ->get();
-
-    // Estructurar los detalles de la ruta
-    $detallesRuta = $detalles->map(function ($d) {
-        return [
-            'id' => $d->segmento_codsegmento,
-            'nombre' => $d->segmento_nombre ?? "Segmento {$d->segmento_codsegmento}",
-            'mensaje' => $d->mensaje ?? '',
-            'velocidadPermitida' => (float) ($d->velocidadPermitida ?? 0),
-            'color' => $d->segmento_color ?? '#ffffff',
-            'cordenadas' => json_decode($d->cordenadas) ?? []
-        ];
-    });
-
-    // Armar la respuesta final
-    return response()->json([
-        'id' => $ruta->codruta,
-        'nombre' => $ruta->nombre,
-        'tipo' => $ruta->tipo,
-        'icono' => $ruta->icono,
-        'limiteGeneral' => $ruta->limiteGeneral,
-        'detalles_ruta' => $detallesRuta,
-    ], 200);
-}
 
 
 
@@ -249,7 +250,6 @@ class RutaController extends Controller
     }
 
 
-    // Actualizar ruta y sus detalles
     public function update(Request $request, $id)
     {
         $validated = $request->validate([
@@ -268,10 +268,8 @@ class RutaController extends Controller
         try {
             $ruta = Ruta::with('detallesRuta')->findOrFail($id);
 
-            // Actualizar campos básicos
             $ruta->update($validated);
 
-            // Actualizar logo si se sube uno nuevo
             if ($request->hasFile('icono')) {
                 if ($ruta->icono) {
                     Storage::disk('public')->delete($ruta->icono);
@@ -280,7 +278,6 @@ class RutaController extends Controller
                 $ruta->save();
             }
 
-            // Actualizar detalles en bloque
             if (!empty($validated['detalles'])) {
                 // Preparar datos
                 $detallesData = array_map(fn($d) => [
@@ -290,7 +287,6 @@ class RutaController extends Controller
                     'mensaje' => $d['mensaje'] ?? null,
                 ], $validated['detalles']);
 
-                // Eliminar antiguos y crear todos de una vez
                 $ruta->detallesRuta()->delete();
                 $ruta->detallesRuta()->insert($detallesData);
             }
@@ -311,43 +307,40 @@ class RutaController extends Controller
     }
 
     // Eliminar ruta y sus detalles
-  public function destroy($id)
-{
-    DB::beginTransaction();
+    public function destroy($id)
+    {
+        DB::beginTransaction();
 
-    try {
-        $ruta = Ruta::findOrFail($id);
+        try {
+            $ruta = Ruta::findOrFail($id);
 
-        if (!empty($ruta->icono) && Storage::disk('public')->exists($ruta->icono)) {
-            Storage::disk('public')->delete($ruta->icono);
+            if (!empty($ruta->icono) && Storage::disk('public')->exists($ruta->icono)) {
+                Storage::disk('public')->delete($ruta->icono);
+            }
+
+            // Verificar que la tabla de detalles exista antes de borrar
+            if (Schema::hasTable('detalle_ruta')) {
+                DB::table('detalle_ruta')->where('ruta_codruta', $id)->delete();
+            } elseif (Schema::hasTable('detalleRuta')) {
+                DB::table('detalleRuta')->where('ruta_codruta', $id)->delete();
+            }
+
+            $ruta->delete();
+
+            DB::commit();
+            return response()->json(['message' => 'Ruta eliminada exitosamente'], 200);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'message' => 'Error al eliminar la ruta',
+                'error' => $e->getMessage(),
+                'linea' => $e->getLine()
+            ], 500);
         }
-
-        // Verificar que la tabla de detalles exista antes de borrar
-        if (Schema::hasTable('detalle_ruta')) {
-            DB::table('detalle_ruta')->where('ruta_codruta', $id)->delete();
-        } elseif (Schema::hasTable('detalleRuta')) {
-            DB::table('detalleRuta')->where('ruta_codruta', $id)->delete();
-        }
-
-        $ruta->delete();
-
-        DB::commit();
-        return response()->json(['message' => 'Ruta eliminada exitosamente'], 200);
-
-    } catch (\Exception $e) {
-        DB::rollBack();
-        return response()->json([
-            'message' => 'Error al eliminar la ruta',
-            'error' => $e->getMessage(),
-            'linea' => $e->getLine()
-        ], 500);
     }
-}
 
 
 
-
-    // Obtener detalles de una ruta con nombres de segmentos
     public function detallesRuta($codruta)
     {
         $detalles = DetalleRuta::where('ruta_codruta', $codruta)->get();
@@ -368,5 +361,24 @@ class RutaController extends Controller
         });
 
         return response()->json($result);
+    }
+
+
+    public function verificarRuta($idRuta)
+    {
+        // Suponiendo que tienes un modelo Asignacion
+        $existe = Asignacion::where('ruta_codruta', $idRuta)->exists();
+
+        if ($existe) {
+            return response()->json([
+                'success' => true,
+                'mensaje' => 'La ruta existe en la tabla asignacion'
+            ]);
+        } else {
+            return response()->json([
+                'success' => false,
+                'mensaje' => 'La ruta no existe en la tabla asignacion'
+            ]);
+        }
     }
 }

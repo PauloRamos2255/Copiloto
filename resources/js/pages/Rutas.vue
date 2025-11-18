@@ -132,7 +132,9 @@
                         <i class="fas fa-clone"></i>
                       </button>
                       <button class="p-2 rounded-full bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
-                        @click.stop="eliminarRuta(ruta.id)" title="Eliminar ruta">
+                        @click.stop="eliminarRuta(ruta.id)" :disabled="rutaEnUso" :title="rutaEnUso
+                          ? 'No se puede eliminar (está asignada)'
+                          : 'Eliminar ruta'">
                         <i class="fas fa-trash"></i>
                       </button>
                     </td>
@@ -140,35 +142,57 @@
                   <!-- Segmentos expandibles -->
                   <transition name="fade-slide">
                     <tr v-if="String(registroExpandido) === String(ruta.id) && ruta.mostrarSegmentos"
-                      class="bg-blue-50 transition-all">
-                      <td colspan="5" class="px-3 md:px-6 py-3">
+                      class="bg-gradient-to-b from-blue-50 to-blue-25 transition-all">
+                      <td colspan="5" class="px-3 md:px-6 py-4">
 
-                        <!-- Skeleton -->
-                        <div v-if="!ruta.segmentos || ruta.segmentosCargando" class="grid gap-2 animate-pulse"
-                          style="grid-template-columns: repeat(4, 1fr)">
-                          <div v-for="n in 4" :key="'skel-seg-' + n"
-                            class="p-2 bg-white rounded border-l-4 border-blue-500 shadow-sm">
-                            <div class="h-3 bg-gray-300 rounded mb-1 w-5/6"></div>
-                            <div class="h-2 bg-gray-300 rounded mb-1 w-4/6"></div>
-                            <div class="h-2 bg-gray-300 rounded w-2/6"></div>
+                        <div v-if="!ruta.segmentos || ruta.segmentosCargando" class="flex flex-wrap gap-1.5">
+                          <div v-for="n in 8" :key="'skel-seg-' + n"
+                            class="bg-white rounded border border-gray-200 shadow-sm p-1.5 w-28 overflow-hidden">
+
+                            <h4 class="font-semibold text-xs text-gray-800 truncate">
+                              <div class="h-2 bg-gray-300 rounded w-5/6 relative overflow-hidden">
+                                <div
+                                  class="absolute inset-0 bg-gradient-to-r from-gray-300 via-gray-200 to-gray-300 animate-shimmer">
+                                </div>
+                              </div>
+                            </h4>
+
+                            <p class="text-xs text-gray-600 truncate mt-1">
+                            <div class="h-1.5 bg-gray-300 rounded w-3/4 relative overflow-hidden">
+                              <div
+                                class="absolute inset-0 bg-gradient-to-r from-gray-300 via-gray-200 to-gray-300 animate-shimmer">
+                              </div>
+                            </div>
+                            </p>
+
+                            <div class="flex items-center gap-0.5 text-xs text-blue-600 font-bold mt-1">
+                              <div class="h-1.5 bg-gray-300 rounded w-1/2 relative overflow-hidden flex-1">
+                                <div
+                                  class="absolute inset-0 bg-gradient-to-r from-gray-300 via-gray-200 to-gray-300 animate-shimmer">
+                                </div>
+                              </div>
+                            </div>
                           </div>
                         </div>
 
-                        <!-- Segmentos reales -->
-                        <div v-else class="grid gap-2" style="grid-template-columns: repeat(4, 1fr)">
+                        <div v-else class="flex flex-wrap gap-1.5">
                           <div v-for="segmento in ruta.segmentos" :key="'saved-' + segmento._tempId"
-                            class="p-2 bg-white rounded border-l-4 border-blue-500 shadow-sm hover:shadow-md transition-all flex flex-col">
+                            class="bg-white rounded border border-gray-200 shadow-sm hover:shadow-md hover:border-blue-400 transition-all p-1.5 w-28 overflow-hidden">
 
-                            <div class="font-semibold text-gray-800 text-xs truncate" :title="segmento.nombre">
-                              {{ segmento.nombre || `Segmento ${segmento.id}` }}
-                            </div>
+                            <h4
+                              class="font-semibold text-xs text-gray-800 truncate hover:text-blue-600 transition-colors"
+                              :title="segmento.nombre">
+                              {{ segmento.nombre || `Seg ${segmento.id}` }}
+                            </h4>
 
-                            <div class="text-xs text-gray-600 mt-1 truncate" :title="segmento.mensaje">
-                              <span v-if="segmento.mensaje">{{ segmento.mensaje }}</span>
-                            </div>
+                            <p v-if="segmento.mensaje" class="text-xs text-gray-600 truncate" :title="segmento.mensaje">
+                              {{ segmento.mensaje }}
+                            </p>
 
-                            <div class="text-xs text-blue-600 font-medium mt-1" :title="segmento.velocidad + ' km/h'">
-                              <span v-if="segmento.velocidad">{{ segmento.velocidad }} km/h</span>
+                            <div v-if="segmento.velocidad"
+                              class="flex items-center gap-0.5 text-xs text-blue-600 font-bold">
+                              <i class="fas fa-tachometer-alt text-xs"></i>
+                              <span>{{ segmento.velocidad }}km/h</span>
                             </div>
 
                           </div>
@@ -445,8 +469,10 @@
                 <!-- Polígonos y markers de segmentos -->
                 <template v-for="segmento in segmentosRuta" :key="segmento.id || segmento._tempId">
                   <LPolygon v-if="segmento.cordenadas?.length" :lat-lngs="segmento.cordenadas.map(c => [c.y, c.x])"
-                    :color="segmento.color || 'blue'" :fill-color="convertirColorConAlpha(segmento.color || '#0000ff')"
-                    :fill-opacity="50" />
+                    :color="convertirColorConAlpha(segmento.color || '#0000ff',1)" :fill-color="convertirColorConAlpha(segmento.color || '#0000ff',0.4)"
+                    :fill-opacity="0.4"
+                        :weight="3" />
+                        
 
                   <LMarker v-if="segmento.cordenadas?.length" :lat-lng="calcularCentro(segmento.cordenadas)"
                     :icon="crearCardIcon(segmento.nombre)" />
@@ -594,6 +620,7 @@ const dragOrigen = ref<DragOrigen>(null);
 const dragToIndex = ref<number | null>(null);
 let tempIdCounter = 0;
 
+const rutaEnUso = ref(false)
 
 const mapaRef = ref<InstanceType<typeof LMap> | null>(null);
 
@@ -611,6 +638,17 @@ watch(() => formularioSegmentoAbierto.value, (nuevoValor) => {
     setTimeout(actualizarMapa, 400);
   }
 });
+
+const verificarRuta = async (idRuta: 0) => {
+  try {
+    const res = await axios.get(`api/verificaruta/${idRuta}`)
+    rutaEnUso.value = res.data.success // true si está asignada
+  } catch (error) {
+    console.error(error)
+    rutaEnUso.value = false
+  }
+}
+
 
 
 
@@ -632,7 +670,7 @@ async function cargarSegmentos() {
     cargando.value = true;
     errorCarga.value = "";
 
-    const response = await axios.get("http://localhost:8000/api/segmentos", { timeout: 10000 });
+    const response = await axios.get("api/segmentos", { timeout: 10000 });
     const data = response.data;
 
     // Intentamos obtener el array de segmentos
@@ -716,7 +754,7 @@ async function cargarRutas() {
   const inicio = performance.now(); // ⏱ inicio
 
   try {
-    const { data } = await axios.get("http://localhost:8000/api/rutas");
+    const { data } = await axios.get("api/rutas");
 
     // tu lógica...
     const arr = Array.isArray(data) ? data : data.data || data.rutas || [];
@@ -1257,28 +1295,59 @@ async function duplicarRuta(rutaId: number, invertida = false): Promise<any> {
 
 
 async function eliminarRuta(id?: number) {
-  const confirmar = await Swal.fire({
-    title: "¿Está seguro de eliminar esta ruta?",
-    icon: "warning",
-    showCancelButton: true,
-    confirmButtonText: "Sí, eliminar",
-    cancelButtonText: "Cancelar",
-    reverseButtons: true
-  });
-
-  if (!confirmar.isConfirmed) return;
-
-  Swal.fire({
-    title: "Eliminando ruta...",
-    allowOutsideClick: false,
-    didOpen: () => Swal.showLoading(),
-  });
+  if (!id) return;
 
   try {
-    const { data } = await axios.delete(`http://localhost:8000/api/rutas/${id}`);
+    // Mostrar pantalla de verificando
+    Swal.fire({
+      title: "Verificando ruta...",
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading(),
+    });
 
-    // Eliminar la ruta directamente del array de rutas para no recargar todo
-    rutas.value = rutas.value.filter(r => r.id !== id);
+    // 1) Verificar si está asignada
+    const { data: verificar } = await axios.get(
+      `api/verificaruta/${id}`
+    );
+
+    Swal.close(); // cerrar el loading de "verificando"
+
+    if (verificar.success) {
+      // Ruta asignada: mostrar aviso
+      await Swal.fire({
+        icon: "warning",
+        title: "No se puede eliminar",
+        text: "La ruta está asignada en la tabla de asignaciones.",
+        confirmButtonText: "Aceptar",
+      });
+      return;
+    }
+
+    // 2) Confirmación de eliminación
+    const confirmar = await Swal.fire({
+      title: "¿Está seguro de eliminar esta ruta?",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Sí, eliminar",
+      cancelButtonText: "Cancelar",
+      reverseButtons: true,
+    });
+
+    if (!confirmar.isConfirmed) return;
+
+    // 3) Loading mientras se elimina
+    Swal.fire({
+      title: "Eliminando ruta...",
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading(),
+    });
+
+    // 4) Eliminar ruta
+    const { data } = await axios.delete(
+      `http://localhost:8000/api/rutas/${id}`
+    );
+
+    rutas.value = rutas.value.filter((r) => r.id !== id);
 
     Swal.close();
 
@@ -1286,7 +1355,7 @@ async function eliminarRuta(id?: number) {
       icon: "success",
       title: "Ruta eliminada",
       text: data.message || "La ruta se eliminó correctamente",
-      confirmButtonText: "Aceptar"
+      confirmButtonText: "Aceptar",
     });
 
   } catch (error: any) {
@@ -1303,39 +1372,36 @@ async function eliminarRuta(id?: number) {
       icon: "error",
       title: "Error",
       text: mensaje,
-      confirmButtonText: "Aceptar"
+      confirmButtonText: "Aceptar",
     });
   }
 }
 
 
+
+
 async function toggleSegmentos(ruta: Ruta) {
-  // Si la ruta ya estaba expandida, la cerramos
   if (registroExpandido.value === ruta.id) {
     registroExpandido.value = null;
     ruta.mostrarSegmentos = false;
     return;
   }
 
-  // Cerramos otras rutas
   rutas.value.forEach(r => r.mostrarSegmentos = false);
 
-  // Abrimos la ruta actual
+
   ruta.mostrarSegmentos = true;
   registroExpandido.value = ruta.id ?? null;
 
-  // Si ya tiene segmentos cargados, no volvemos a pedirlos
   if (ruta.segmentos && ruta.segmentos.length > 0) return;
 
-  // Mostrar skeleton
+
   ruta.segmentosCargando = true;
 
   try {
-    // Simulamos una consulta a la API (reemplaza por tu endpoint real)
     const respuesta = await fetch(`/api/rutas/${ruta.id}`);
     const data = await respuesta.json();
 
-    // Procesamos los segmentos recibidos
     ruta.segmentos = data.map((segmento: any) => ({
       ...segmento,
       _tempId: generarTempId()
@@ -1786,6 +1852,7 @@ input[type="number"]::-webkit-outer-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
+
 /* Ocultar zoom buttons (+ y -) */
 :deep(.leaflet-control-zoom) {
   display: none !important;

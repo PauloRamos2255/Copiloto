@@ -177,29 +177,25 @@
       </button>
 
       <!-- MAPA -->
-      <LMap ref="lmap" v-if="segmentos.length" class="flex-1" :zoom="zoom" :center="center"
-        :options="{ zoomControl: false }">
-
+      <LMap ref="lmap" class="flex-1" :zoom="zoom" :center="center" :options="{ zoomControl: false }">
         <LTileLayer :url="tileLayerUrl" :subdomains="['mt0', 'mt1', 'mt2', 'mt3']" />
+        <template v-if="segmentos.length">
+          <LPolygon v-for="seg in segmentos.filter(s => s.tipo === 'poligono')" :key="'pol-' + seg.id"
+            :lat-lngs="seg.coordenadas" :color="seg.color.color" :fillColor="seg.color.fillColor"
+            :fillOpacity="seg.color.fillOpacity" @l-ready="registrarCapa($event, seg.id)" />
 
-        <!-- POLÍGONOS -->
-        <LPolygon v-for="seg in segmentos.filter(s => s.tipo === 'poligono')" :key="'pol-' + seg.id"
-          :lat-lngs="seg.coordenadas" :color="seg.color.color" :fillColor="seg.color.fillColor"
-          :fillOpacity="seg.color.fillOpacity" @l-ready="registrarCapa($event, seg.id)" />
+          <LPolyline v-for="seg in segmentos.filter(s => s.tipo === 'linea')" :key="'line-' + seg.id"
+            :lat-lngs="seg.coordenadas" :color="seg.color.color" @l-ready="registrarCapa($event, seg.id)" />
 
-        <!-- LÍNEAS -->
-        <LPolyline v-for="seg in segmentos.filter(s => s.tipo === 'linea')" :key="'line-' + seg.id"
-          :lat-lngs="seg.coordenadas" :color="seg.color.color" @l-ready="registrarCapa($event, seg.id)" />
 
-        <!-- CÍRCULOS -->
-        <LCircle v-for="seg in segmentos.filter(s => s.tipo === 'circulo')" :key="'circ-' + seg.id"
-          :lat-lng="seg.coordenadas[0]" :radius="seg.radio" :color="seg.color.color" :fillColor="seg.color.fillColor"
-          :fillOpacity="seg.color.fillOpacity" @l-ready="registrarCapa($event, seg.id)" />
+          <LCircle v-for="seg in segmentos.filter(s => s.tipo === 'circulo')" :key="'circ-' + seg.id"
+            :lat-lng="seg.coordenadas[0]" :radius="seg.radio" :color="seg.color.color" :fillColor="seg.color.fillColor"
+            :fillOpacity="seg.color.fillOpacity" @l-ready="registrarCapa($event, seg.id)" />
 
-        <!-- MARKER CARD -->
-        <LMarker v-for="seg in segmentos" :key="'mark-' + seg.id" :lat-lng="calcularCentro(seg.coordenadas)"
-          :icon="crearCardIcon(seg.nombre)" />
+          <LMarker v-for="seg in segmentos" :key="'mark-' + seg.id" :lat-lng="calcularCentro(seg.coordenadas)"
+            :icon="crearCardIcon(seg.nombre)" />
 
+        </template>
       </LMap>
     </div>
   </div>
@@ -856,6 +852,7 @@ export default defineComponent({
 .segment-highlight-pulse {
   animation: highlightPulse 1s infinite;
 }
+
 /* Ocultar zoom buttons (+ y -) */
 :deep(.leaflet-control-zoom) {
   display: none !important;

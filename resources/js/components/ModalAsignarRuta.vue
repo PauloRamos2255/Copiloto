@@ -13,7 +13,7 @@
         <div
           class="bg-gradient-to-r from-blue-600 to-blue-500 px-6 py-4 flex items-center justify-between flex-shrink-0">
           <h2 class="text-xl font-bold text-white flex items-center gap-2">
-            <i class="fas fa-user"></i> 
+            <i class="fas fa-user"></i>
             {{ conductorData ? 'Editar Rutas del Conductor' : 'Asignar Rutas al Conductor' }}
           </h2>
           <button @click="cerrar" class="text-white hover:bg-blue-500 p-2 rounded-lg transition-colors">
@@ -30,13 +30,12 @@
               <label class="block text-sm font-semibold text-gray-700 mb-1">
                 <i class="fas fa-user text-blue-600 mr-1"></i> Conductor
               </label>
-              <select 
-                v-model="conductorId"
-                :disabled="!!conductorData"
+              <select v-model="conductorId" :disabled="!!conductorData"
                 class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:outline-none h-10 disabled:bg-gray-100 disabled:cursor-not-allowed">
                 <option value="" disabled>Seleccione un conductor</option>
-                <option v-for="cond in conductores" :key="cond.codusuario" :value="cond.codusuario">
-                  {{ cond.identificador }}
+                <option v-for="cond in conductoresConEstado" :key="cond.codusuario" :value="cond.codusuario"
+                  :disabled="cond.tieneRutas">
+                  {{ cond.nombre }} <span v-if="cond.tieneRutas">(Ya tiene rutas)</span>
                 </option>
               </select>
             </div>
@@ -53,12 +52,10 @@
                 <div
                   class="border-2 border-dashed rounded-lg p-1.5 bg-white overflow-y-auto flex-1 scrollbar-thin scrollbar-thumb-green-300 scrollbar-track-transparent"
                   :class="dragOverDisponibles ? 'border-green-500 bg-green-50' : 'border-green-300'"
-                  @dragover.prevent="dragOverDisponibles = true" 
-                  @dragleave.prevent="dragOverDisponibles = false"
+                  @dragover.prevent="dragOverDisponibles = true" @dragleave.prevent="dragOverDisponibles = false"
                   @drop.prevent="dropRutaEnDisponibles">
                   <div v-for="ruta in rutasDisponiblesFiltradas" :key="ruta.id" draggable="true"
-                    @dragstart="iniciarDragRuta(ruta, 'disponibles')" 
-                    @dragend="finalizarDrag"
+                    @dragstart="iniciarDragRuta(ruta, 'disponibles')" @dragend="finalizarDrag"
                     @dblclick="asignarRuta(ruta)"
                     class="p-1 mb-1 bg-green-100 border border-green-300 rounded cursor-pointer hover:bg-green-200 hover:shadow transition-all text-xs flex items-center justify-between group">
                     <div class="flex items-center">
@@ -83,13 +80,10 @@
                 <div
                   class="border-2 border-dashed rounded-lg p-1.5 bg-white overflow-y-auto flex-1 scrollbar-thin scrollbar-thumb-blue-300 scrollbar-track-transparent"
                   :class="dragOverRuta ? 'border-blue-500 bg-blue-50' : 'border-blue-300'"
-                  @dragover.prevent="dragOverRuta = true" 
-                  @dragleave.prevent="dragOverRuta = false"
+                  @dragover.prevent="dragOverRuta = true" @dragleave.prevent="dragOverRuta = false"
                   @drop.prevent="dropRutaEnRuta">
                   <div v-for="(ruta, idx) in rutasAsignadas" :key="ruta.id" draggable="true"
-                    @dragstart="iniciarDragRuta(ruta, 'ruta')" 
-                    @dragend="finalizarDrag" 
-                    @click="seleccionarRuta(ruta)"
+                    @dragstart="iniciarDragRuta(ruta, 'ruta')" @dragend="finalizarDrag" @click="seleccionarRuta(ruta)"
                     class="p-1 mb-1 rounded cursor-move transition-all border-l-4 text-xs flex items-center justify-between group"
                     :class="isSelectedRuta(ruta) ? 'bg-blue-200 border-blue-600 shadow-md' : 'bg-blue-100 border-blue-400 hover:bg-blue-150 hover:shadow-sm'">
                     <div class="flex items-center">
@@ -128,25 +122,18 @@
             <div
               style="height: calc(100% - 50px); width: 100%; border-radius: 12px; overflow: hidden; border: 2px solid #e5e7eb;">
               <LMap :zoom="zoom" :center="center" style="height: 100%; width: 100%;">
-                <LTileLayer 
-                  :url="'https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}'"
-                  :subdomains="['mt0', 'mt1', 'mt2', 'mt3']" 
-                  :attribution="'© Google'" />
-                
+                <LTileLayer :url="'https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}'"
+                  :subdomains="['mt0', 'mt1', 'mt2', 'mt3']" :attribution="'© Google'" />
+
                 <template v-for="ruta in rutasAsignadas" :key="ruta.id">
                   <template v-if="rutaSeleccionada && ruta.id === rutaSeleccionada.id">
                     <template v-for="seg in ruta.segmentos" :key="seg.id">
-                      <LPolygon 
-                        v-if="seg.cordenadas?.length" 
-                        :lat-lngs="seg.cordenadas"
-                        :color="convertirColorConAlpha(seg.color || '#ff0000', 1)" 
-                        :fill-color="convertirColorConAlpha(seg.color || '#ff0000', 0.4)" 
-                        :fill-opacity="0.4"
+                      <LPolygon v-if="seg.cordenadas?.length" :lat-lngs="seg.cordenadas"
+                        :color="convertirColorConAlpha(seg.color || '#ff0000', 1)"
+                        :fill-color="convertirColorConAlpha(seg.color || '#ff0000', 0.4)" :fill-opacity="0.4"
                         :weight="3" />
-                      
-                      <LMarker 
-                        v-if="seg.cordenadas?.length" 
-                        :lat-lng="calcularCentroPolygono(seg.cordenadas)"
+
+                      <LMarker v-if="seg.cordenadas?.length" :lat-lng="calcularCentroPolygono(seg.cordenadas)"
                         :icon="crearCardIcon(seg.nombre)" />
                     </template>
                   </template>
@@ -162,8 +149,7 @@
             class="px-6 py-2 border rounded-lg hover:bg-gray-100 transition-all font-medium w-full md:w-auto text-sm">
             <i class="fas fa-times mr-1"></i>Cancelar
           </button>
-          <button @click="guardarAsignacion" type="button"
-            :disabled="!conductorId || rutasAsignadas.length === 0"
+          <button @click="guardarAsignacion" type="button" :disabled="!conductorId || rutasAsignadas.length === 0"
             class="px-6 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-all font-medium shadow-md hover:shadow-lg w-full md:w-auto flex items-center justify-center gap-2 text-sm">
             <i class="fas fa-save mr-1"></i> Guardar Asignación
           </button>
@@ -180,6 +166,7 @@ import { LMap, LTileLayer, LMarker, LPolygon } from '@vue-leaflet/vue-leaflet'
 import 'leaflet/dist/leaflet.css'
 import axios from "axios";
 import L from "leaflet";
+import { useToast } from "vue-toastification";
 
 const props = defineProps({
   visible: {
@@ -189,12 +176,20 @@ const props = defineProps({
   conductorData: {
     type: Object,
     default: null
+  },
+  rutas: {
+    type: Object,
+    default: null
+  },
+  conductores: {
+    type: Array,
+    default: () => []
   }
 });
 
 const emit = defineEmits(["close", "saved"]);
+const toast = useToast();
 
-// Estado
 const conductores = ref([]);
 const rutas = ref([]);
 const conductorId = ref("");
@@ -207,7 +202,6 @@ const dragSource = ref(null);
 const zoom = ref(13);
 const center = ref([-12.0464, -77.0428]);
 
-// Computed
 const rutasDisponiblesFiltradas = computed(() =>
   rutas.value.filter(
     r => !rutasAsignadas.value.some(a => a.id === r.id) &&
@@ -215,7 +209,13 @@ const rutasDisponiblesFiltradas = computed(() =>
   )
 );
 
-// Métodos auxiliares
+const conductoresConEstado = computed(() =>
+  conductores.value.map(c => ({
+    ...c,
+    tieneRutas: rutasAsignadas.value.some(r => r.conductorId === c.codusuario)
+  }))
+);
+
 const hexToRgb = (hex) => {
   if (!hex) return "rgb(100, 150, 200)";
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
@@ -230,25 +230,22 @@ const hexToRgb = (hex) => {
 
 const convertirColorConAlpha = (hex, alpha = 0.33) => {
   if (!hex) return `rgba(0,0,0,${alpha})`;
-  
-  // Remover el '#' y cualquier valor alpha existente (formato #99RRGGBB)
+
   let cleanHex = hex.replace("#", "");
-  
-  // Si tiene 8 caracteres (incluye alpha), tomar solo los últimos 6 (RGB)
+
   if (cleanHex.length === 8) {
     cleanHex = cleanHex.substring(2);
   }
-  
-  // Si tiene 3 caracteres, expandir
+
   if (cleanHex.length === 3) {
     cleanHex = cleanHex.split("").map(h => h + h).join("");
   }
-  
+
   const bigint = parseInt(cleanHex, 16);
   const r = (bigint >> 16) & 255;
   const g = (bigint >> 8) & 255;
   const b = bigint & 255;
-  
+
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
 
@@ -285,15 +282,102 @@ const crearCardIcon = (nombre) => {
   });
 };
 
-// Métodos de acción
-const cerrar = () => {
-  conductorId.value = "";
-  rutasAsignadas.value = [];
-  rutaSeleccionada.value = null;
-  filtroRutasDisponibles.value = "";
-  dragOverDisponibles.value = false;
-  dragOverRuta.value = false;
-  emit("close");
+const procesarRutas = (rutasData) => {
+  if (!rutasData || !rutasData.status || !rutasData.rutas) {
+    console.error("Formato de respuesta inválido:", rutasData);
+    return [];
+  }
+
+  return rutasData.rutas.map(ruta => ({
+    id: ruta.id,
+    nombre: ruta.nombre,
+    segmentos: (ruta.segmentos || []).map(seg => {
+      let coordenadasParsed = [];
+      try {
+        const coords = JSON.parse(seg.cordenadas);
+        coordenadasParsed = coords.map(c => [c.y, c.x]);
+      } catch (error) {
+        console.error(`Error parseando coordenadas del segmento ${seg.nombre}:`, error);
+      }
+
+      return {
+        id: seg.id,
+        nombre: seg.nombre,
+        color: seg.color,
+        cordenadas: coordenadasParsed,
+        colorHex: seg.color || "#3388ff",
+        colorRGB: hexToRgb(seg.color),
+        bounds: seg.bounds ? JSON.parse(seg.bounds) : null
+      };
+    })
+  }));
+};
+
+const cargarDatos = async () => {
+  try {
+    if (props.conductores && props.conductores.length > 0) {
+      conductores.value = props.conductores;
+    } else {
+      const respConductores = await axios.get("/api/conductores");
+      conductores.value = respConductores.data;
+    }
+
+    if (props.rutas) {
+      rutas.value = procesarRutas(props.rutas);
+    } else {
+      const respRutas = await axios.get("/api/asignacion_segmen");
+      rutas.value = procesarRutas(respRutas.data);
+    }
+  } catch (error) {
+    console.error("Error cargando datos:", error);
+    toast.error("Error al cargar los datos iniciales");
+  }
+};
+
+const cargarRutasConductor = async (codusuario) => {
+  if (!codusuario) return;
+
+  try {
+    const resp = await axios.get(`/api/asignacion/${codusuario}`);
+
+    if (!resp.data.rutas) {
+      console.log("No se encontraron rutas para el conductor");
+      rutasAsignadas.value = [];
+      return;
+    }
+
+    rutasAsignadas.value = resp.data.rutas.map(ruta => ({
+      id: ruta.id,
+      nombre: ruta.nombre,
+      segmentos: (ruta.segmentos || []).map(seg => {
+        let coordenadasParsed = [];
+        try {
+          const coords = JSON.parse(seg.cordenadas);
+          coordenadasParsed = coords.map(c => [c.y, c.x]);
+        } catch (error) {
+          console.error(`Error parseando coordenadas del segmento ${seg.nombre}:`, error);
+        }
+
+        return {
+          id: seg.id,
+          nombre: seg.nombre,
+          color: seg.color,
+          cordenadas: coordenadasParsed,
+          colorHex: seg.color || "#3388ff",
+          colorRGB: hexToRgb(seg.color),
+          bounds: seg.bounds ? JSON.parse(seg.bounds) : null
+        };
+      })
+    }));
+
+    if (rutasAsignadas.value.length > 0) {
+      seleccionarRuta(rutasAsignadas.value[0]);
+    }
+  } catch (error) {
+    console.error("Error cargando rutas del conductor:", error);
+    toast.error("Error al cargar las rutas del conductor");
+    rutasAsignadas.value = [];
+  }
 };
 
 const iniciarDragRuta = (ruta, origen) => {
@@ -349,137 +433,55 @@ const limpiarRutas = () => {
 
 const guardarAsignacion = async () => {
   if (!conductorId.value || rutasAsignadas.value.length === 0) {
-    alert("Seleccione un conductor y al menos una ruta");
+    toast.error("Seleccione un conductor y al menos una ruta");
     return;
   }
 
-  try {
-    const resp = await axios.post("/api/asignacion_save", {
-      usuario: conductorId.value,
-      rutas: rutasAsignadas.value.map(r => r.id)
-    });
+  const totalRutas = props.conductorData?.total_rutas || 0;
+  const rutasIds = rutasAsignadas.value.map(r => r.id);
 
-    alert(resp.data.message || "Asignación guardada correctamente");
+  try {
+    if (totalRutas > 0) {
+      await axios.put("/api/asignacion_update", {
+        usuario: conductorId.value,
+        rutas: rutasIds
+      });
+      toast.success("Rutas actualizadas correctamente");
+    } else {
+      await axios.post("/api/asignacion_save", {
+        usuario: conductorId.value,
+        rutas: rutasIds
+      });
+      toast.success("Rutas asignadas correctamente");
+    }
+    
     emit("saved");
-    
   } catch (error) {
-    console.error("Error guardando asignaciones:", error);
-    alert(error.response?.data?.message || "Ocurrió un error al guardar la asignación");
+    console.error("Error en la asignación:", error);
+    toast.error(error.response?.data?.message || "Ocurrió un error al guardar la asignación");
   }
 };
 
-// Carga de datos
-const cargarDatos = async () => {
-  try {
-    const [respConductores, respRutas] = await Promise.all([
-      axios.get("/api/conductores"),
-      axios.get("/api/asignacion_segmen")
-    ]);
-
-    conductores.value = respConductores.data;
-
-    // Verificar que la respuesta tenga el formato esperado
-    if (!respRutas.data.status || !respRutas.data.rutas) {
-      console.error("Formato de respuesta inválido:", respRutas.data);
-      return;
-    }
-
-    // Procesar las rutas correctamente
-    rutas.value = respRutas.data.rutas.map(ruta => ({
-      id: ruta.id,
-      nombre: ruta.nombre,
-      segmentos: ruta.segmentos.map(seg => {
-        let coordenadasParsed = [];
-        try {
-          const coords = JSON.parse(seg.cordenadas);
-          // Convertir de {x, y, r} a [lat, lng] para Leaflet
-          coordenadasParsed = coords.map(c => [c.y, c.x]);
-        } catch (error) {
-          console.error(`Error parseando coordenadas del segmento ${seg.nombre}:`, error);
-        }
-
-        return {
-          id: seg.id,
-          nombre: seg.nombre,
-          color: seg.color,
-          cordenadas: coordenadasParsed,
-          colorHex: seg.color || "#3388ff",
-          colorRGB: hexToRgb(seg.color),
-          bounds: seg.bounds ? JSON.parse(seg.bounds) : null
-        };
-      })
-    }));
-
-    console.log("Rutas cargadas:", rutas.value);
-
-  } catch (error) {
-    console.error("Error cargando datos:", error);
-    alert("Error al cargar los datos iniciales");
-  }
+const cerrar = () => {
+  conductorId.value = "";
+  rutasAsignadas.value = [];
+  rutaSeleccionada.value = null;
+  filtroRutasDisponibles.value = "";
+  dragOverDisponibles.value = false;
+  dragOverRuta.value = false;
+  emit("close");
 };
 
-const cargarRutasConductor = async (codusuario) => {
-  if (!codusuario) return;
-  
-  try {
-    const resp = await axios.get(`/api/asignacion/${codusuario}`);
-    
-    // Verificar que tengamos rutas en la respuesta
-    if (!resp.data.rutas) {
-      console.log("No se encontraron rutas para el conductor");
-      rutasAsignadas.value = [];
-      return;
-    }
-
-    rutasAsignadas.value = resp.data.rutas.map(ruta => ({
-      id: ruta.id,
-      nombre: ruta.nombre,
-      segmentos: ruta.segmentos.map(seg => {
-        let coordenadasParsed = [];
-        try {
-          const coords = JSON.parse(seg.cordenadas);
-          coordenadasParsed = coords.map(c => [c.y, c.x]);
-        } catch (error) {
-          console.error(`Error parseando coordenadas del segmento ${seg.nombre}:`, error);
-        }
-
-        return {
-          id: seg.id,
-          nombre: seg.nombre,
-          color: seg.color,
-          cordenadas: coordenadasParsed,
-          colorHex: seg.color || "#3388ff",
-          colorRGB: hexToRgb(seg.color),
-          bounds: seg.bounds ? JSON.parse(seg.bounds) : null
-        };
-      })
-    }));
-
-    // Selecciona automáticamente la primera ruta
-    if (rutasAsignadas.value.length > 0) {
-      seleccionarRuta(rutasAsignadas.value[0]);
-    }
-  } catch (error) {
-    console.error("Error cargando rutas del conductor:", error);
-    rutasAsignadas.value = [];
-  }
-};
-
-// Watchers
 watch(() => props.visible, (newVal) => {
   if (newVal) {
-    // Modal se abrió
     if (props.conductorData) {
-      // Modo edición: preseleccionar conductor
-      const codUsuario = typeof props.conductorData === 'object' 
-        ? props.conductorData.codusuario 
+      const codUsuario = typeof props.conductorData === 'object'
+        ? props.conductorData.codusuario
         : props.conductorData;
-      
+
       conductorId.value = codUsuario;
-      console.log(codUsuario)
       cargarRutasConductor(codUsuario);
     } else {
-      // Modo creación: limpiar
       conductorId.value = "";
       rutasAsignadas.value = [];
       rutaSeleccionada.value = null;
@@ -487,19 +489,19 @@ watch(() => props.visible, (newVal) => {
   }
 });
 
-
-
-// Init
 onMounted(() => {
   cargarDatos();
 });
 </script>
 
 <style scoped>
-.fade-enter-active, .fade-leave-active {
+.fade-enter-active,
+.fade-leave-active {
   transition: opacity 0.3s;
 }
-.fade-enter-from, .fade-leave-to {
+
+.fade-enter-from,
+.fade-leave-to {
   opacity: 0;
 }
 

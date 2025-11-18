@@ -23,6 +23,7 @@ Route::post('/acceso', [AuthController::class, 'acceso']);
 Route::get('/usuarios', [UsuarioController::class, 'index']);
 Route::get('/conductores', [UsuarioController::class, 'listarTipoC']);
 Route::get('/usuarios/{id}', [UsuarioController::class, 'show']);
+Route::get('/verificar_usuario/{id}', [UsuarioController::class, 'verificarUsuario']);
 Route::post('/usuarios', [UsuarioController::class, 'store']);
 Route::put('/usuarios/{id}', [UsuarioController::class, 'update']);
 Route::delete('/usuarios/{id}', [UsuarioController::class, 'destroy']);
@@ -40,6 +41,7 @@ Route::middleware('auth:sanctum')->post('/logout', function (Request $request) {
 Route::get('/rutas', [RutaController::class, 'index']);
 Route::get('/rutas/{id}', [RutaController::class, 'show']);
 Route::get('/rutasid/{id}', [RutaController::class, 'showID']);
+Route::get('/verificaruta/{id}', [RutaController::class, 'verificarRuta']);
 Route::post('/rutas', [RutaController::class, 'store']);
 Route::post('/duplicar', [RutaController::class, 'duplicar']);
 Route::put('/rutas/{id}', [RutaController::class, 'update']);
@@ -57,6 +59,8 @@ Route::get('/asignacion', [AsignacionController::class, 'index']);
 Route::get('/asignacion/{id}', [AsignacionController::class, 'obtenerRutasPorUsuario']);
 Route::get('/asignacion_segmen', [AsignacionController::class, 'obtenerTodasLasRutas']);
 Route::post('/asignacion_save', [AsignacionController::class, 'guardarAsignaciones']);
+Route::put('/asignacion_update', [AsignacionController::class, 'editarAsignaciones']);
+Route::get('/asignacion_get/{id}', [AsignacionController::class, 'obtenerRutasPorConductor']);
 
 
 

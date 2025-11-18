@@ -70,14 +70,8 @@
       </div>
 
 
-
-      <!-- Loading -->
-      <div v-if="cargando" class="flex justify-center py-10">
-        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-
       <!-- Tabla -->
-      <div v-else class="bg-white shadow-lg rounded-2xl overflow-hidden border border-gray-200">
+      <div  class="bg-white shadow-lg rounded-2xl overflow-hidden border border-gray-200">
         <div class="overflow-x-auto">
           <table class="min-w-full text-sm text-gray-800">
             <thead
@@ -91,7 +85,32 @@
               </tr>
             </thead>
 
-            <tbody>
+            <tbody v-if="cargando">
+              <tr v-for="n in 5" :key="'empresa-skel-' + n" class="border-b border-gray-100 animate-pulse">
+                <td class="px-6 py-4">
+                  <div class="h-4 bg-gray-300 rounded" :style="{ width: randomWidthSmall() }"></div>
+                </td>
+
+                <td class="px-6 py-4">
+                  <div class="h-4 bg-gray-300 rounded" :style="{ width: randomWidth() }"></div>
+                </td>
+
+                <td class="px-6 py-4">
+                  <div class="h-4 bg-gray-300 rounded" :style="{ width: randomWidthSmall() }"></div>
+                </td>
+
+                <td class="px-6 py-4">
+                  <div class="h-4 bg-gray-300 rounded" :style="{ width: randomWidthSmall() }"></div>
+                </td>
+
+                <td class="px-6 py-4 text-center flex justify-center space-x-2">
+                  <div class="h-4 w-6 bg-gray-300 rounded"></div>
+                  <div class="h-4 w-6 bg-gray-300 rounded"></div>
+                </td>
+              </tr>
+            </tbody>
+
+            <tbody v-else>
               <tr v-for="(usuario, index) in usuariosPaginados" :key="usuario.codusuario"
                 class="border-b border-gray-100 hover:bg-blue-50 transition-all">
                 <td class="px-6 py-4 font-semibold">
@@ -193,6 +212,10 @@ const registrosPorPagina = 10;
 const modalVisible = ref(false);
 const usuarioSeleccionado = ref(null);
 
+
+const randomWidth = () => `${Math.floor(Math.random() * 12 + 20)}ch`;
+const randomWidthSmall = () => `${Math.floor(Math.random() * 8 + 12)}ch`;
+
 const abrirModalUsuario = (usuario = null) => {
   usuarioSeleccionado.value = usuario
     ? { ...usuario }
@@ -200,6 +223,8 @@ const abrirModalUsuario = (usuario = null) => {
 
   modalVisible.value = true;
 };
+
+
 
 onMounted(() => {
   cargarUsuarios();
@@ -252,6 +277,40 @@ const actualizarLista = (respuestaApi) => {
 
 // Eliminar usuario
 const confirmarEliminar = async (usuario) => {
+  
+  // ⛔ Si NO es tipo C, no se necesita verificar nada
+  if (usuario.tipo !== "C") {
+    return eliminarDirecto(usuario);
+  }
+
+  // ✔️ Si es tipo C, sí verificamos en la API
+  Swal.fire({
+    title: "Verificando usuario...",
+    allowOutsideClick: false,
+    didOpen: () => Swal.showLoading(),
+  });
+
+  const { data: verificar } = await axios.get(
+    `http://localhost:8000/api/verificar_usuario/${usuario.codusuario}`
+  );
+
+  Swal.close();
+
+  if (verificar.success) {
+    await Swal.fire({
+      icon: "warning",
+      title: "No se puede eliminar",
+      text: "El usuario tiene rutas asignadas.",
+      confirmButtonText: "Aceptar",
+    });
+    return;
+  }
+
+  // Si pasa la verificación, eliminar
+  return eliminarDirecto(usuario);
+};
+
+const eliminarDirecto = async (usuario) => {
   const result = await Swal.fire({
     title: "¿Estás seguro?",
     text: `Se eliminará a ${usuario.nombre}`,
@@ -263,32 +322,33 @@ const confirmarEliminar = async (usuario) => {
     cancelButtonText: "Cancelar"
   });
 
-  if (result.isConfirmed) {
-    try {
-      await axios.delete(`http://localhost:8000/api/usuarios/${usuario.codusuario}`);
+  if (!result.isConfirmed) return;
 
-      // Quitar de la lista
-      usuarios.value = usuarios.value.filter(u => u.codusuario !== usuario.codusuario);
+  try {
+    await axios.delete(`http://localhost:8000/api/usuarios/${usuario.codusuario}`);
 
-      Swal.fire({
-        title: "Eliminado",
-        text: "El usuario ha sido eliminado correctamente.",
-        icon: "success",
-        timer: 1500,
-        showConfirmButton: false
-      });
+    usuarios.value = usuarios.value.filter(u => u.codusuario !== usuario.codusuario);
 
-    } catch (error) {
-      console.error(error);
+    Swal.fire({
+      title: "Eliminado",
+      text: "El usuario ha sido eliminado correctamente.",
+      icon: "success",
+      timer: 1500,
+      showConfirmButton: false
+    });
 
-      Swal.fire({
-        title: "Error",
-        text: "No se pudo eliminar el usuario.",
-        icon: "error",
-      });
-    }
+  } catch (error) {
+    console.error(error);
+
+    Swal.fire({
+      title: "Error",
+      text: "No se pudo eliminar el usuario.",
+      icon: "error",
+    });
   }
 };
+
+
 
 // Filtros seguros
 const usuariosFiltrados = computed(() => {

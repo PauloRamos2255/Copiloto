@@ -29,14 +29,25 @@
               <label class="block text-sm font-semibold text-gray-700 mb-1">
                 <i class="fas fa-user text-blue-600 mr-1"></i> Conductor
               </label>
-              <select v-model="conductorId" :disabled="!!conductorData"
-                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:outline-none h-10 disabled:bg-gray-100 disabled:cursor-not-allowed">
-                <option value="" disabled>Seleccione un conductor</option>
-                <option v-for="cond in conductoresConEstado" :key="cond.codusuario" :value="cond.codusuario">
-                  {{ cond.nombre }}
-                </option>
-              </select>
+
+              <div class="flex gap-2">
+                <select v-if="!conductorData" v-model="conductorId"
+                  class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:outline-none h-10">
+                  <option value="" disabled>Seleccione un conductor</option>
+                  <option v-for="cond in conductores" :key="cond.codusuario" :value="cond.codusuario">
+                    {{ cond.nombre }}
+                  </option>
+                </select>
+
+                <select v-else v-model="conductorId" disabled
+                  class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:outline-none h-10 disabled:bg-gray-100 disabled:cursor-not-allowed">
+                  <option :value="conductorId">{{ nombreConductor }}</option>
+                </select>
+
+            
+              </div>
             </div>
+
 
             <!-- Routes Container -->
             <div class="flex flex-1 gap-3 overflow-hidden pt-3">
@@ -156,11 +167,8 @@
             <div
               style="height: calc(100% - 50px); width: 100%; border-radius: 12px; overflow: hidden; border: 2px solid #e5e7eb;">
               <LMap v-if="visible" ref="mapa" :zoom="zoom" :center="center" style="height: 100%; width: 100%;">
-                <LTileLayer 
-                  :url="'https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}'"
-                  :subdomains="['mt0', 'mt1', 'mt2', 'mt3']" 
-                  :attribution="'© Google Maps'" 
-                  :max-zoom="20" />
+                <LTileLayer :url="'https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}'"
+                  :subdomains="['mt0', 'mt1', 'mt2', 'mt3']" :attribution="'© Google Maps'" :max-zoom="20" />
                 <template v-for="ruta in rutasAsignadas" :key="ruta.id">
                   <template v-if="rutaSeleccionada && ruta.id === rutaSeleccionada.id">
                     <template v-for="seg in ruta.segmentos" :key="seg.id">
@@ -227,6 +235,7 @@ const conductorId = ref("");
 const rutasAsignadas = ref([]);
 const rutaSeleccionada = ref(null);
 const filtroRutasDisponibles = ref("");
+const nombreConductor = ref("");
 
 const dragOverDisponibles = ref(false);
 const dragOverRuta = ref(false);
@@ -249,14 +258,7 @@ const rutasDisponiblesFiltradas = computed(() =>
   )
 );
 
-const conductoresConEstado = computed(() =>
-  conductores.value
-    .map(c => ({
-      ...c,
-      tieneRutas: rutasAsignadas.value.some(r => r.conductorId === c.codusuario)
-    }))
-    .filter(c => !c.tieneRutas || (props.conductorData && props.conductorData.codusuario === c.codusuario))
-);
+
 
 // Color utilities
 const convertirColorConAlpha = (hex, alpha = 0.33) => {
@@ -330,10 +332,8 @@ const procesarRutas = (data) => {
 const cargarDatos = async () => {
   loadingRutas.value = true;
   try {
-    conductores.value =
-      props.conductores?.length > 0
-        ? props.conductores
-        : (await axios.get("/api/conductores")).data;
+    // SIEMPRE cargar los conductores sin rutas desde la API
+    conductores.value = (await axios.get("/api/conductor_sin_ruta")).data;
 
     const rutasResp = props.rutas
       ? props.rutas
@@ -348,16 +348,25 @@ const cargarDatos = async () => {
   }
 };
 
+
 const cargarRutasConductor = async (id) => {
   if (!id) return;
   loadingAsignadas.value = true;
+
   try {
-    const resp = (await axios.get(`/api/asignacion/${id}`)).data;
-    const rutasResp = resp.rutas || [];
+    const resp = await axios.get(`/api/asignacion/${id}`);
+
+
+    nombreConductor.value = resp.data.conductor;
+    console.log(nombreConductor.value);
+
+    const rutasResp = resp.data.rutas || [];
 
     rutasAsignadas.value = rutasResp.map(r => ({
       id: r.id,
       nombre: r.nombre,
+      conductorId: id,
+      conductorNombre: nombreConductor,
       segmentos: (r.segmentos || []).map(seg => {
         let coordsParsed = [];
         try {
@@ -366,18 +375,19 @@ const cargarRutasConductor = async (id) => {
         } catch (e) {
           console.error(`Error seg coords:`, e);
         }
-        return { 
-          id: seg.id, 
-          nombre: seg.nombre, 
-          color: seg.color, 
-          cordenadas: coordsParsed, 
-          bounds: seg.bounds ? JSON.parse(seg.bounds) : null 
+        return {
+          id: seg.id,
+          nombre: seg.nombre,
+          color: seg.color,
+          cordenadas: coordsParsed,
+          bounds: seg.bounds ? JSON.parse(seg.bounds) : null
         };
       })
     }));
 
     await nextTick();
     actualizarMapa();
+
   } catch (e) {
     console.error("Error rutas conductor:", e);
     toast.error("Error al cargar rutas del conductor");
@@ -387,6 +397,7 @@ const cargarRutasConductor = async (id) => {
     loadingAsignadas.value = false;
   }
 };
+
 
 const actualizarMapa = () => {
   try {
@@ -464,6 +475,8 @@ const isSelectedRuta = (ruta) => {
 
 // Save operation
 const guardarAsignacion = async () => {
+  if (procesando.value) return; 
+  
   if (!conductorId.value || rutasAsignadas.value.length === 0) {
     toast.error("Seleccione un conductor y al menos una ruta");
     return;
@@ -472,27 +485,56 @@ const guardarAsignacion = async () => {
   const totalRutas = props.conductorData?.total_rutas || 0;
   const rutasIds = rutasAsignadas.value.map(r => r.id);
 
+  procesando.value = true; 
+
+
+  Swal.fire({
+    title: totalRutas > 0 ? "Actualizando..." : "Guardando...",
+    allowOutsideClick: false,
+    didOpen: () => Swal.showLoading()
+  });
+
   try {
     if (totalRutas > 0) {
       await axios.put("/api/asignacion_update", {
         usuario: conductorId.value,
         rutas: rutasIds
       });
-      toast.success("Rutas actualizadas correctamente");
     } else {
       await axios.post("/api/asignacion_save", {
         usuario: conductorId.value,
         rutas: rutasIds
       });
-      toast.success("Rutas asignadas correctamente");
     }
 
+    Swal.close(); 
+
+    await Swal.fire({
+      icon: "success",
+      title: totalRutas > 0 ? "Actualizado" : "Asignado",
+      text: totalRutas > 0 ? "Rutas actualizadas correctamente" : "Rutas asignadas correctamente",
+      timer: 1400,
+      showConfirmButton: false
+    });
+
     emit("saved");
+    cerrar();
+
   } catch (error) {
+    Swal.close(); // ✅ Cerrar loading
     console.error("Error en la asignación:", error);
-    toast.error(error.response?.data?.message || "Ocurrió un error al guardar la asignación");
+
+    // ✅ MOSTRAR ERROR
+    await Swal.fire({
+      icon: "error",
+      title: "Error",
+      text: error.response?.data?.message || "Ocurrió un error al guardar la asignación"
+    });
+
+    procesando.value = false;
   }
 };
+
 
 
 // Close modal
@@ -503,17 +545,17 @@ const cerrar = async () => {
   try {
     if (mapa.value?.leafletObject) {
       const m = mapa.value.leafletObject;
-      
+
       // Desactivar todas las interacciones
       try { m.dragging?.disable(); } catch { }
       try { m.touchZoom?.disable(); } catch { }
       try { m.doubleClickZoom?.disable(); } catch { }
       try { m.scrollWheelZoom?.disable(); } catch { }
       try { m.scrollWheelZoom?.disable(); } catch { }
-      
+
       // Remover todos los eventos
       try { m.off(); } catch { }
-      
+
       // Limpiar layers
       try { m.eachLayer(layer => m.removeLayer(layer)); } catch { }
     }
@@ -528,7 +570,8 @@ const cerrar = async () => {
   filtroRutasDisponibles.value = "";
   dragOverDisponibles.value = false;
   dragOverRuta.value = false;
-  
+  nombreConductor.value=""
+
   // NO establecer mapa.value a null aquí, dejar que vue-leaflet lo maneje
   // mapa.value = null;
 

@@ -61,6 +61,7 @@ Route::get('/asignacion_segmen', [AsignacionController::class, 'obtenerTodasLasR
 Route::post('/asignacion_save', [AsignacionController::class, 'guardarAsignaciones']);
 Route::put('/asignacion_update', [AsignacionController::class, 'editarAsignaciones']);
 Route::get('/asignacion_get/{id}', [AsignacionController::class, 'obtenerRutasPorConductor']);
+Route::get('/conductor_sin_ruta', [AsignacionController::class, 'conductoresSinRutas']);
 
 
 

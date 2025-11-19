@@ -280,7 +280,7 @@
                   <label class="block text-sm font-semibold text-gray-700 mb-1">
                     <i class="fas fa-tag text-blue-600 mr-1"></i>Nombre
                   </label>
-                  <input type="text" v-model="nuevaRuta.nombre" placeholder="Ej: Ruta Centro"
+                  <input type="text" v-model="nuevaRuta.nombre" placeholder="Ej: Ruta Centro" maxlength="100"
                     class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:outline-none h-10" />
                 </div>
 
@@ -289,11 +289,13 @@
                     <i class="fas fa-gauge-high text-blue-600 mr-1"></i>Límite
                   </label>
                   <div class="relative">
-                    <input type="number" v-model="velocidadPromedio" class="w-full border border-gray-300 rounded-lg pl-3 pr-10 py-2 bg-white text-sm 
-           font-semibold h-10 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="0" oninput="
-          if (this.value.length > 3) this.value = this.value.slice(0, 3);
-          if (this.value > 120) this.value = 120;
-       " />
+                    <input type="number" step="1" min="0" v-model.number="velocidadPromedio" placeholder="0" 
+                          max="200"
+                      class="w-full border border-gray-300 rounded-lg pl-3 pr-10 py-2 bg-white text-sm font-semibold h-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      @input="velocidadPromedio = velocidadPromedio 
+                        ? Math.min(Math.max(Math.trunc(velocidadPromedio), 0), 200)
+                        : 0" />
+
                     <span
                       class="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-blue-700 pointer-events-none">
                       km/h
@@ -324,12 +326,19 @@
                     @dragover.prevent="dragOverLogo = true" @dragleave.prevent="dragOverLogo = false"
                     @drop.prevent="dropLogo" @click="abrirSelectorLogo" role="button" tabindex="0"
                     @keydown.enter="abrirSelectorLogo">
-                    <input type="file" ref="logoInput" accept="image/*" class="hidden" @change="previewLogo" />
+                    <input type="file" ref="logoInput" accept=".png,.jpg,.jpeg,.gif,.webp,.svg" class="hidden"
+                      @change="previewLogo" />
                     <div v-if="!nuevaRuta.logoPreview" class="text-center text-gray-400 text-sm pointer-events-none">
                       <i class="fas fa-cloud-upload-alt text-lg"></i>
                     </div>
                     <img v-else :src="nuevaRuta.logoPreview" class="h-8 w-auto object-contain mx-auto rounded" />
                   </div>
+                </div>
+                <!-- ✅ MENSAJE DE AYUDA ESPECÍFICO -->
+                <div class="text-xs text-gray-600 mb-3 pl-1 flex items-center gap-2">
+                  <i class="fas fa-info-circle text-blue-500 flex-shrink-0"></i>
+                  <span class="whitespace-nowrap">Logo solo acepta: <strong>PNG, JPG, JPEG, GIF, WebP,
+                      SVG</strong></span>
                 </div>
               </div>
 
@@ -384,15 +393,21 @@
                     </div>
                     <div class="grid grid-cols-2 gap-1">
                       <div>
-                        <label class="text-[10px] font-semibold text-gray-700 block">Mensaje</label>
+                        <label maxlength="500" class="text-[10px] font-semibold text-gray-700 block">Mensaje</label>
                         <input type="text" v-model="segmentoSeleccionado.mensaje" placeholder="Velocidad máxima"
                           class="w-full border border-yellow-400 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-yellow-400 focus:outline-none" />
                       </div>
                       <div>
                         <label class="text-[10px] font-semibold text-gray-700 block">Velocidad</label>
-                        <input type="number" v-model.number="segmentoSeleccionado.velocidad" placeholder="80" min="0"
+                        <input type="number" v-model.number="segmentoSeleccionado.velocidad" placeholder="00" min="0"
+                          max="200" step="1" @input="segmentoSeleccionado.velocidad = segmentoSeleccionado.velocidad
+                            ? Math.min(Math.max(Math.trunc(segmentoSeleccionado.velocidad), 0), 200)
+                            : 0"
                           class="w-full border border-yellow-400 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-yellow-400 focus:outline-none" />
+
+
                       </div>
+
                     </div>
                   </div>
 
@@ -469,10 +484,10 @@
                 <!-- Polígonos y markers de segmentos -->
                 <template v-for="segmento in segmentosRuta" :key="segmento.id || segmento._tempId">
                   <LPolygon v-if="segmento.cordenadas?.length" :lat-lngs="segmento.cordenadas.map(c => [c.y, c.x])"
-                    :color="convertirColorConAlpha(segmento.color || '#0000ff',1)" :fill-color="convertirColorConAlpha(segmento.color || '#0000ff',0.4)"
-                    :fill-opacity="0.4"
-                        :weight="3" />
-                        
+                    :color="convertirColorConAlpha(segmento.color || '#0000ff', 1)"
+                    :fill-color="convertirColorConAlpha(segmento.color || '#0000ff', 0.4)" :fill-opacity="0.4"
+                    :weight="3" />
+
 
                   <LMarker v-if="segmento.cordenadas?.length" :lat-lng="calcularCentro(segmento.cordenadas)"
                     :icon="crearCardIcon(segmento.nombre)" />
@@ -998,8 +1013,19 @@ async function guardarRuta() {
     return;
   }
 
-  if (!nuevaRuta.limite || isNaN(Number(nuevaRuta.limite))) {
-    toast.error("Por favor, ingrese un límite válido");
+  if (!nuevaRuta.logoFile) {
+    toast.error("Por favor, seleccione un logo");
+    cargandoFormulario.value = false;
+    return;
+  }
+
+  if (
+    !nuevaRuta.limite ||
+    isNaN(Number(nuevaRuta.limite)) ||
+    Number(nuevaRuta.limite) <= 0 ||
+    Number(nuevaRuta.limite) >= 201
+  ) {
+    toast.error("El límite debe ser un número mayor a 0 y menor a 200");
     cargandoFormulario.value = false;
     return;
   }
@@ -1467,12 +1493,23 @@ function cargarPreview(file: File) {
     return;
   }
 
-  if (!file.type.startsWith('image/')) {
-    toast.error("Seleccione una imagen válida.");
+  // Tipos permitidos
+  const tiposPermitidos = [
+    "image/png",
+    "image/jpeg",
+    "image/jpg",
+    "image/gif",
+    "image/webp",
+    "image/svg+xml"
+  ];
+
+  if (!tiposPermitidos.includes(file.type)) {
+    toast.error("Solo se permiten archivos PNG, JPG, JPEG, GIF, WebP o SVG.");
     nuevaRuta.logoPreview = "";
     return;
   }
 
+  // Tamaño máximo 5 MB
   if (file.size > 5 * 1024 * 1024) {
     toast.error("La imagen no debe superar los 5MB.");
     nuevaRuta.logoPreview = "";
@@ -1486,6 +1523,7 @@ function cargarPreview(file: File) {
   };
   reader.readAsDataURL(file);
 }
+
 
 
 function iniciarDragSegmento(segmento: Segmento, origen: 'disponibles' | 'ruta') {

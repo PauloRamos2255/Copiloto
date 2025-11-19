@@ -208,6 +208,8 @@ import "leaflet/dist/leaflet.css";
 import Header from "@/pages/Header.vue";
 import axios from "axios";
 import L from "leaflet";
+import Swal from "sweetalert2";
+
 
 export default defineComponent({
   name: "MapaComponent",
@@ -597,12 +599,52 @@ export default defineComponent({
       });
     },
 
+    detectarCambiosSegmento(segAnterior, segNuevo) {
+      const cambios = [];
+      if (segAnterior.nombre !== segNuevo.nombre) {
+        cambios.push({
+          campo: 'nombre',
+          anterior: segAnterior.nombre,
+          actual: segNuevo.nombre
+        });
+      }
+
+      if (segAnterior.colorHex !== segNuevo.colorHex) {
+        cambios.push({
+          campo: 'colorHex',
+          anterior: segAnterior.colorHex,
+          actual: segNuevo.colorHex
+        });
+      }
+      if (JSON.stringify(segAnterior.cordenadas_originales) !== JSON.stringify(segNuevo.cordenadas)) {
+        cambios.push({
+          campo: 'cordenadas',
+          anterior: JSON.stringify(segAnterior.cordenadas_originales, null, 2), // formato legible
+          actual: JSON.stringify(segNuevo.cordenadas, null, 2)
+        });
+      }
+      if (JSON.stringify(segAnterior.bounds) !== JSON.stringify(segNuevo.bounds)) {
+        cambios.push({
+          campo: 'bounds',
+          anterior: segAnterior.bounds,
+          actual: segNuevo.bounds
+        });
+      }
+
+      return cambios;
+    },
+
+
+
     async actualizarSegmentos() {
       this.loadingActualizar = true;
       this.error = null;
 
       try {
+        // 1. Obtener SID
         const sid = await this.obtenerSID();
+
+        // 2. Obtener zonas desde Wialon
         const { data: wialonData } = await axios.post(`${this.API_BASE}/zone-data`, {
           itemId: this.itemId,
           sid
@@ -612,85 +654,130 @@ export default defineComponent({
           throw new Error('No se recibieron zonas válidas de Wialon');
         }
 
+        // 3. Detectar eliminados
         const idsWialon = new Set(wialonData.zones.map(z => z.id));
-
         const segmentosEliminados = this.segmentos.filter(s => !idsWialon.has(s.id));
 
         if (segmentosEliminados.length > 0) {
-          console.warn(` Detectados ${segmentosEliminados.length} segmento(s) eliminado(s) en Wialon:`,
-            segmentosEliminados.map(s => s.nombre));
-
           await this.procesarSegmentosEliminados(segmentosEliminados);
         }
 
-        const segmentosParaSincronizar = wialonData.zones.map(z => {
-          const colorHex = z.c != null
+        // 4. Preparar nuevos datos
+        const segmentosWialon = wialonData.zones.map(z => ({
+          id: z.id,
+          nombre: z.n,
+          colorHex: z.c != null
             ? '#' + (z.c >>> 0).toString(16).padStart(6, '0')
-            : '#0046FF';
+            : '#0046FF',
+          cordenadas: z.p || [],
+          bounds: z.b || null
+        }));
 
-          return {
-            id: z.id,
-            nombre: z.n,
-            colorHex,
-            cordenadas: z.p || [],
-            bounds: z.b || null
-          };
-        });
+        // 5. Detectar cambios entre los existentes
+        for (const nuevo of segmentosWialon) {
+          const anterior = this.segmentos.find(s => s.id === nuevo.id);
+          if (!anterior) continue;
 
+          const cambios = this.detectarCambiosSegmento(anterior, nuevo);
+
+          if (cambios.length > 0) {
+            // Detectar cambio de nombre
+            const cambioNombre = cambios.find(c => c.campo === 'nombre');
+
+            let htmlCambios = `
+          Cambios detectados en el segmento <b>"${anterior.nombre}"</b>.
+          <br><br>
+        `;
+
+            if (cambioNombre) {
+              htmlCambios += `
+            <b>Nombre anterior:</b> ${cambioNombre.anterior}<br>
+            <b>Nombre actual:</b> ${cambioNombre.actual}
+          `;
+            } else {
+              // Solo color u otros campos permitidos
+              htmlCambios += cambios.map(c => `
+            <b>${c.campo}</b>:<br>
+            Antes: ${c.anterior}<br>
+            Ahora: ${c.actual}<br><br>
+          `).join('');
+            }
+
+            await Swal.fire({
+              title: 'Cambios detectados',
+              html: htmlCambios,
+              icon: 'info',
+              width: 500,
+              confirmButtonText: 'Aceptar'
+            });
+          }
+        }
+
+        // 6. Sincronizar con backend
         await axios.post(`${this.API_BASE}/segmentos/sincronizar`, {
-          segmentos: segmentosParaSincronizar
+          segmentos: segmentosWialon
         });
 
-        const totalSegmentos = segmentosParaSincronizar.length;
-        const mensajeEliminados = segmentosEliminados.length > 0
-          ? ` |  ${segmentosEliminados.length} eliminado(s)`
-          : '';
-
+        // 7. Notificación
         this.mostrarNotificacion(
-          ` ${totalSegmentos} segmento(s) sincronizado(s)${mensajeEliminados}`,
+          `${segmentosWialon.length} segmento(s) sincronizado(s)` +
+          (segmentosEliminados.length ? ` | ${segmentosEliminados.length} eliminado(s)` : ''),
           'exito'
         );
 
+        // 8. Recargar
         await this.cargarSegmentos();
 
       } catch (err) {
         console.error('Error al actualizar segmentos:', err);
         this.error = err?.message || 'Error desconocido';
         this.mostrarNotificacion('Error al actualizar desde Wialon', 'error');
+
       } finally {
         this.loadingActualizar = false;
       }
     },
 
+
     async procesarSegmentosEliminados(segmentosEliminados) {
-      const promesas = segmentosEliminados.map(async (seg) => {
-        if (!seg.id) return;
+      for (const seg of segmentosEliminados) {
+        if (!seg.id) continue;
 
         try {
           const resp = await axios.get(`${this.API_BASE}/segmentos/${seg.id}/detalles-rutas`);
 
           if (resp.data.existe) {
+            // Si tiene rutas, preguntar al usuario antes de eliminar
             const rutas = [...new Set(resp.data.detalles.map(r => r.ruta_nombre))];
-            const rutasStr = rutas.join(', ');
+            const { isConfirmed } = await Swal.fire({
+              title: `Eliminar segmento "${seg.nombre}"?`,
+              html: `Este segmento está asignado a <b>${rutas.length}</b> ruta(s):<br>${rutas.join(', ')}.<br>¿Deseas eliminarlo de todas formas?`,
+              icon: 'warning',
+              showCancelButton: true,
+              confirmButtonText: 'Sí, eliminar',
+              cancelButtonText: 'No, cancelar',
+            });
 
+            if (isConfirmed) {
+              await this.eliminarSegmentoConDetalles(seg.id);
+              this.mostrarNotificacion(`Segmento "${seg.nombre}" eliminado`, 'exito');
+            } else {
+              this.mostrarNotificacion(`Segmento "${seg.nombre}" no se eliminó`, 'info');
+            }
 
-            await this.eliminarSegmentoConDetalles(seg.id);
-            this.mostrarNotificacion(
-              `Segmento "${seg.nombre}" eliminado (estaba en ${rutas.length} ruta(s))`,
-              'exito'
-            );
           } else {
+            // Si no tiene rutas, eliminar directamente
             await this.eliminarSegmentoConDetalles(seg.id);
             this.mostrarNotificacion(`Segmento "${seg.nombre}" eliminado`, 'exito');
           }
+
         } catch (err) {
           console.error(`Error procesando segmento ${seg.id}:`, err);
-          this.mostrarNotificacion(`Error al eliminar "${seg.nombre}"`, 'error');
+          this.mostrarNotificacion(`Error al procesar "${seg.nombre}"`, 'error');
         }
-      });
-
-      await this.ejecutarPromesasEnLotes(promesas, 3);
+      }
     },
+
 
     async ejecutarPromesasEnLotes(promesas, tamanioLote) {
       for (let i = 0; i < promesas.length; i += tamanioLote) {

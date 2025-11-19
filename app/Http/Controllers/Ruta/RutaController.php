@@ -69,9 +69,7 @@ class RutaController extends Controller
     }
 
 
-    // Mostrar una ruta específica con sus detalles
-    // RutaSegmentoController.php
-    // RutaSegmentoController.php
+
     public function show($id)
     {
         $detalles = DB::table('ruta as r')

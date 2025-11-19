@@ -16,7 +16,7 @@ class AsignacionController extends Controller
     public function index()
     {
         $usuarios = DB::table('usuario AS u')
-            ->leftJoin('asignacion AS a', 'a.usuario_codusuario', '=', 'u.codusuario')
+            ->join('asignacion AS a', 'a.usuario_codusuario', '=', 'u.codusuario')
             ->leftJoin('historicoViaje AS h', 'h.asignacion_codAsignacion', '=', 'a.codasignacion')
             ->select(
                 'u.codusuario',
@@ -32,6 +32,25 @@ class AsignacionController extends Controller
         return response()->json($usuarios);
     }
 
+
+    public function conductoresSinRutas()
+    {
+        $usuarios = DB::table('usuario AS u')
+            ->where('u.tipo', 'C')
+            ->whereNotExists(function ($query) {
+                $query->select(DB::raw(1))
+                    ->from('asignacion AS a')
+                    ->whereColumn('a.usuario_codusuario', 'u.codusuario');
+            })
+            ->select(
+                'u.codusuario',
+                'u.nombre',
+                'u.identificador'
+            )
+            ->get();
+
+        return response()->json($usuarios);
+    }
 
 
 
@@ -80,72 +99,83 @@ class AsignacionController extends Controller
     }
 
 
-    public function obtenerRutasPorUsuario($idUsuario)
-    {
-        $rows = DB::table('ruta as r')
-            ->join('detalleRuta as d', 'd.ruta_codruta', '=', 'r.codruta')
-            ->join('segmento as s', 's.codsegmento', '=', 'd.segmento_codsegmento')
-            ->join('asignacion as a', 'a.ruta_codruta', '=', 'r.codruta')
-            ->where('a.usuario_codusuario', $idUsuario)
-            ->select(
-                'r.codruta as idRuta',
-                'r.nombre as nombreRuta',
-                's.nombre',
-                's.color',
-                's.codsegmento as idSegmento',
-                's.cordenadas',
-                's.bounds'
-            )
-            ->orderBy('r.codruta')
-            ->get();
+   public function obtenerRutasPorUsuario($idUsuario)
+{
+    $rows = DB::table('ruta as r')
+        ->join('detalleRuta as d', 'd.ruta_codruta', '=', 'r.codruta')
+        ->join('segmento as s', 's.codsegmento', '=', 'd.segmento_codsegmento')
+        ->join('asignacion as a', 'a.ruta_codruta', '=', 'r.codruta')
+        ->join('usuario as u', 'u.codusuario', '=', 'a.usuario_codusuario') // 🔥 AGREGADO
+        ->where('a.usuario_codusuario', $idUsuario)
+        ->select(
+            'r.codruta as idRuta',
+            'r.nombre as nombreRuta',
+            's.nombre',
+            's.color',
+            's.codsegmento as idSegmento',
+            's.cordenadas',
+            's.bounds',
+            'u.nombre as nombreConductor' // 🔥 AGREGADO
+        )
+        ->orderBy('r.codruta')
+        ->get();
 
-        $rutas = [];
+    $rutas = [];
+    $nombreConductor = null;
 
-        foreach ($rows as $row) {
-            if (!isset($rutas[$row->idRuta])) {
-                $rutas[$row->idRuta] = [
-                    'id' => $row->idRuta,
-                    'nombre' => $row->nombreRuta,
-                    'segmentos' => []
-                ];
-            }
+    foreach ($rows as $row) {
 
-            $rutas[$row->idRuta]['segmentos'][] = [
-                'id' => $row->idSegmento,
-                'nombre' => $row->nombre,
-                'color' => $row->color,
-                'cordenadas' => $row->cordenadas,
-                'bounds' => $row->bounds
+        // Guardamos el nombre del conductor 1 sola vez
+        if ($nombreConductor === null) {
+            $nombreConductor = $row->nombreConductor;
+        }
+
+        if (!isset($rutas[$row->idRuta])) {
+            $rutas[$row->idRuta] = [
+                'id' => $row->idRuta,
+                'nombre' => $row->nombreRuta,
+                'segmentos' => []
             ];
         }
 
-        return response()->json([
-            'status' => true,
-            'rutas' => array_values($rutas)
-        ]);
+        $rutas[$row->idRuta]['segmentos'][] = [
+            'id' => $row->idSegmento,
+            'nombre' => $row->nombre,
+            'color' => $row->color,
+            'cordenadas' => $row->cordenadas,
+            'bounds' => $row->bounds
+        ];
     }
 
-   public function obtenerRutasPorConductor($idUsuario)
-{
-    $rutas = DB::table('asignacion AS a')
-        ->join('usuario AS u', 'u.codusuario', '=', 'a.usuario_codusuario')
-        ->join('ruta AS r', 'r.codruta', '=', 'a.ruta_codruta')
-        ->leftJoin('detalleRuta AS d', 'd.ruta_codruta', '=', 'r.codruta')
-        ->where('u.codusuario', $idUsuario)
-        ->where('u.tipo', 'C') // Ajusta según tu columna
-        ->select(
-            'r.codruta',
-            'r.nombre',
-            'r.limiteGeneral',
-            'r.tipo',
-            'r.icono',
-            DB::raw('COUNT(d.iddetalleRuta) AS cantidadSegmentos')
-        )
-        ->groupBy('r.codruta','r.nombre','r.limiteGeneral','r.tipo','r.icono')
-        ->get();
-
-    return response()->json($rutas);
+    return response()->json([
+        'status' => true,
+        'conductor' => $nombreConductor, 
+        'rutas' => array_values($rutas)
+    ]);
 }
+
+
+    public function obtenerRutasPorConductor($idUsuario)
+    {
+        $rutas = DB::table('asignacion AS a')
+            ->join('usuario AS u', 'u.codusuario', '=', 'a.usuario_codusuario')
+            ->join('ruta AS r', 'r.codruta', '=', 'a.ruta_codruta')
+            ->leftJoin('detalleRuta AS d', 'd.ruta_codruta', '=', 'r.codruta')
+            ->where('u.codusuario', $idUsuario)
+            ->where('u.tipo', 'C') // Ajusta según tu columna
+            ->select(
+                'r.codruta',
+                'r.nombre',
+                'r.limiteGeneral',
+                'r.tipo',
+                'r.icono',
+                DB::raw('COUNT(d.iddetalleRuta) AS cantidadSegmentos')
+            )
+            ->groupBy('r.codruta', 'r.nombre', 'r.limiteGeneral', 'r.tipo', 'r.icono')
+            ->get();
+
+        return response()->json($rutas);
+    }
 
 
 

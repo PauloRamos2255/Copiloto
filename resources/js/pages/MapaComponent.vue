@@ -131,22 +131,59 @@
 
           <!-- LISTADO -->
           <div v-else class="h-full flex flex-col">
-            <div class="sticky top-0 bg-white border-b p-4 flex flex-col gap-3">
-
-              <div class="flex justify-between">
-                <h2 class="text-lg font-semibold">Segmentos</h2>
-
-                <button @click="actualizarSegmentos()" class="bg-blue-600 text-white px-3 py-1 rounded-lg">
-                  <i class="fas fa-sync-alt" :class="{ 'animate-spin': loadingActualizar }"></i>
-                  {{ loadingActualizar ? "Actualizando..." : "Actualizar" }}
-                </button>
+            <div v-if="loading" class="flex items-center justify-center h-full w-full flex-col gap-4">
+              <!-- Dots animadas -->
+              <div class="loader-dots">
+                <div></div>
+                <div></div>
+                <div></div>
               </div>
-
-              <div class="flex items-center gap-2">
-                <i class="fas fa-search text-gray-400"></i>
-                <input v-model="busqueda" placeholder="Buscar..." class="w-full border px-2 py-1 rounded focus:ring" />
-              </div>
+              <p class="text-gray-500 text-sm">Cargando segmentos...</p>
             </div>
+
+            <div v-else class="h-full flex flex-col">
+
+              <div class="sticky top-0 bg-white border-b p-4 flex flex-col gap-3">
+
+                <div class="flex justify-between">
+                  <h2 class="text-lg font-semibold">Segmentos</h2>
+
+                  <button @click="actualizarSegmentos()" class="bg-blue-600 text-white px-3 py-1 rounded-lg">
+                    <i class="fas fa-sync-alt" :class="{ 'animate-spin': loadingActualizar }"></i>
+                    {{ loadingActualizar ? "Actualizando..." : "Actualizar" }}
+                  </button>
+                </div>
+
+                <div class="flex items-center gap-2">
+                  <i class="fas fa-search text-gray-400"></i>
+                  <input v-model="busqueda" placeholder="Buscar..."
+                    class="w-full border px-2 py-1 rounded focus:ring" />
+                </div>
+              </div>
+
+              <div class="flex-1 overflow-y-auto p-4">
+
+                <div v-for="seg in segmentosFiltrados" :key="seg.id" @click="centrarEnSegmento(seg)"
+                  class="p-2 hover:bg-gray-100 rounded cursor-pointer flex justify-between items-center">
+
+                  <div class="flex items-center gap-2">
+                    <div class="w-4 h-4 rounded border"
+                      :style="{ backgroundColor: seg.color.fillColor, opacity: seg.color.fillOpacity }"></div>
+                    {{ seg.nombre }}
+                  </div>
+
+                  <div class="flex items-center gap-3">
+                    <i class="fas fa-wrench text-blue-600" @click.stop="abrirPropiedades(seg)"></i>
+                    <i class="fas fa-times text-red-500" @click.stop="eliminarGeocerca(seg)"></i>
+                  </div>
+
+                </div>
+
+              </div>
+
+            </div>
+
+
 
             <div class="flex-1 overflow-y-auto p-4">
               <div v-for="seg in segmentosFiltrados" :key="seg.id" @click="centrarEnSegmento(seg)"
@@ -203,9 +240,11 @@
 
 <script>
 import { defineComponent } from "vue";
+import { ref, onBeforeMount, onMounted } from 'vue'
 import { LMap, LTileLayer, LPolygon, LPolyline, LCircle, LMarker } from "@vue-leaflet/vue-leaflet";
 import "leaflet/dist/leaflet.css";
 import Header from "@/pages/Header.vue";
+import Loader from "@/pages/Loader.vue";
 import axios from "axios";
 import L from "leaflet";
 import Swal from "sweetalert2";
@@ -213,7 +252,7 @@ import Swal from "sweetalert2";
 
 export default defineComponent({
   name: "MapaComponent",
-  components: { LMap, LTileLayer, LPolygon, LPolyline, LCircle, LMarker, Header },
+  components: { LMap, LTileLayer, LPolygon, LPolyline, LCircle, LMarker, Header, Loader },
 
   props: {
     toast: {
@@ -232,6 +271,7 @@ export default defineComponent({
       propiedadesAbiertas: false,
       busqueda: "",
       loadingActualizar: false,
+      loading: true,
       error: null,
       etiquetas: [],
       itemId: 402037903,
@@ -276,6 +316,8 @@ export default defineComponent({
   },
 
   methods: {
+
+
     async obtenerSID() {
       try {
         const { data } = await axios.get(`${this.API_BASE}/obtener-sid`);
@@ -799,36 +841,72 @@ export default defineComponent({
     },
 
     async eliminarGeocerca(seg) {
-      if (!confirm(`¿Eliminar el segmento "${seg.nombre}"?`)) return;
+      const idSegmento = seg.id || seg.codsegmento;
+      if (!idSegmento) {
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: "No se pudo obtener el ID del segmento",
+        });
+        return;
+      }
+
+      const { isConfirmed } = await Swal.fire({
+        title: `Eliminar segmento "${seg.nombre}"?`,
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: "Sí, eliminar",
+        cancelButtonText: "Cancelar",
+      });
+
+      if (!isConfirmed) return;
 
       try {
-        const idSegmento = seg.id || seg.codsegmento;
-        if (!idSegmento) {
-          this.mostrarNotificacion("Error: No se pudo obtener el ID del segmento", "error");
+        Swal.fire({
+          title: 'Procesando...',
+          html: 'Por favor, espera',
+          allowOutsideClick: false,
+          didOpen: () => {
+            Swal.showLoading();
+          }
+        });
+
+        const verificarRutas = await axios.get(`${this.API_BASE}/segmentos/${idSegmento}/detalles-rutas`);
+
+        if (verificarRutas.data.existe && verificarRutas.data.detalles.length > 0) {
+          Swal.close();
+          const rutasUnicas = [...new Set(verificarRutas.data.detalles.map(d => d.ruta_nombre))];
+          Swal.fire({
+            icon: "error",
+            title: "No se puede eliminar",
+            html: `
+          Este segmento está asignado a <b>${rutasUnicas.length}</b> ruta(s):<br>
+          ${rutasUnicas.join("<br>")}
+        `,
+          });
           return;
         }
 
-        try {
-          const verificarRutas = await axios.get(`${this.API_BASE}/segmentos/${idSegmento}/detalles-rutas`);
-          if (verificarRutas.data.existe) {
-            const rutasUnicas = [...new Set(verificarRutas.data.detalles.map(d => d.ruta_nombre))];
-            this.mostrarNotificacion(`No se puede eliminar. Este segmento está asignado a ${rutasUnicas.length} ruta(s)`, "error");
-            return;
-          }
-        } catch (err) {
-          console.warn("No se pudo verificar rutas, continuando...");
-        }
-
         const { data } = await axios.delete(`${this.API_BASE}/segmentos/${idSegmento}`);
-
         this.segmentos = this.segmentos.filter(s => s.id !== idSegmento);
 
-        this.mostrarNotificacion(data.mensaje || "Segmento eliminado correctamente", "exito");
-      } catch (e) {
-        console.error("Error al eliminar:", e);
+        Swal.close();
+        Swal.fire({
+          icon: "success",
+          title: "Eliminado",
+          text: data.mensaje || "Segmento eliminado correctamente",
+        });
 
+      } catch (e) {
+        Swal.close();
+        console.error("Error al eliminar:", e);
         const mensaje = e.response?.data?.error || e.response?.data?.mensaje || "Error al eliminar el segmento";
-        this.mostrarNotificacion(mensaje, "error");
+
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: mensaje,
+        });
       }
     },
 
@@ -906,11 +984,18 @@ export default defineComponent({
     }
   },
 
-  created() {
-    this.cargarSegmentos();
-  }
+  async created() {
+    this.loading = true;
+
+    await this.cargarSegmentos();
+
+    this.loading = false;
+  },
+
+
 
 });
+
 </script>
 
 <style>
@@ -953,5 +1038,25 @@ export default defineComponent({
 /* Ocultar escala */
 :deep(.leaflet-control-scale) {
   display: none !important;
+}
+
+.loader-dots {
+  display: flex;
+  gap: 8px;
+}
+
+.loader-dots div {
+  width: 12px;
+  height: 12px;
+  background-color: #3b82f6;
+  border-radius: 50%;
+  animation: bounce 0.6s infinite alternate;
+}
+
+.loader-dots div:nth-child(2) { animation-delay: 0.2s; }
+.loader-dots div:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes bounce {
+  to { transform: translateY(-12px); }
 }
 </style>

@@ -1,5 +1,6 @@
 <template>
-  <div class="min-h-screen bg-gray-100 font-sans">
+  <Loader v-if="loading"/>
+  <div v-else  class="min-h-screen bg-gray-100 font-sans">
 
     <!-- Header -->
     <Header :nombreUsuario="nombreUsuario" />
@@ -189,14 +190,17 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted ,watch} from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import Header from "@/pages/Header.vue";
+import Loader from "@/pages/Loader.vue";
 import ModalUsuario from "@/components/ModalUsuario.vue";
 import axios from "axios";
 import Swal from "sweetalert2";
 
+const randomWidth = () => `${Math.floor(Math.random() * 12 + 20)}ch`;
+const randomWidthSmall = () => `${Math.floor(Math.random() * 8 + 12)}ch`;
 
-
+const loading = ref(true)
 
 const nombreUsuario = "Paulo Ramos";
 const usuarios = ref([]);
@@ -210,41 +214,62 @@ const filtroEmpresa = ref("");
 const paginaActual = ref(1);
 const registrosPorPagina = 10;
 
-
 const modalVisible = ref(false);
 const usuarioSeleccionado = ref(null);
 
+/* ----------------------------- CACHÉ CON SESSIONSTORAGE ----------------------------- */
 
-const randomWidth = () => `${Math.floor(Math.random() * 12 + 20)}ch`;
-const randomWidthSmall = () => `${Math.floor(Math.random() * 8 + 12)}ch`;
+const CACHE_KEY = "usuarios_cache";
 
-const abrirModalUsuario = (usuario = null) => {
-  usuarioSeleccionado.value = usuario
-    ? { ...usuario }
-    : { codusuario: null, nombre: "", tipo: "U", empresa_codempresa: 1 };
-
-  modalVisible.value = true;
+// Guardar cache hasta que se cierre el navegador
+const guardarCacheUsuarios = (lista) => {
+  const payload = {
+    usuarios: lista,
+    timestamp: Date.now()
+  };
+  sessionStorage.setItem(CACHE_KEY, JSON.stringify(payload));
 };
 
+// Obtener cache (solo dura mientras la pestaña esté abierta)
+const obtenerCacheUsuarios = () => {
+  const raw = sessionStorage.getItem(CACHE_KEY);
+  if (!raw) return null;
 
+  try {
+    const data = JSON.parse(raw);
+    return data.usuarios || null;
+  } catch {
+    return null;
+  }
+};
 
-onMounted(() => {
-  cargarUsuarios();
-  cargarEmpresas();
-});
+const cargarUsuariosConCache = async () => {
+  const cache = obtenerCacheUsuarios();
 
+  if (cache) {
+    usuarios.value = cache;
+    cargando.value = false;
+    return;
+  }
+
+  await cargarUsuarios();
+};
+
+/* ----------------------------- USUARIOS ----------------------------- */
 
 const cargarUsuarios = async () => {
   try {
     const { data } = await axios.get("http://localhost:8000/api/usuarios");
     usuarios.value = data;
+
+    // Guardar en sessionStorage
+    guardarCacheUsuarios(data);
   } catch (error) {
     console.error("Error al cargar usuarios:", error);
   } finally {
     cargando.value = false;
   }
 };
-
 
 const cargarEmpresas = async () => {
   try {
@@ -255,34 +280,43 @@ const cargarEmpresas = async () => {
   }
 };
 
+/* ----------------------------- MODAL ----------------------------- */
 
+const abrirModalUsuario = (usuario = null) => {
+  usuarioSeleccionado.value = usuario
+    ? { ...usuario }
+    : { codusuario: null, nombre: "", tipo: "U", empresa_codempresa: 1 };
 
+  modalVisible.value = true;
+};
+
+/* ----------------------------- ACTUALIZAR LISTA ----------------------------- */
 
 const actualizarLista = (respuestaApi) => {
   const usuario = {
     ...respuestaApi.usuario,
     codusuario: respuestaApi.usuario.codusuario,
-    empresa_nombre: respuestaApi.empresa_nombre ?? "Sin empresa"
+    empresa_nombre: respuestaApi.empresa_nombre ?? "Sin empresa",
   };
 
-
-  const index = usuarios.value.findIndex(u => u.codusuario === usuario.codusuario);
+  const index = usuarios.value.findIndex(
+    u => u.codusuario === usuario.codusuario
+  );
 
   if (index !== -1) {
-    usuarios.value[index] = { ...usuario }; 
+    usuarios.value[index] = { ...usuario };
   } else {
-    usuarios.value.push(usuario); 
+    usuarios.value.push(usuario);
   }
+
+  // actualizar sessionStorage
+  guardarCacheUsuarios(usuarios.value);
 };
 
-
-
+/* ----------------------------- ELIMINAR ----------------------------- */
 
 const confirmarEliminar = async (usuario) => {
-  
-  if (usuario.tipo !== "C") {
-    return eliminarDirecto(usuario);
-  }
+  if (usuario.tipo !== "C") return eliminarDirecto(usuario);
 
   Swal.fire({
     title: "Verificando usuario...",
@@ -306,7 +340,6 @@ const confirmarEliminar = async (usuario) => {
     return;
   }
 
-
   return eliminarDirecto(usuario);
 };
 
@@ -319,22 +352,28 @@ const eliminarDirecto = async (usuario) => {
     confirmButtonColor: "#3085d6",
     cancelButtonColor: "#d33",
     confirmButtonText: "Sí, eliminar",
-    cancelButtonText: "Cancelar"
+    cancelButtonText: "Cancelar",
   });
 
   if (!result.isConfirmed) return;
 
   try {
-    await axios.delete(`http://localhost:8000/api/usuarios/${usuario.codusuario}`);
+    await axios.delete(
+      `http://localhost:8000/api/usuarios/${usuario.codusuario}`
+    );
 
-    usuarios.value = usuarios.value.filter(u => u.codusuario !== usuario.codusuario);
+    usuarios.value = usuarios.value.filter(
+      u => u.codusuario !== usuario.codusuario
+    );
+
+    guardarCacheUsuarios(usuarios.value);
 
     Swal.fire({
       title: "Eliminado",
       text: "El usuario ha sido eliminado correctamente.",
       icon: "success",
       timer: 1500,
-      showConfirmButton: false
+      showConfirmButton: false,
     });
 
   } catch (error) {
@@ -348,8 +387,7 @@ const eliminarDirecto = async (usuario) => {
   }
 };
 
-
-
+/* ----------------------------- FILTROS ----------------------------- */
 
 const usuariosFiltrados = computed(() => {
   const buscar = filtroNombre.value.trim().toLowerCase();
@@ -368,8 +406,7 @@ const usuariosFiltrados = computed(() => {
   });
 });
 
-
-
+/* ----------------------------- PAGINACIÓN ----------------------------- */
 
 const totalPaginas = computed(() =>
   Math.ceil(usuariosFiltrados.value.length / registrosPorPagina)
@@ -386,7 +423,7 @@ const cambiarPagina = (n) => {
   paginaActual.value = n;
 };
 
-
+/* ----------------------------- UTILIDADES ----------------------------- */
 
 const tipoBadge = (tipo) => {
   if (tipo === "A") return "px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold";
@@ -401,12 +438,26 @@ const mostrarTipo = (tipo) => {
   if (tipo === "C") return "Conductor";
   return "";
 };
+
 watch(usuariosFiltrados, () => {
   if (paginaActual.value > totalPaginas.value) {
     paginaActual.value = 1;
   }
 });
 
+/* ----------------------------- MOUNT ----------------------------- */
 
+onMounted(async () => {
+  loading.value = true;
+
+  await Promise.all([
+    cargarUsuariosConCache(),
+    cargarEmpresas()
+  ]);
+
+  loading.value = false;
+});
 
 </script>
+
+

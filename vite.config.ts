@@ -6,12 +6,16 @@ import { wayfinder } from '@laravel/vite-plugin-wayfinder';
 import { existsSync } from 'fs';
 import { resolve } from 'path';
 
-// Verificar si las rutas API existen antes de usar Wayfinder
+// Detectar si existe el archivo de rutas API
 const apiRoutesExist = existsSync(resolve(__dirname, 'routes/api.php'));
-const useWayfinder = apiRoutesExist && process.env.SKIP_WAYFINDER !== 'true';
+
+// Activar Wayfinder solo cuando existan rutas y no se haya desactivado por ENV
+const useWayfinder =
+  apiRoutesExist && process.env.SKIP_WAYFINDER !== 'true';
 
 export default defineConfig({
   plugins: [
+    // Plugin Vue
     vue({
       template: {
         transformAssetUrls: {
@@ -20,15 +24,21 @@ export default defineConfig({
         },
       },
     }),
+
+    // Plugin Laravel
     laravel({
       input: ['resources/js/app.ts'],
       ssr: 'resources/js/ssr.ts',
       refresh: true,
     }),
+
+    // TailwindCSS nativo para Vite
     tailwindcss(),
+
+    // Wayfinder (solo si se cumple la condición)
     useWayfinder &&
       wayfinder({
         formVariants: false,
       }),
-  ].filter(Boolean), // Filtra valores falsy (false, null, undefined)
+  ].filter(Boolean), // Evita agregar valores null/false
 });

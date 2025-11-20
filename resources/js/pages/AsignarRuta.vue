@@ -1,5 +1,8 @@
 <template>
-  <div class="min-h-screen bg-gray-100 font-sans">
+  <div>
+
+    <Loader v-if="loading" /> 
+  <div  v-else class="min-h-screen bg-gray-100 font-sans">
     <Header :nombreUsuario="nombreUsuario" />
 
     <main class="p-4 md:p-6">
@@ -249,12 +252,15 @@
 
     </main>
   </div>
+  </div>
+   
 </template>
 
 
 <script setup>
 import { ref, computed, onMounted, watch } from "vue";
 import Header from "@/pages/Header.vue";
+import Loader from "@/pages/Loader.vue";
 import axios from "axios";
 import ModalAsignarRuta from "@/components/ModalAsignarRuta.vue";
 
@@ -273,6 +279,8 @@ const registrosPorPagina = 10;
 const filaExpandida = ref(null);
 const rutasDetalle = ref([]);
 const rutasDetalleCache = ref({});
+
+const loading = ref(true)
 
 const cargarDetalleRuta = async (id) => {
   try {
@@ -319,11 +327,15 @@ const cargarRutas = async () => {
   }
 };
 
-onMounted(() => {
-  Promise.all([
+onMounted(async () => {
+  loading.value = true;
+  
+  await Promise.all([
     cargarConductores(),
     cargarRutas()
   ]);
+
+  loading.value = false;
 });
 
 const conductoresFiltrados = computed(() =>

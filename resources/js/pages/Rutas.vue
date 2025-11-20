@@ -1,5 +1,9 @@
 <template>
-  <div class="min-h-screen bg-gray-100 font-sans">
+
+  <div>
+     <Loader v-if="loading" /> 
+     <div v-else>
+      <div class="min-h-screen bg-gray-100 font-sans">
     <!-- Header -->
     <Header :nombreUsuario="nombreUsuario" />
 
@@ -289,12 +293,9 @@
                     <i class="fas fa-gauge-high text-blue-600 mr-1"></i>Límite
                   </label>
                   <div class="relative">
-                    <input type="number" step="1" min="0" v-model.number="velocidadPromedio" placeholder="0" 
-                          max="200"
-                      class="w-full border border-gray-300 rounded-lg pl-3 pr-10 py-2 bg-white text-sm font-semibold h-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      @input="velocidadPromedio = velocidadPromedio 
-                        ? Math.min(Math.max(Math.trunc(velocidadPromedio), 0), 200)
-                        : 0" />
+                    <input type="number" v-model.number="nuevaRuta.limite" placeholder="00" min="0" max="200" step="1"
+                      @input="onLimiteInput"
+                      class="w-full border border-gray-300 rounded-lg pl-3 pr-10 py-2 bg-white text-sm font-semibold h-10 focus:outline-none focus:ring-2 focus:ring-blue-500" />
 
                     <span
                       class="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-blue-700 pointer-events-none">
@@ -302,6 +303,32 @@
                     </span>
                   </div>
 
+                  <!-- Comparativa -->
+                  <div v-if="huboCambios" class="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded-lg text-xs">
+                    <div class="flex justify-between mb-1">
+                      <span class="text-gray-600">Promedio BD:</span>
+                      <span class="font-semibold text-gray-700">{{ comparativaLimite.promedioOriginal }} km/h</span>
+                    </div>
+                    <div class="flex justify-between mb-1">
+                      <span class="text-gray-600">Promedio actual:</span>
+                      <span class="font-semibold text-blue-600">{{ comparativaLimite.promedioActual }} km/h</span>
+                    </div>
+                    <div class="flex justify-between pt-1 border-t border-yellow-200">
+                      <span class="text-gray-600">Cambio:</span>
+                      <span :class="comparativaLimite.cambio > 0 ? 'text-green-600' : 'text-red-600'"
+                        class="font-semibold">
+                        {{ comparativaLimite.cambio > 0 ? '+' : '' }}{{ comparativaLimite.cambio }} km/h
+                      </span>
+                    </div>
+                  </div>
+
+                  <!-- Sin cambios -->
+                  <div v-else class="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg text-xs">
+                    <div class="flex justify-between">
+                      <span class="text-gray-600">Promedio:</span>
+                      <span class="font-semibold text-green-600">{{ velocidadPromedio }} km/h</span>
+                    </div>
+                  </div>
                 </div>
 
                 <div class="col-span-3 flex flex-col">
@@ -404,8 +431,6 @@
                             ? Math.min(Math.max(Math.trunc(segmentoSeleccionado.velocidad), 0), 200)
                             : 0"
                           class="w-full border border-yellow-400 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-yellow-400 focus:outline-none" />
-
-
                       </div>
 
                     </div>
@@ -515,12 +540,15 @@
     </transition>
 
   </div>
+     </div>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onMounted, nextTick, onUnmounted } from "vue";
 import axios from "axios";
 import Header from "@/pages/Header.vue";
+import Loader from "@/pages/Loader.vue";
 import Swal from "sweetalert2";
 // imports
 import { LMap, LTileLayer, LMarker, LPolygon } from '@vue-leaflet/vue-leaflet';
@@ -529,6 +557,7 @@ import L from 'leaflet';
 
 import "leaflet/dist/leaflet.css";
 
+const loading = ref(true)
 
 interface Punto {
   x: number; // longitud
@@ -612,7 +641,20 @@ const randomWidthSmall = () => `${Math.floor(Math.random() * 8 + 12)}ch`;
 
 
 
+
+
+
+
 const nuevaRuta = reactive<Ruta>({
+  nombre: "",
+  limite: 0,
+  tipo: "",
+  logoPreview: "",
+  logoFile: undefined,
+  segmentos: [],
+});
+
+const Rutadb = reactive<Ruta>({
   nombre: "",
   limite: 0,
   tipo: "",
@@ -837,29 +879,113 @@ const rutasPaginadas = computed(() => {
   return rutasFiltradas.value.slice(start, start + registrosPorPagina.value);
 });
 
+const props = defineProps<{
+  ruta?: { limite?: number | null };
+}>();
+
+const limiteEditado = ref(false);
+const limiteBD = ref<number | null>(null);
+const velocidadesOriginalesBD = ref<number[]>([]);
+
 const velocidadPromedio = computed(() => {
-  if (segmentosRuta.value.length === 0) return 0;
-  const suma = segmentosRuta.value.reduce((acc, s) => acc + (s.velocidad || 0), 0);
-  return Math.round(suma / segmentosRuta.value.length);
+  if (!segmentosRuta.value || segmentosRuta.value.length === 0) return 0;
+  const suma = segmentosRuta.value.reduce((acc, s) => acc + (s.velocidad ?? 0), 0);
+  return Math.min(Math.round(suma / segmentosRuta.value.length), 200);
 });
 
+const promedioBD = computed(() => {
+  if (velocidadesOriginalesBD.value.length === 0) return limiteBD.value ?? 0;
+  const suma = velocidadesOriginalesBD.value.reduce((acc, v) => acc + v, 0);
+  return Math.min(Math.round(suma / velocidadesOriginalesBD.value.length), 200);
+});
+
+const limiteAMostrar = computed(() => {
+  if (!nuevaRuta.limite || nuevaRuta.limite === 0) {
+    return velocidadPromedio.value;
+  }
+
+  if (velocidadPromedio.value !== promedioBD.value) {
+    return velocidadPromedio.value;
+  }
+
+  return nuevaRuta.limite;
+});
+
+const huboCambios = computed(() => {
+  return velocidadPromedio.value !== promedioBD.value;
+});
+
+const comparativaLimite = computed(() => {
+  return {
+    limiteBD: limiteBD.value,
+    limiteActual: nuevaRuta.limite,
+    promedioOriginal: promedioBD.value,
+    promedioActual: velocidadPromedio.value,
+    cambio: velocidadPromedio.value - promedioBD.value
+  };
+});
+
+function inicializarLimite(valorBase: number | null | undefined) {
+  if (!nuevaRuta) return;
+
+  limiteBD.value = valorBase ?? null;
+  velocidadesOriginalesBD.value = segmentosRuta.value.map(s => s.velocidad ?? 0);
+  nuevaRuta.limite = limiteAMostrar.value;
+  limiteEditado.value = false;
+}
+
+watch(
+  () => Rutadb, 
+  (nuevoValor) => {
+    Object.assign(nuevaRuta, nuevoValor);
+    inicializarLimite(nuevoValor.limite);
+  },
+  { immediate: true }
+);
+
+watch(
+  segmentosRuta,
+  () => {
+    if (!limiteEditado.value && nuevaRuta) {
+      nuevaRuta.limite = limiteAMostrar.value;
+    }
+  },
+  { deep: true }
+);
+
+function onLimiteInput() {
+  if (!nuevaRuta) return;
+
+  limiteEditado.value = true;
+
+  if (nuevaRuta.limite != null) {
+    nuevaRuta.limite = Math.min(Math.max(Math.trunc(nuevaRuta.limite), 0), 200);
+  } else {
+    nuevaRuta.limite = 0;
+  }
+}
+
+
+
+// Función auxiliar
 function isSelected(segmento: Segmento): boolean {
   return segmentoSeleccionado.value?._tempId === segmento._tempId;
 }
 
-watch(velocidadPromedio, (nuevoPromedio) => {
-  nuevaRuta.limite = nuevoPromedio;
-}, { immediate: true });
 
 watch(filtro, () => {
   paginaActual.value = 1;
 });
 
 onMounted(async () => {
+   loading.value = true
+
   await cargarSegmentos();
   await cargarRutas();
   calcularRegistrosPorPantalla();
   window.addEventListener('resize', calcularRegistrosPorPantalla);
+ loading.value = false
+
 });
 onUnmounted(() => {
   window.removeEventListener('resize', calcularRegistrosPorPantalla);
@@ -1013,11 +1139,6 @@ async function guardarRuta() {
     return;
   }
 
-  if (!nuevaRuta.logoFile) {
-    toast.error("Por favor, seleccione un logo");
-    cargandoFormulario.value = false;
-    return;
-  }
 
   if (
     !nuevaRuta.limite ||
@@ -1147,7 +1268,7 @@ async function editarRuta(id?: number) {
   await nextTick();
 
   try {
-    const rutaResp = await axios.get(`http://localhost:8000/api/rutasid/${id}`);
+    const rutaResp = await axios.get(`api/rutasid/${id}`);
     const ruta = rutaResp.data;
 
     if (!ruta) {
@@ -1157,6 +1278,7 @@ async function editarRuta(id?: number) {
 
     const tipoSeleccionado =
       ruta.tipo === "G" ? "General" : ruta.tipo === "V" ? "Vuelta" : "Otro";
+
 
     const detallesRuta = ruta.detalles_ruta ?? [];
     const segmentos: Segmento[] = detallesRuta.map((d: any) => ({
@@ -1175,6 +1297,16 @@ async function editarRuta(id?: number) {
     const logoPreviewUrl = icono || "";
 
 
+    Object.assign(Rutadb, {
+      id: ruta.id ?? ruta.codruta,
+      nombre: ruta.nombre ?? "",
+      tipo: tipoSeleccionado,
+      color: "",
+      logo: icono,
+      logoPreview: logoPreviewUrl,
+      limite: ruta.limiteGeneral || 0,
+      segmentos,
+    });
 
 
     Object.assign(nuevaRuta, {
@@ -1184,7 +1316,7 @@ async function editarRuta(id?: number) {
       color: "",
       logo: icono,
       logoPreview: logoPreviewUrl,
-      limite: Number(ruta.limiteGeneral) || 0,
+      limite: ruta.limiteGeneral || 0,
       segmentos,
     });
 

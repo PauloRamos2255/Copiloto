@@ -10,6 +10,7 @@ use App\Http\Controllers\Acceso\AuthController;
 use App\Http\Controllers\Api\AsignacionController;
 use App\Http\Controllers\Api\EmpresaController;
 use App\Http\Controllers\Api\UsuarioController;
+use App\Http\Controllers\Moviapi\MovilUsuarioController;
 use Illuminate\Http\Request;
 
 // routes/api.php
@@ -63,5 +64,9 @@ Route::put('/asignacion_update', [AsignacionController::class, 'editarAsignacion
 Route::get('/asignacion_get/{id}', [AsignacionController::class, 'obtenerRutasPorConductor']);
 Route::get('/conductor_sin_ruta', [AsignacionController::class, 'conductoresSinRutas']);
 
+
+//Movil
+Route::post('/conductor_login', [MovilUsuarioController::class, 'loginConductor']);
+Route::get('/obtener_rutas_conductor/{id}', [MovilUsuarioController::class, 'obtenerRutasConductor']);
 
 

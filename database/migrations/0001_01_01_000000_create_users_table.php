@@ -11,26 +11,22 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Tabla de usuarios personalizada
-        Schema::create('usuario', function (Blueprint $table) {
-            $table->string('codusuario')->unique();
-            $table->unsignedBigInteger('empresa_codempresa');
-            $table->string('nombre');
-            $table->string('clave'); // contraseña
-            $table->string('tipo');
-            $table->timestamp('ultimoIngreso')->nullable();
-            $table->string('identificador')->nullable();
+        Schema::create('users', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->string('email')->unique();
+            $table->timestamp('email_verified_at')->nullable();
+            $table->string('password');
+            $table->rememberToken();
             $table->timestamps();
         });
 
-        // Tabla para recuperación de contraseñas
         Schema::create('password_reset_tokens', function (Blueprint $table) {
             $table->string('email')->primary();
             $table->string('token');
             $table->timestamp('created_at')->nullable();
         });
 
-        // Tabla de sesiones
         Schema::create('sessions', function (Blueprint $table) {
             $table->string('id')->primary();
             $table->foreignId('user_id')->nullable()->index();
@@ -46,8 +42,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('sessions');
+        Schema::dropIfExists('users');
         Schema::dropIfExists('password_reset_tokens');
-        Schema::dropIfExists('usuario');
+        Schema::dropIfExists('sessions');
     }
 };

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Moviapi;
 
 use App\Http\Controllers\Controller;
+use App\Models\Ruta;
 use App\Models\Usuario;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
@@ -55,8 +56,7 @@ class MovilUsuarioController extends Controller
 
     public function obtenerRutasConductor($codusuario)
     {
-        // 1. Obtener rutas asignadas (incluyendo los datos de asignación)
-        $asignaciones = DB::table('asignacion as a')
+        $asignacionesQuery = DB::table('asignacion as a')
             ->join('ruta as r', 'a.ruta_codruta', '=', 'r.codruta')
             ->where('a.usuario_codusuario', $codusuario)
             ->select(
@@ -71,42 +71,67 @@ class MovilUsuarioController extends Controller
                 'r.icono',
                 'r.tipo'
             )
-            ->get();
+            ->paginate(50);
 
         $respuesta = [];
 
-        foreach ($asignaciones as $asignacion) {
+        foreach ($asignacionesQuery->items() as $asignacion) {
 
             $codRuta = $asignacion->codruta;
 
-            // 2. Obtener los detalles de la ruta
+            // Obtener detalles
             $detalles = DB::table('detalleRuta')
                 ->where('ruta_codruta', $codRuta)
-                ->get();
+                ->get()
+                ->map(function ($d) {
+                    return [
+                        "coddetalle" => $d->coddetalle ?? null,
+                        "ruta_codruta" => $d->ruta_codruta ?? null,
+                        "segmento_codsegmento" => $d->segmento_codsegmento ?? null,
+                    ];
+                })
+                ->toArray();
 
-            // 3. Obtener IDs únicos de segmentos
-            $segmentosIds = $detalles->pluck('segmento_codsegmento')->unique();
+            // Evitar segmentos repetidos
+            $segmentosIds = collect($detalles)
+                ->pluck('segmento_codsegmento')
+                ->filter() // eliminar nulos
+                ->unique();
 
-            // 4. Obtener segmentos completos
             $segmentos = DB::table('segmento')
                 ->whereIn('codsegmento', $segmentosIds)
-                ->get();
+                ->get()
+                ->map(function ($segmento) {
+                    $cordenadasLimpias = isset($segmento->cordenadas)
+                        ? str_replace('\\', '\\\\', preg_replace('/[^\x20-\x7E]/', '', $segmento->cordenadas))
+                        : "";
+                    return [
+                        "codsegmento" => $segmento->codsegmento ?? null,
+                        "nombre" => $segmento->nombre ?? "",
+                        "cordenadas" => $cordenadasLimpias
+                    ];
+                })
+                ->toArray();
 
-            // 5. Armar estructura final
+            // Formatear fechas ISO 8601
+            $formatearFechaIso = function ($fecha) {
+                return \Carbon\Carbon::parse($fecha)->format('Y-m-d\TH:i:s.u\Z');
+            };
+
             $respuesta[] = [
                 "asignacion" => [
-                    "codasignacion"       => $asignacion->codasignacion,
-                    "ruta_codruta"        => $asignacion->ruta_codruta,
-                    "usuario_codusuario"  => $asignacion->usuario_codusuario,
-                    "ultimaActualizacion" => $asignacion->ultimaActualizacion
+                    "codasignacion" => $asignacion->codasignacion,
+                    "ruta_codruta" => $asignacion->ruta_codruta,
+                    "usuario_codusuario" => $asignacion->usuario_codusuario,
+                    "ultimaActualizacion" => $formatearFechaIso($asignacion->ultimaActualizacion)
                 ],
                 "ruta" => [
-                    "codruta"       => $asignacion->codruta,
-                    "nombre"        => $asignacion->nombre,
+                    "codruta" => $asignacion->codruta,
+                    "nombre" => $asignacion->nombre,
                     "limiteGeneral" => $asignacion->limiteGeneral,
-                    "fechaCreacion" => $asignacion->fechaCreacion,
-                    "icono"         => $asignacion->icono,
-                    "tipo"          => $asignacion->tipo
+                    "fechaCreacion" => $formatearFechaIso($asignacion->fechaCreacion),
+                    "icono" => $asignacion->icono,
+                    "tipo" => $asignacion->tipo
                 ],
                 "detalles" => $detalles,
                 "segmentos" => $segmentos
@@ -114,8 +139,10 @@ class MovilUsuarioController extends Controller
         }
 
         return response()->json([
-            "success" => true,
-            "rutas" => $respuesta
-        ]);
+            'success' => true,
+            'rutas' => $respuesta,
+            'current_page' => $asignacionesQuery->currentPage(),
+            'last_page' => $asignacionesQuery->lastPage()
+        ], 200, [], JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
     }
 }

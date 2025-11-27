@@ -51,11 +51,10 @@ class MovilUsuarioController extends Controller
             ], 403);
         }
 
-        // Registrar inicio de actualización con estado A
         Actualizacion::create([
             'usuario_codusuario' => $usuario->codusuario,
             'estado' => 'I',
-            'inicio' => now()
+            'inicio' =>  now('America/Lima')
         ]);
 
         // Actualizar último ingreso
@@ -75,9 +74,6 @@ class MovilUsuarioController extends Controller
             ]
         ]);
     }
-
-
-
 
     public function obtenerRutasConductor($codusuario)
     {
@@ -146,5 +142,48 @@ class MovilUsuarioController extends Controller
             'current_page' => $asignacionesQuery->currentPage(),
             'last_page' => $asignacionesQuery->lastPage()
         ], 200, [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PARTIAL_OUTPUT_ON_ERROR);
+    }
+
+    public function logoutConductor($codusuario)
+    {
+        // Validar que sea un número entero
+        if (!is_numeric($codusuario)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'El ID debe ser un número válido'
+            ], 400);
+        }
+
+        // Buscar usuario
+        $usuario = Usuario::find($codusuario);
+
+        if (!$usuario) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Usuario no encontrado'
+            ], 404);
+        }
+
+        // Buscar actualización activa (estado I = iniciado)
+        $actualizacion = Actualizacion::where('usuario_codusuario', $codusuario)
+            ->where('estado', 'I')
+            ->first();
+
+        if (!$actualizacion) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No existe una sesión activa para este usuario'
+            ], 400);
+        }
+
+        // Cerrar sesión
+        $actualizacion->estado = 'C';
+        $actualizacion->fin = now('America/Lima');
+        $actualizacion->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Sesión cerrada correctamente'
+        ]);
     }
 }

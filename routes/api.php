@@ -71,6 +71,7 @@ Route::post('/conductor_login', [MovilUsuarioController::class, 'loginConductor'
 Route::get('/obtener_rutas_conductor/{id}', [MovilUsuarioController::class, 'obtenerRutasConductor']);
 Route::post('/actualizacion_save', [ActualizacionController::class, 'registrar']);
 Route::put('actualizacion_update', [ActualizacionController::class, 'actualizarPorId']);
+Route::post('/logout/{id}', [MovilUsuarioController::class, 'logoutConductor']);
 
 
 

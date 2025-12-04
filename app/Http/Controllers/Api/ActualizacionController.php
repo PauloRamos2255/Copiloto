@@ -13,11 +13,10 @@ class ActualizacionController extends Controller
     {
         $request->validate([
             'inicio' => 'required|numeric',
-            'estado' => 'required|in:A,R',
+            'estado' => 'required|in:A,C,E',
             'usuario_codusuario' => 'required|integer'
         ]);
 
-        // Revisar si ya hay una actualización activa
         $enProceso = Actualizacion::where('usuario_codusuario', $request->usuario_codusuario)
             ->where('estado', 'A')
             ->whereNull('fin')
@@ -31,9 +30,11 @@ class ActualizacionController extends Controller
             ], 409);
         }
 
-        // Crear registro usando los mutators del modelo
+
+        $inicioDate = \Carbon\Carbon::now('America/Lima');
+
         $actualizacion = Actualizacion::create([
-            'inicio' => $request->inicio,
+            'inicio' => $inicioDate,
             'estado' => $request->estado,
             'usuario_codusuario' => $request->usuario_codusuario
         ]);
@@ -46,17 +47,18 @@ class ActualizacionController extends Controller
         ], 201);
     }
 
+
+
     public function actualizarPorId(Request $request)
     {
         $request->validate([
-            'id' => 'required|integer',
-            'estado' => 'required|in:A,R',
-            'fecha_fin' => 'required|numeric',
+            'codactualizacion' => 'required|integer',
+            'estado' => 'required|in:A,C,E',
+            'fin' => 'required|numeric',
             'usuario_codusuario' => 'required|integer'
         ]);
 
-        // Buscar el registro por ID y usuario
-        $actualizacion = Actualizacion::where('codactualizacion', $request->id)
+        $actualizacion = Actualizacion::where('codactualizacion', $request->codactualizacion)
             ->where('usuario_codusuario', $request->usuario_codusuario)
             ->first();
 
@@ -68,9 +70,18 @@ class ActualizacionController extends Controller
             ], 404);
         }
 
-        // Actualizar fin y estado usando mutators
+        if ($actualizacion->estado != 'A' && $request->estado == 'A') {
+            return response()->json([
+                'success' => false,
+                'codigo' => 4,
+                'error' => 'La actualización ya está finalizada'
+            ], 400);
+        }
+
+        $finDate = \Carbon\Carbon::now('America/Lima');
+
         $actualizacion->update([
-            'fin' => $request->fecha_fin,
+            'fin' => $finDate,
             'estado' => $request->estado
         ]);
 
@@ -78,6 +89,47 @@ class ActualizacionController extends Controller
             'success' => true,
             'codigo' => 1,
             'mensaje' => 'Registro actualizado correctamente',
+            'data' => $actualizacion
+        ]);
+    }
+
+
+    public function finalizarActualizacionPorUsuario(  $usuarioId)
+    {
+        // Validar que el usuario sea un entero positivo
+        if ($usuarioId <= 0) {
+            return response()->json([
+                'success' => false,
+                'codigo' => 2,
+                'error' => 'ID de usuario inválido'
+            ], 400);
+        }
+
+        // Buscar la actualización activa del usuario
+        $actualizacion = Actualizacion::where('usuario_codusuario', $usuarioId)
+            ->where('estado', 'A') // solo activas
+            ->first();
+
+        if (!$actualizacion) {
+            return response()->json([
+                'success' => false,
+                'codigo' => 3,
+                'error' => 'No se encontró una actualización activa para el usuario'
+            ], 404);
+        }
+
+        // Marcar la actualización como finalizada con ERROR
+        $finDate = \Carbon\Carbon::now('America/Lima');
+
+        $actualizacion->update([
+            'fin' => $finDate,
+            'estado' => 'E'
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'codigo' => 1,
+            'mensaje' => 'Actualización finalizada con ERROR correctamente',
             'data' => $actualizacion
         ]);
     }

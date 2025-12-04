@@ -19,8 +19,9 @@ class MovilUsuarioController extends Controller
             'clave' => 'required'
         ]);
 
-        // Buscar usuario tipo conductor
-        $usuario = Usuario::where('nombre', $request->nombre)
+        // Buscar usuario tipo conductor con su empresa
+        $usuario = Usuario::with('empresa')
+            ->where('nombre', $request->nombre)
             ->where('tipo', 'C')
             ->first();
 
@@ -31,7 +32,7 @@ class MovilUsuarioController extends Controller
             ], 404);
         }
 
-        // Verificar contraseña primero
+        // Verificar contraseña
         if (!Hash::check($request->clave, $usuario->clave)) {
             return response()->json([
                 'success' => false,
@@ -39,7 +40,7 @@ class MovilUsuarioController extends Controller
             ], 401);
         }
 
-        // Verificar si existe una actualización activa para este usuario
+        // Verificar sesión activa
         $actualizacionActiva = Actualizacion::where('estado', 'I')
             ->where('usuario_codusuario', $usuario->codusuario)
             ->first();
@@ -51,98 +52,157 @@ class MovilUsuarioController extends Controller
             ], 403);
         }
 
+        // Crear actualización
         Actualizacion::create([
             'usuario_codusuario' => $usuario->codusuario,
             'estado' => 'I',
-            'inicio' =>  now('America/Lima')
+            'inicio' => now('America/Lima')
         ]);
 
         // Actualizar último ingreso
         $usuario->ultimoIngreso = now();
         $usuario->save();
 
+        // Empresa separada
+        $empresa = $usuario->empresa;
+
         return response()->json([
             'success' => true,
             'message' => 'Conductor autenticado correctamente',
-            'usuario' => [
+
+            "usuario" => [
                 'codusuario' => $usuario->codusuario,
                 'nombre' => $usuario->nombre,
                 'tipo' => $usuario->tipo,
                 'ultimoIngreso' => $usuario->ultimoIngreso,
                 'identificador' => $usuario->identificador,
                 'empresa_codempresa' => $usuario->empresa_codempresa
+            ],
+
+            "empresa" => [
+                'codempresa' => $empresa->codempresa,
+                'nombre' => $empresa->nombre,
+                'empresacol' => $empresa->empresacol ?? null,
+                'observacion' => $empresa->observacion ?? null
             ]
         ]);
     }
 
+
     public function obtenerRutasConductor($codusuario)
     {
-        $asignacionesQuery = DB::table('asignacion as a')
+        $rutas = DB::table('asignacion as a')
             ->join('ruta as r', 'a.ruta_codruta', '=', 'r.codruta')
+            ->leftJoin('detalleRuta as d', 'r.codruta', '=', 'd.ruta_codruta')
+            ->leftJoin('segmento as s', 'd.segmento_codsegmento', '=', 's.codsegmento')
             ->where('a.usuario_codusuario', $codusuario)
             ->select(
                 'a.codasignacion',
-                'a.ruta_codruta',
+                'a.ruta_codruta as rutaId',
                 'a.usuario_codusuario',
                 'a.ultimaActualizacion',
                 'r.codruta',
-                'r.nombre',
+                'r.nombre as rutaNombre',
                 'r.limiteGeneral',
                 'r.fechaCreacion',
                 'r.icono',
-                'r.tipo'
+                'r.tipo',
+                'd.iddetalleRuta',
+                'd.segmento_codsegmento',
+                'd.velocidadPermitida',
+                'd.mensaje as detalleMensaje',
+                's.codsegmento as segmentoId',
+                's.nombre as segmentoNombre',
+                's.color',
+                's.cordenadas',
+                's.bounds'
             )
-            ->paginate(50);
+            ->get();
 
-        $respuesta = [];
+        $resultado = [];
 
-        foreach ($asignacionesQuery->items() as $asignacion) {
-            $codRuta = $asignacion->codruta;
+        foreach ($rutas as $row) {
+            $rutaKey = $row->codruta;
 
-            $detalles = DB::table('detalleRuta')
-                ->where('ruta_codruta', $codRuta)
-                ->get()
-                ->map(function ($d) {
-                    return [
-                        "coddetalle" => (int) ($d->iddetalleRuta ?? 0),
-                        "ruta_codruta" => (int) ($d->ruta_codruta ?? 0),
-                        "segmento_codsegmento" => (int) ($d->segmento_codsegmento ?? 0),
-                        "velocidadPermitida" => (int) ($d->velocidadPermitida ?? 0),
-                        "mensaje" => $d->mensaje ?? ""
+            // Crear estructura base por ruta
+            if (!isset($resultado[$rutaKey])) {
+                $resultado[$rutaKey] = [
+                    'asignacion' => [
+                        'codasignacion' => (int)$row->codasignacion,
+                        'ruta_codruta' => (int)$row->rutaId,
+                        'usuario_codusuario' => (int)$row->usuario_codusuario,
+                        'ultimaActualizacion' => \Carbon\Carbon::parse($row->ultimaActualizacion)->toISOString()
+                    ],
+                    'ruta' => [
+                        'codruta' => (int)$row->codruta,
+                        'nombre' => $row->rutaNombre,
+                        'limiteGeneral' => (int)$row->limiteGeneral,
+                        'fechaCreacion' => \Carbon\Carbon::parse($row->fechaCreacion)->toISOString(),
+                        'icono' => $row->icono,
+                        'tipo' => $row->tipo
+                    ],
+                    'detalles' => [],
+                    'segmentos' => [] // ← nuevos segmentos únicos
+                ];
+            }
+
+            // Procesar detalle
+            if ($row->iddetalleRuta) {
+
+                // → Limpiar coordenadas y bounds
+                $cordenadas = $this->limpiarJsonArray($row->cordenadas);
+                $bounds = $this->limpiarJsonArray($row->bounds);
+
+                $detalle = [
+                    'coddetalle' => (int)$row->iddetalleRuta,
+                    'ruta_codruta' => (int)$row->rutaId,
+                    'segmento_codsegmento' => (int)$row->segmento_codsegmento,
+                    'velocidadPermitida' => (int)$row->velocidadPermitida,
+                    'mensaje' => $row->detalleMensaje ?? '',
+                    'segmento' => $row->segmentoId ? [
+                        'codsegmento' => (int)$row->segmentoId,
+                        'nombre' => $row->segmentoNombre,
+                        'color' => $row->color,
+                        'cordenadas' => $cordenadas,
+                        'bounds' => $bounds
+                    ] : null
+                ];
+
+                $resultado[$rutaKey]['detalles'][] = $detalle;
+
+                // → Guardar segmentos sin repetidos
+                if ($row->segmentoId && !isset($resultado[$rutaKey]['segmentos'][$row->segmentoId])) {
+                    $resultado[$rutaKey]['segmentos'][$row->segmentoId] = [
+                        'codsegmento' => (int)$row->segmentoId,
+                        'nombre' => $row->segmentoNombre,
+                        'color' => $row->color,
+                        'cordenadas' => $cordenadas,
+                        'bounds' => $bounds
                     ];
-                })
-                ->toArray();
-
-            $formatearFechaIso = function ($fecha) {
-                return \Carbon\Carbon::parse($fecha)->toISOString();
-            };
-
-            $respuesta[] = [
-                "asignacion" => [
-                    "codasignacion" => (int) $asignacion->codasignacion,
-                    "ruta_codruta" => (int) $asignacion->ruta_codruta,
-                    "usuario_codusuario" => (int) $asignacion->usuario_codusuario,
-                    "ultimaActualizacion" => $formatearFechaIso($asignacion->ultimaActualizacion)
-                ],
-                "ruta" => [
-                    "codruta" => (int) $asignacion->codruta,
-                    "nombre" => $asignacion->nombre,
-                    "limiteGeneral" => (int) $asignacion->limiteGeneral,
-                    "fechaCreacion" => $formatearFechaIso($asignacion->fechaCreacion),
-                    "icono" => $asignacion->icono,
-                    "tipo" => $asignacion->tipo
-                ],
-                "detalles" => $detalles
-            ];
+                }
+            }
         }
 
         return response()->json([
             'success' => true,
-            'rutas' => $respuesta,
-            'current_page' => $asignacionesQuery->currentPage(),
-            'last_page' => $asignacionesQuery->lastPage()
-        ], 200, [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PARTIAL_OUTPUT_ON_ERROR);
+            'rutas' => array_values($resultado)
+        ], 200, [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
+
+    private function limpiarJsonArray($valor)
+    {
+        if (!$valor || $valor === "null" || trim($valor) === "") {
+            return [];
+        }
+
+        $json = json_decode($valor, true);
+
+        return is_array($json) ? $json : [];
+    }
+
+
+
+
 
     public function logoutConductor($codusuario)
     {
@@ -177,7 +237,7 @@ class MovilUsuarioController extends Controller
         }
 
         // Cerrar sesión
-        $actualizacion->estado = 'C';
+        $actualizacion->estado = 'F';
         $actualizacion->fin = now('America/Lima');
         $actualizacion->save();
 
@@ -185,5 +245,25 @@ class MovilUsuarioController extends Controller
             'success' => true,
             'message' => 'Sesión cerrada correctamente'
         ]);
+    }
+
+
+    public function obtenerSegmentos($idRuta)
+    {
+        $ruta = Ruta::with('detallesRuta.segmento')->find($idRuta);
+
+        if (!$ruta) {
+            return response()->json(['error' => 'La ruta no existe'], 404);
+        }
+
+        $segmentosTotales = [];
+
+        foreach ($ruta->detallesRuta as $detalle) {
+            if ($detalle->segmento) { // evitar null
+                $segmentosTotales[] = $detalle->segmento;
+            }
+        }
+
+        return response()->json($segmentosTotales, 200);
     }
 }

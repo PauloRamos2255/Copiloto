@@ -280,7 +280,6 @@ export default defineComponent({
       tileLayerUrl: "https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}",
       capasMapa: new Map(),
       verMas: false,
-      API_BASE: import.meta.env.VITE_API_BASE || 'http://localhost:8000/api'
     };
   },
 
@@ -320,7 +319,7 @@ export default defineComponent({
 
     async obtenerSID() {
       try {
-        const { data } = await axios.get(`${this.API_BASE}/obtener-sid`);
+        const { data } = await axios.get(`/api/obtener-sid`);
         if (data.success && data.sid) return data.sid;
         throw new Error(data.error || "No se pudo obtener el SID");
       } catch (err) {
@@ -458,7 +457,7 @@ export default defineComponent({
     async cargarSegmentos() {
       try {
         this.loadingActualizar = true;
-        const { data } = await axios.get(`${this.API_BASE}/segmentos`);
+        const { data } = await axios.get(`/api/segmentos`);
 
 
         this.segmentos = (data.segmentos || []).map(seg => {
@@ -589,7 +588,7 @@ export default defineComponent({
           bounds: this.segmentoEditado.bounds
         };
 
-        const { data } = await axios.put(`${this.API_BASE}/segmentos/${idSegmento}`, payload);
+        const { data } = await axios.put(`/api/segmentos/${idSegmento}`, payload);
 
         const idx = this.segmentos.findIndex(s => s.id === idSegmento);
         if (idx !== -1) {
@@ -687,7 +686,7 @@ export default defineComponent({
         const sid = await this.obtenerSID();
 
         // 2. Obtener zonas desde Wialon
-        const { data: wialonData } = await axios.post(`${this.API_BASE}/zone-data`, {
+        const { data: wialonData } = await axios.post(`/api/zone-data`, {
           itemId: this.itemId,
           sid
         });
@@ -756,7 +755,7 @@ export default defineComponent({
         }
 
         // 6. Sincronizar con backend
-        await axios.post(`${this.API_BASE}/segmentos/sincronizar`, {
+        await axios.post(`/api/segmentos/sincronizar`, {
           segmentos: segmentosWialon
         });
 
@@ -786,7 +785,7 @@ export default defineComponent({
         if (!seg.id) continue;
 
         try {
-          const resp = await axios.get(`${this.API_BASE}/segmentos/${seg.id}/detalles-rutas`);
+          const resp = await axios.get(`/api/segmentos/${seg.id}/detalles-rutas`);
 
           if (resp.data.existe) {
             // Si tiene rutas, preguntar al usuario antes de eliminar
@@ -831,7 +830,7 @@ export default defineComponent({
     async eliminarSegmentoConDetalles(codsegmento) {
       if (!codsegmento) return;
       try {
-        await axios.post(`${this.API_BASE}/segmentos/${codsegmento}/cascada`);
+        await axios.post(`/api/segmentos/${codsegmento}/cascada`);
         this.segmentos = this.segmentos.filter(s => s.id !== codsegmento);
       } catch (err) {
         console.error('Error al eliminar segmento:', err);
@@ -871,7 +870,7 @@ export default defineComponent({
           }
         });
 
-        const verificarRutas = await axios.get(`${this.API_BASE}/segmentos/${idSegmento}/detalles-rutas`);
+        const verificarRutas = await axios.get(`/api/segmentos/${idSegmento}/detalles-rutas`);
 
         if (verificarRutas.data.existe && verificarRutas.data.detalles.length > 0) {
           Swal.close();
@@ -887,7 +886,7 @@ export default defineComponent({
           return;
         }
 
-        const { data } = await axios.delete(`${this.API_BASE}/segmentos/${idSegmento}`);
+        const { data } = await axios.delete(`/api/segmentos/${idSegmento}`);
         this.segmentos = this.segmentos.filter(s => s.id !== idSegmento);
 
         Swal.close();

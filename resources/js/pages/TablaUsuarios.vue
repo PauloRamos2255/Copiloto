@@ -259,7 +259,7 @@ const cargarUsuariosConCache = async () => {
 
 const cargarUsuarios = async () => {
   try {
-    const { data } = await axios.get("http://localhost:8000/api/usuarios");
+    const { data } = await axios.get("/api/usuarios");
     usuarios.value = data;
 
     // Guardar en sessionStorage
@@ -273,7 +273,7 @@ const cargarUsuarios = async () => {
 
 const cargarEmpresas = async () => {
   try {
-    const { data } = await axios.get("http://localhost:8000/api/empresas");
+    const { data } = await axios.get("/api/empresas");
     empresas.value = data.empresas;
   } catch (error) {
     console.error("Error al cargar empresas:", error);
@@ -325,7 +325,7 @@ const confirmarEliminar = async (usuario) => {
   });
 
   const { data: verificar } = await axios.get(
-    `http://localhost:8000/api/verificar_usuario/${usuario.codusuario}`
+    `/api/verificar_usuario/${usuario.codusuario}`
   );
 
   Swal.close();
@@ -359,7 +359,7 @@ const eliminarDirecto = async (usuario) => {
 
   try {
     await axios.delete(
-      `http://localhost:8000/api/usuarios/${usuario.codusuario}`
+      `/api/usuarios/${usuario.codusuario}`
     );
 
     usuarios.value = usuarios.value.filter(

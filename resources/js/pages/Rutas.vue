@@ -1,546 +1,570 @@
 <template>
 
   <div>
-     <Loader v-if="loading" /> 
-     <div v-else>
+    <Loader v-if="loading" />
+    <div v-else>
       <div class="min-h-screen bg-gray-100 font-sans">
-    <!-- Header -->
-    <Header :nombreUsuario="nombreUsuario" />
+        <!-- Header -->
+        <Header :nombreUsuario="nombreUsuario" />
 
-    <main class="p-4 md:p-6">
+        <main class="p-4 md:p-6">
 
-      <!-- Encabezado y botón crear ruta -->
-      <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 space-y-3 md:space-y-0">
-        <h1 class="text-2xl md:text-3xl lg:text-4xl font-extrabold bg-clip-text text-transparent 
+          <!-- Encabezado y botón crear ruta -->
+          <div
+            class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 space-y-3 md:space-y-0">
+            <h1 class="text-2xl md:text-3xl lg:text-4xl font-extrabold bg-clip-text text-transparent 
                    bg-gradient-to-r from-blue-600 to-blue-400 drop-shadow-md flex items-center">
-          <i class="fas fa-map-marked-alt mr-2"></i>Gestión de Rutas
-        </h1>
+              <i class="fas fa-map-marked-alt mr-2"></i>Gestión de Rutas
+            </h1>
 
-        <button @click="formularioSegmentoAbierto = true" class="flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-blue-500 
+            <button @click="formularioSegmentoAbierto = true" class="flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-blue-500 
                        hover:from-blue-700 hover:to-blue-600 text-white px-5 py-2 rounded-xl 
                        shadow-lg hover:shadow-xl transition-all font-semibold w-full md:w-auto justify-center">
-          <i class="fas fa-plus"></i>
-          <span>Crear Ruta</span>
-        </button>
-      </div>
+              <i class="fas fa-plus"></i>
+              <span>Crear Ruta</span>
+            </button>
+          </div>
 
 
-      <div class="bg-white/70 backdrop-blur-md border border-gray-200 shadow-xl rounded-2xl p-5 mb-6 
+          <div class="bg-white/70 backdrop-blur-md border border-gray-200 shadow-xl rounded-2xl p-5 mb-6 
          max-w-4xl mx-auto transition-all">
-        <h3 class="text-lg font-bold text-blue-400 mb-4 flex items-center">
-          <i class="fas fa-filter mr-2"></i> Filtros de búsqueda
-        </h3>
+            <h3 class="text-lg font-bold text-blue-400 mb-4 flex items-center">
+              <i class="fas fa-filter mr-2"></i> Filtros de búsqueda
+            </h3>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-          <div class="relative">
-            <i class="fas fa-search absolute left-3 top-3 text-blue-300"></i>
-            <input type="text" v-model="filtro" placeholder="Filtrar por nombre..." class="w-full pl-10 px-4 py-3 border border-blue-300 rounded-xl 
+              <div class="relative">
+                <i class="fas fa-search absolute left-3 top-3 text-blue-300"></i>
+                <input type="text" v-model="filtro" placeholder="Filtrar por nombre..." class="w-full pl-10 px-4 py-3 border border-blue-300 rounded-xl 
                focus:border-blue-400 focus:ring-4 focus:ring-blue-100 
                shadow-md hover:shadow-lg transition-all" />
-          </div>
+              </div>
 
-          <!-- Select de tipo -->
-          <div class="relative">
-            <i class="fas fa-user-tag absolute left-3 top-3 text-blue-300"></i>
-            <select v-model="filtroTipo" class="w-full pl-10 px-4 py-3 border border-blue-300 rounded-xl bg-white
+              <!-- Select de tipo -->
+              <div class="relative">
+                <i class="fas fa-user-tag absolute left-3 top-3 text-blue-300"></i>
+                <select v-model="filtroTipo" class="w-full pl-10 px-4 py-3 border border-blue-300 rounded-xl bg-white
                focus:border-blue-400 focus:ring-4 focus:ring-blue-100 
                shadow-md hover:shadow-lg transition-all">
-              <option value="">Todos los tipos</option>
-              <option value="G">General</option>
-              <option value="V">Vuelta</option>
-            </select>
+                  <option value="">Todos los tipos</option>
+                  <option value="G">General</option>
+                  <option value="V">Vuelta</option>
+                </select>
+              </div>
+
+            </div>
           </div>
 
-        </div>
-      </div>
 
+          <!-- Tabla de rutas -->
+          <div class="bg-white shadow-lg rounded-2xl overflow-hidden border border-gray-200">
+            <div class="overflow-x-auto">
 
-      <!-- Tabla de rutas -->
-      <div class="bg-white shadow-lg rounded-2xl overflow-hidden border border-gray-200">
-        <div class="overflow-x-auto">
-
-          <table class="min-w-full text-sm text-gray-800">
-            <thead
-              class="bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800 uppercase text-xs font-semibold tracking-wide">
-              <tr>
-                <th class="px-6 py-4 text-left">#</th>
-                <th class="px-6 py-4 text-left">Nombre</th>
-                <th class="px-6 py-4 text-left">Límite</th>
-                <th class="px-6 py-4 text-left">Tipo</th>
-                <th class="px-6 py-4 text-center">Acciones</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              <!-- Skeleton de tabla principal -->
-              <template v-if="cargando">
-                <tr v-for="n in 5" :key="'ruta-skel-' + n" class="border-b border-gray-100 animate-pulse">
-                  <td class="px-6 py-4">
-                    <div class="h-4 bg-gray-300 rounded" :style="{ width: randomWidthSmall() }"></div>
-                  </td>
-                  <td class="px-6 py-4">
-                    <div class="h-4 bg-gray-300 rounded" :style="{ width: randomWidth() }"></div>
-                  </td>
-                  <td class="px-6 py-4">
-                    <div class="h-4 bg-gray-300 rounded" :style="{ width: randomWidthSmall() }"></div>
-                  </td>
-                  <td class="px-6 py-4">
-                    <div class="h-4 bg-gray-300 rounded" :style="{ width: randomWidthSmall() }"></div>
-                  </td>
-                  <td class="px-6 py-4 text-center space-x-2 flex justify-center">
-                    <div class="h-4 w-6 bg-gray-300 rounded"></div>
-                    <div class="h-4 w-6 bg-gray-300 rounded"></div>
-                    <div class="h-4 w-6 bg-gray-300 rounded"></div>
-                  </td>
-                </tr>
-              </template>
-
-              <!-- Tabla real -->
-              <template v-else>
-                <template v-for="(ruta, index) in rutasPaginadas" :key="ruta.id">
-                  <!-- Fila principal -->
-                  <tr class="border-b border-gray-100 hover:bg-blue-50 transition-all cursor-pointer group"
-                    @click="toggleSegmentos(ruta)">
-                    <td class="px-6 py-4 font-semibold text-gray-600 group-hover:text-blue-600">
-                      {{ index + 1 + (paginaActual - 1) * registrosPorPagina }}
-                    </td>
-                    <td class="px-6 py-4 font-medium text-gray-900 group-hover:text-blue-700">{{ ruta.nombre }}</td>
-                    <td class="px-6 py-4 text-gray-700">
-                      {{ isNaN(Number(ruta.limiteGeneral))
-                        ? '-'
-                        : Number(ruta.limiteGeneral) % 1 === 0
-                          ? Number(ruta.limiteGeneral)
-                          : Number(ruta.limiteGeneral).toFixed(2)
-                      }} km/h
-                    </td>
-
-                    <td class="px-6 py-4">
-                      <span :class="[
-                        'px-3 py-1 rounded-full text-xs font-bold',
-                        ruta.tipo === 'G' || ruta.tipo === 'General' ? 'bg-green-100 text-green-700' :
-                          ruta.tipo === 'V' || ruta.tipo === 'Vuelta' ? 'bg-yellow-100 text-yellow-700' :
-                            'bg-gray-100 text-gray-600'
-                      ]">
-                        {{ ruta.tipo === 'G' ? 'General' : ruta.tipo === 'V' ? 'Vuelta' : ruta.tipo }}
-                      </span>
-                    </td>
-                    <td class="px-6 py-4 text-center space-x-2">
-                      <button
-                        class="p-2 rounded-full bg-yellow-50 text-yellow-600 hover:bg-yellow-100 transition-colors"
-                        @click.stop="editarRuta(ruta.id)" title="Editar ruta">
-                        <i class="fas fa-edit"></i>
-                      </button>
-                      <button class="p-2 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
-                        @click.stop="confirmarAccionRuta(ruta.id)" title="Clonar ruta">
-                        <i class="fas fa-clone"></i>
-                      </button>
-                      <button class="p-2 rounded-full bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
-                        @click.stop="eliminarRuta(ruta.id)" :disabled="rutaEnUso" :title="rutaEnUso
-                          ? 'No se puede eliminar (está asignada)'
-                          : 'Eliminar ruta'">
-                        <i class="fas fa-trash"></i>
-                      </button>
-                    </td>
+              <table class="min-w-full text-sm text-gray-800">
+                <thead
+                  class="bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800 uppercase text-xs font-semibold tracking-wide">
+                  <tr>
+                    <th class="px-6 py-4 text-left">#</th>
+                    <th class="px-6 py-4 text-left">Nombre</th>
+                    <th class="px-6 py-4 text-left">Límite</th>
+                    <th class="px-6 py-4 text-left">Tipo</th>
+                    <th class="px-6 py-4 text-center">Acciones</th>
                   </tr>
-                  <!-- Segmentos expandibles -->
-                  <transition name="fade-slide">
-                    <tr v-if="String(registroExpandido) === String(ruta.id) && ruta.mostrarSegmentos"
-                      class="bg-gradient-to-b from-blue-50 to-blue-25 transition-all">
-                      <td colspan="5" class="px-3 md:px-6 py-4">
+                </thead>
 
-                        <div v-if="!ruta.segmentos || ruta.segmentosCargando" class="flex flex-wrap gap-1.5">
-                          <div v-for="n in 8" :key="'skel-seg-' + n"
-                            class="bg-white rounded border border-gray-200 shadow-sm p-1.5 w-28 overflow-hidden">
-
-                            <h4 class="font-semibold text-xs text-gray-800 truncate">
-                              <div class="h-2 bg-gray-300 rounded w-5/6 relative overflow-hidden">
-                                <div
-                                  class="absolute inset-0 bg-gradient-to-r from-gray-300 via-gray-200 to-gray-300 animate-shimmer">
-                                </div>
-                              </div>
-                            </h4>
-
-                            <p class="text-xs text-gray-600 truncate mt-1">
-                            <div class="h-1.5 bg-gray-300 rounded w-3/4 relative overflow-hidden">
-                              <div
-                                class="absolute inset-0 bg-gradient-to-r from-gray-300 via-gray-200 to-gray-300 animate-shimmer">
-                              </div>
-                            </div>
-                            </p>
-
-                            <div class="flex items-center gap-0.5 text-xs text-blue-600 font-bold mt-1">
-                              <div class="h-1.5 bg-gray-300 rounded w-1/2 relative overflow-hidden flex-1">
-                                <div
-                                  class="absolute inset-0 bg-gradient-to-r from-gray-300 via-gray-200 to-gray-300 animate-shimmer">
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div v-else class="flex flex-wrap gap-1.5">
-                          <div v-for="segmento in ruta.segmentos" :key="'saved-' + segmento._tempId"
-                            class="bg-white rounded border border-gray-200 shadow-sm hover:shadow-md hover:border-blue-400 transition-all p-1.5 w-28 overflow-hidden">
-
-                            <h4
-                              class="font-semibold text-xs text-gray-800 truncate hover:text-blue-600 transition-colors"
-                              :title="segmento.nombre">
-                              {{ segmento.nombre || `Seg ${segmento.id}` }}
-                            </h4>
-
-                            <p v-if="segmento.mensaje" class="text-xs text-gray-600 truncate" :title="segmento.mensaje">
-                              {{ segmento.mensaje }}
-                            </p>
-
-                            <div v-if="segmento.velocidad"
-                              class="flex items-center gap-0.5 text-xs text-blue-600 font-bold">
-                              <i class="fas fa-tachometer-alt text-xs"></i>
-                              <span>{{ segmento.velocidad }}km/h</span>
-                            </div>
-
-                          </div>
-                        </div>
-
+                <tbody>
+                  <!-- Skeleton de tabla principal -->
+                  <template v-if="cargando">
+                    <tr v-for="n in 5" :key="'ruta-skel-' + n" class="border-b border-gray-100 animate-pulse">
+                      <td class="px-6 py-4">
+                        <div class="h-4 bg-gray-300 rounded" :style="{ width: randomWidthSmall() }"></div>
+                      </td>
+                      <td class="px-6 py-4">
+                        <div class="h-4 bg-gray-300 rounded" :style="{ width: randomWidth() }"></div>
+                      </td>
+                      <td class="px-6 py-4">
+                        <div class="h-4 bg-gray-300 rounded" :style="{ width: randomWidthSmall() }"></div>
+                      </td>
+                      <td class="px-6 py-4">
+                        <div class="h-4 bg-gray-300 rounded" :style="{ width: randomWidthSmall() }"></div>
+                      </td>
+                      <td class="px-6 py-4 text-center space-x-2 flex justify-center">
+                        <div class="h-4 w-6 bg-gray-300 rounded"></div>
+                        <div class="h-4 w-6 bg-gray-300 rounded"></div>
+                        <div class="h-4 w-6 bg-gray-300 rounded"></div>
                       </td>
                     </tr>
-                  </transition>
-                </template>
+                  </template>
 
-                <!-- Sin resultados -->
-                <tr v-if="rutasFiltradas.length === 0">
-                  <td colspan="5" class="text-center py-10 text-gray-500">
-                    <i class="fas fa-inbox text-4xl mb-2 block text-gray-400"></i>
-                    No hay rutas disponibles
-                  </td>
-                </tr>
+                  <!-- Tabla real -->
+                  <template v-else>
+                    <template v-for="(ruta, index) in rutasPaginadas" :key="ruta.id">
+                      <!-- Fila principal -->
+                      <tr class="border-b border-gray-100 hover:bg-blue-50 transition-all cursor-pointer group"
+                        @click="toggleSegmentos(ruta)">
+                        <td class="px-6 py-4 font-semibold text-gray-600 group-hover:text-blue-600">
+                          {{ index + 1 + (paginaActual - 1) * registrosPorPagina }}
+                        </td>
+                        <td class="px-6 py-4 font-medium text-gray-900 group-hover:text-blue-700">{{ ruta.nombre }}</td>
+                        <td class="px-6 py-4 text-gray-700">
+                          {{ isNaN(Number(ruta.limiteGeneral))
+                            ? '-'
+                            : Number(ruta.limiteGeneral) % 1 === 0
+                              ? Number(ruta.limiteGeneral)
+                              : Number(ruta.limiteGeneral).toFixed(2)
+                          }} km/h
+                        </td>
 
-              </template>
+                        <td class="px-6 py-4">
+                          <span :class="[
+                            'px-3 py-1 rounded-full text-xs font-bold',
+                            ruta.tipo === 'G' || ruta.tipo === 'General' ? 'bg-green-100 text-green-700' :
+                              ruta.tipo === 'V' || ruta.tipo === 'Vuelta' ? 'bg-yellow-100 text-yellow-700' :
+                                'bg-gray-100 text-gray-600'
+                          ]">
+                            {{ ruta.tipo === 'G' ? 'General' : ruta.tipo === 'V' ? 'Vuelta' : ruta.tipo }}
+                          </span>
+                        </td>
+                        <td class="px-6 py-4 text-center space-x-2">
+                          <button
+                            class="p-2 rounded-full bg-yellow-50 text-yellow-600 hover:bg-yellow-100 transition-colors"
+                            @click.stop="editarRuta(ruta.id)" title="Editar ruta">
+                            <i class="fas fa-edit"></i>
+                          </button>
+                          <button class="p-2 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
+                            @click.stop="confirmarAccionRuta(ruta.id)" title="Clonar ruta">
+                            <i class="fas fa-clone"></i>
+                          </button>
+                          <button class="p-2 rounded-full bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+                            @click.stop="eliminarRuta(ruta.id)" :disabled="rutaEnUso" :title="rutaEnUso
+                              ? 'No se puede eliminar (está asignada)'
+                              : 'Eliminar ruta'">
+                            <i class="fas fa-trash"></i>
+                          </button>
+                        </td>
+                      </tr>
+                      <!-- Segmentos expandibles -->
+                      <transition name="fade-slide">
+                        <tr v-if="String(registroExpandido) === String(ruta.id) && ruta.mostrarSegmentos"
+                          class="bg-gradient-to-b from-blue-50 to-blue-25 transition-all">
+                          <td colspan="5" class="px-3 md:px-6 py-4">
 
-            </tbody>
-          </table>
-        </div>
-      </div>
+                            <div v-if="!ruta.segmentos || ruta.segmentosCargando" class="flex flex-wrap gap-1.5">
+                              <div v-for="n in 8" :key="'skel-seg-' + n"
+                                class="bg-white rounded border border-gray-200 shadow-sm p-1.5 w-28 overflow-hidden">
 
+                                <h4 class="font-semibold text-xs text-gray-800 truncate">
+                                  <div class="h-2 bg-gray-300 rounded w-5/6 relative overflow-hidden">
+                                    <div
+                                      class="absolute inset-0 bg-gradient-to-r from-gray-300 via-gray-200 to-gray-300 animate-shimmer">
+                                    </div>
+                                  </div>
+                                </h4>
 
-      <!-- Paginación -->
-      <div class="mt-4 flex flex-col md:flex-row justify-end items-center space-y-2 md:space-y-0 md:space-x-2">
-        <button @click="cambiarPagina(paginaActual - 1)" :disabled="paginaActual === 1"
-          class="px-4 py-2 border rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 transition-all w-full md:w-auto">
-          Anterior
-        </button>
-        <span class="px-4 py-2 font-medium text-gray-700">Página {{ paginaActual }} de {{ totalPaginas }}</span>
-        <button @click="cambiarPagina(paginaActual + 1)" :disabled="paginaActual >= totalPaginas"
-          class="px-4 py-2 border rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 transition-all w-full md:w-auto">
-          Siguiente
-        </button>
-      </div>
-    </main>
+                                <p class="text-xs text-gray-600 truncate mt-1">
+                                <div class="h-1.5 bg-gray-300 rounded w-3/4 relative overflow-hidden">
+                                  <div
+                                    class="absolute inset-0 bg-gradient-to-r from-gray-300 via-gray-200 to-gray-300 animate-shimmer">
+                                  </div>
+                                </div>
+                                </p>
 
-    <!-- Modal Crear/Editar Ruta -->
+                                <div class="flex items-center gap-0.5 text-xs text-blue-600 font-bold mt-1">
+                                  <div class="h-1.5 bg-gray-300 rounded w-1/2 relative overflow-hidden flex-1">
+                                    <div
+                                      class="absolute inset-0 bg-gradient-to-r from-gray-300 via-gray-200 to-gray-300 animate-shimmer">
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
 
-    <transition name="fade">
-      <div v-if="formularioSegmentoAbierto" class="fixed inset-0 z-50 flex items-center justify-center p-4"
-        @click.self="cerrarFormulario">
+                            <div v-else class="flex flex-wrap gap-1.5">
+                              <div v-for="segmento in ruta.segmentos" :key="'saved-' + segmento._tempId"
+                                class="bg-white rounded border border-gray-200 shadow-sm hover:shadow-md hover:border-blue-400 transition-all p-1.5 w-28 overflow-hidden">
 
-        <!-- Fondo oscuro -->
-        <div class="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
+                                <h4
+                                  class="font-semibold text-xs text-gray-800 truncate hover:text-blue-600 transition-colors"
+                                  :title="segmento.nombre">
+                                  {{ segmento.nombre || `Seg ${segmento.id}` }}
+                                </h4>
 
-        <!-- Loader -->
-        <div v-if="cargandoFormulario"
-          class="fixed inset-0 z-[60] flex items-center justify-center bg-white/95 rounded-2xl">
-          <div class="flex flex-col items-center gap-3">
-            <div class="animate-spin rounded-full h-12 w-12 border-t-4 border-blue-600 border-solid"></div>
-            <p class="text-sm font-semibold text-gray-700">Cargando...</p>
+                                <p v-if="segmento.mensaje" class="text-xs text-gray-600 truncate"
+                                  :title="segmento.mensaje">
+                                  {{ segmento.mensaje }}
+                                </p>
+
+                                <div v-if="segmento.velocidad"
+                                  class="flex items-center gap-0.5 text-xs text-blue-600 font-bold">
+                                  <i class="fas fa-tachometer-alt text-xs"></i>
+                                  <span>{{ segmento.velocidad }}km/h</span>
+                                </div>
+
+                              </div>
+                            </div>
+
+                          </td>
+                        </tr>
+                      </transition>
+                    </template>
+
+                    <!-- Sin resultados -->
+                    <tr v-if="rutasFiltradas.length === 0">
+                      <td colspan="5" class="text-center py-10 text-gray-500">
+                        <i class="fas fa-inbox text-4xl mb-2 block text-gray-400"></i>
+                        No hay rutas disponibles
+                      </td>
+                    </tr>
+
+                  </template>
+
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
 
-        <!-- Contenedor principal del formulario -->
-        <div v-if="!cargandoFormulario"
-          class="bg-white max-w-[1200px] w-full rounded-2xl shadow-2xl max-h-[90vh] flex flex-col overflow-hidden relative z-50">
 
-          <!-- Header -->
-          <div
-            class="bg-gradient-to-r from-blue-600 to-blue-500 px-6 py-4 flex items-center justify-between flex-shrink-0">
-            <h2 class="text-xl font-bold text-white flex items-center gap-2">
-              <i class="fas fa-route"></i>
-              {{ nuevaRuta.id ? "Editar Ruta" : "Crear Nueva Ruta" }}
-            </h2>
-            <button @click="cerrarFormulario" class="text-white hover:bg-blue-500 p-2 rounded-lg transition-colors"
-              type="button">
-              <i class="fas fa-times text-xl"></i>
+          <!-- Paginación -->
+          <div class="mt-4 flex flex-col md:flex-row justify-end items-center space-y-2 md:space-y-0 md:space-x-2">
+            <button @click="cambiarPagina(paginaActual - 1)" :disabled="paginaActual === 1"
+              class="px-4 py-2 border rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 transition-all w-full md:w-auto">
+              Anterior
+            </button>
+            <span class="px-4 py-2 font-medium text-gray-700">Página {{ paginaActual }} de {{ totalPaginas }}</span>
+            <button @click="cambiarPagina(paginaActual + 1)" :disabled="paginaActual >= totalPaginas"
+              class="px-4 py-2 border rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 transition-all w-full md:w-auto">
+              Siguiente
             </button>
           </div>
+        </main>
 
-          <!-- Contenido -->
-          <div class="flex flex-1 overflow-hidden">
+        <!-- Modal Crear/Editar Ruta -->
 
-            <!-- Panel izquierdo -->
-            <div class="lg:w-1/2 flex flex-col p-6 overflow-hidden">
+        <transition name="fade">
+          <div v-if="formularioSegmentoAbierto" class="fixed inset-0 z-50 flex items-center justify-center p-4"
+            @click.self="cerrarFormulario">
 
-              <!-- Campos principales: Nombre, Límite, Tipo, Logo -->
-              <div class="grid grid-cols-12 gap-3 mb-4 border-b border-gray-300 pb-4">
-                <div class="col-span-3 flex flex-col">
-                  <label class="block text-sm font-semibold text-gray-700 mb-1">
-                    <i class="fas fa-tag text-blue-600 mr-1"></i>Nombre
-                  </label>
-                  <input type="text" v-model="nuevaRuta.nombre" placeholder="Ej: Ruta Centro" maxlength="100"
-                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:outline-none h-10" />
-                </div>
+            <!-- Fondo oscuro -->
+            <div class="absolute inset-0 bg-black/40 backdrop-blur-sm"></div>
 
-                <div class="col-span-3 flex flex-col">
-                  <label class="block text-sm font-semibold text-gray-700 mb-1">
-                    <i class="fas fa-gauge-high text-blue-600 mr-1"></i>Límite
-                  </label>
-                  <div class="relative">
-                    <input type="number" v-model.number="nuevaRuta.limite" placeholder="00" min="0" max="200" step="1"
-                      @input="onLimiteInput"
-                      class="w-full border border-gray-300 rounded-lg pl-3 pr-10 py-2 bg-white text-sm font-semibold h-10 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <!-- Loader -->
+            <div v-if="cargandoFormulario"
+              class="fixed inset-0 z-[60] flex items-center justify-center bg-white/95 rounded-2xl">
+              <div class="flex flex-col items-center gap-3">
+                <div class="animate-spin rounded-full h-12 w-12 border-t-4 border-blue-600 border-solid"></div>
+                <p class="text-sm font-semibold text-gray-700">Cargando...</p>
+              </div>
+            </div>
 
-                    <span
-                      class="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-blue-700 pointer-events-none">
-                      km/h
-                    </span>
-                  </div>
+            <!-- Contenedor principal del formulario -->
+            <div v-if="!cargandoFormulario"
+              class="bg-white max-w-[1200px] w-full rounded-2xl shadow-2xl max-h-[90vh] flex flex-col overflow-hidden relative z-50">
 
-                  <!-- Comparativa -->
-                  <div v-if="huboCambios" class="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded-lg text-xs">
-                    <div class="flex justify-between mb-1">
-                      <span class="text-gray-600">Promedio BD:</span>
-                      <span class="font-semibold text-gray-700">{{ comparativaLimite.promedioOriginal }} km/h</span>
+              <!-- Header -->
+              <div
+                class="bg-gradient-to-r from-blue-600 to-blue-500 px-6 py-4 flex items-center justify-between flex-shrink-0">
+                <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                  <i class="fas fa-route"></i>
+                  {{ nuevaRuta.id ? "Editar Ruta" : "Crear Nueva Ruta" }}
+                </h2>
+                <button @click="cerrarFormulario" class="text-white hover:bg-blue-500 p-2 rounded-lg transition-colors"
+                  type="button">
+                  <i class="fas fa-times text-xl"></i>
+                </button>
+              </div>
+
+              <!-- Contenido -->
+              <div class="flex flex-1 overflow-hidden">
+
+                <!-- Panel izquierdo -->
+                <div class="lg:w-1/2 flex flex-col p-6 overflow-hidden">
+
+                  <!-- Campos principales: Nombre, Límite, Tipo, Logo -->
+                  <div class="grid grid-cols-12 gap-3 mb-4 border-b border-gray-300 pb-4">
+
+                    <!-- Nombre -->
+                    <div class="col-span-3 flex flex-col">
+                      <label class="block text-sm font-semibold text-gray-700 mb-1">
+                        <i class="fas fa-tag text-blue-600 mr-1"></i>Nombre
+                      </label>
+                      <input type="text" v-model="nuevaRuta.nombre" placeholder="Ej: Ruta Centro" maxlength="100"
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:outline-none h-10" />
                     </div>
-                    <div class="flex justify-between mb-1">
-                      <span class="text-gray-600">Promedio actual:</span>
-                      <span class="font-semibold text-blue-600">{{ comparativaLimite.promedioActual }} km/h</span>
+
+                    <!-- Límite -->
+                    <div class="col-span-3 flex flex-col">
+                      <label class="block text-sm font-semibold text-gray-700 mb-1">
+                        <i class="fas fa-gauge-high text-blue-600 mr-1"></i>Límite
+                      </label>
+
+                      <div class="relative">
+                        <input type="number" v-model.number="nuevaRuta.limite" placeholder="00" min="0" max="200"
+                          step="1" @input="onLimiteInput"
+                          class="w-full border border-gray-300 rounded-lg pl-3 pr-10 py-2 bg-white text-sm font-semibold h-10 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+
+                        <span
+                          class="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-blue-700 pointer-events-none">
+                          km/h
+                        </span>
+                      </div>
                     </div>
-                    <div class="flex justify-between pt-1 border-t border-yellow-200">
-                      <span class="text-gray-600">Cambio:</span>
-                      <span :class="comparativaLimite.cambio > 0 ? 'text-green-600' : 'text-red-600'"
-                        class="font-semibold">
-                        {{ comparativaLimite.cambio > 0 ? '+' : '' }}{{ comparativaLimite.cambio }} km/h
+
+                    <!-- Tipo -->
+                    <div class="col-span-3 flex flex-col">
+                      <label class="block text-sm font-semibold text-gray-700 mb-1">
+                        <i class="fas fa-road text-blue-600 mr-1"></i>Tipo
+                      </label>
+                      <select v-model="nuevaRuta.tipo"
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:outline-none h-10">
+                        <option value="" disabled>Seleccione</option>
+                        <option value="General">General</option>
+                        <option value="Vuelta">Vuelta</option>
+                      </select>
+                    </div>
+
+                    <!-- Logo -->
+                    <div class="col-span-3 flex flex-col">
+                      <label class="block text-sm font-semibold text-gray-700 mb-1">
+                        <i class="fas fa-image text-blue-600 mr-1"></i>Logo
+                      </label>
+
+                      <div
+                        class="border-2 border-dashed rounded-lg h-10 flex items-center justify-center cursor-pointer transition-all"
+                        :class="dragOverLogo ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50'"
+                        @dragover.prevent="dragOverLogo = true" @dragleave.prevent="dragOverLogo = false"
+                        @drop.prevent="dropLogo" @click="abrirSelectorLogo" role="button" tabindex="0"
+                        @keydown.enter="abrirSelectorLogo">
+
+                        <input type="file" ref="logoInput" accept=".png,.jpg,.jpeg,.gif,.webp,.svg" class="hidden"
+                          @change="previewLogo" />
+
+                        <div v-if="!nuevaRuta.logoPreview"
+                          class="text-center text-gray-400 text-sm pointer-events-none">
+                          <i class="fas fa-cloud-upload-alt text-lg"></i>
+                        </div>
+
+                        <img v-else :src="nuevaRuta.logoPreview" class="h-8 w-auto object-contain mx-auto rounded" />
+                      </div>
+                    </div>
+
+                    <!-- CUADRO VELOCIDAD -->
+                    <div v-if="nuevaRuta.id"
+                      class="col-span-12 mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-[13px]">
+
+                      <div class="flex items-center gap-5">
+
+                        <span class="font-semibold text-gray-700">Velocidad sugerida:</span>
+
+                        <!-- BD -->
+                        <label class="flex items-center cursor-pointer gap-1">
+                          <input type="radio" name="velocidadSeleccionada" value="bd" v-model="velocidadElegida"
+                            class="scale-75" checked />
+                          <span class="text-gray-600">BD:</span>
+                          <span class="font-semibold text-green-600">{{ Rutadb.limite }} km/h</span>
+                        </label>
+
+                        <!-- Actual -->
+                        <label class="flex items-center cursor-pointer gap-1">
+                          <input type="radio" name="velocidadSeleccionada" value="actual" v-model="velocidadElegida"
+                            class="scale-75" />
+                          <span class="text-gray-600">Actual:</span>
+                          <span class="font-semibold text-blue-600">{{ velocidadPromedio }} km/h</span>
+                        </label>
+
+                      </div>
+                    </div>
+
+                    <!-- MENSAJE DE AYUDA -->
+                    <div class="col-span-12 text-xs text-gray-600 mt-1 pl-1 flex items-center gap-2">
+                      <i class="fas fa-info-circle text-blue-500 flex-shrink-0"></i>
+                      <span class="whitespace-nowrap">
+                        Logo solo acepta: <strong>PNG, JPG, JPEG, GIF, WebP, SVG</strong>
                       </span>
                     </div>
+                    <div class="col-span-12 text-xs text-gray-600 mt-1 pl-1 flex items-center gap-2">
+                      <i class="fas fa-info-circle text-blue-500 flex-shrink-0"></i>
+                      <span class="whitespace-nowrap">
+                        Si ninguna opción te convence, puedes borrar el valor y escribir la velocidad manualmente.
+                      </span>
+                    </div>
+
+
                   </div>
 
-                  <!-- Sin cambios -->
-                  <div v-else class="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg text-xs">
-                    <div class="flex justify-between">
-                      <span class="text-gray-600">Promedio:</span>
-                      <span class="font-semibold text-green-600">{{ velocidadPromedio }} km/h</span>
-                    </div>
-                  </div>
-                </div>
+                  <!-- Segmentos y controles -->
+                  <div class="flex flex-1 gap-3 overflow-hidden  pt-3">
 
-                <div class="col-span-3 flex flex-col">
-                  <label class="block text-sm font-semibold text-gray-700 mb-1">
-                    <i class="fas fa-road text-blue-600 mr-1"></i>Tipo
-                  </label>
-                  <select v-model="nuevaRuta.tipo"
-                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:outline-none h-10">
-                    <option value="" disabled>Seleccione</option>
-                    <option value="General">General</option>
-                    <option value="Vuelta">Vuelta</option>
-                  </select>
-                </div>
-
-                <div class="col-span-3 flex flex-col">
-                  <label class="block text-sm font-semibold text-gray-700 mb-1">
-                    <i class="fas fa-image text-blue-600 mr-1"></i>Logo
-                  </label>
-                  <div
-                    class="border-2 border-dashed rounded-lg h-10 flex items-center justify-center cursor-pointer transition-all"
-                    :class="dragOverLogo ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50'"
-                    @dragover.prevent="dragOverLogo = true" @dragleave.prevent="dragOverLogo = false"
-                    @drop.prevent="dropLogo" @click="abrirSelectorLogo" role="button" tabindex="0"
-                    @keydown.enter="abrirSelectorLogo">
-                    <input type="file" ref="logoInput" accept=".png,.jpg,.jpeg,.gif,.webp,.svg" class="hidden"
-                      @change="previewLogo" />
-                    <div v-if="!nuevaRuta.logoPreview" class="text-center text-gray-400 text-sm pointer-events-none">
-                      <i class="fas fa-cloud-upload-alt text-lg"></i>
-                    </div>
-                    <img v-else :src="nuevaRuta.logoPreview" class="h-8 w-auto object-contain mx-auto rounded" />
-                  </div>
-                </div>
-                <!-- ✅ MENSAJE DE AYUDA ESPECÍFICO -->
-                <div class="text-xs text-gray-600 mb-3 pl-1 flex items-center gap-2">
-                  <i class="fas fa-info-circle text-blue-500 flex-shrink-0"></i>
-                  <span class="whitespace-nowrap">Logo solo acepta: <strong>PNG, JPG, JPEG, GIF, WebP,
-                      SVG</strong></span>
-                </div>
-              </div>
-
-              <!-- Segmentos y controles -->
-              <div class="flex flex-1 gap-3 overflow-hidden  pt-3">
-
-                <!-- Segmentos disponibles -->
-                <div
-                  class="w-1/2 bg-green-50 rounded-xl border border-green-200 flex flex-col p-3 shadow-sm overflow-hidden">
-                  <h3 class="font-semibold mb-2 flex items-center text-sm text-green-700 flex-shrink-0">
-                    <i class="fas fa-list mr-2 text-green-600"></i>Disponibles ({{ segmentosDisponiblesFiltrados.length
-                    }})
-                  </h3>
-                  <input type="text" v-model="filtroSegmentos" placeholder="Buscar..."
-                    class="w-full px-2 py-1 border border-green-300 rounded-lg mb-2 text-sm focus:ring-2 focus:ring-green-400 focus:outline-none flex-shrink-0" />
-                  <div
-                    class="border-2 border-dashed rounded-lg p-1.5 bg-white overflow-y-auto flex-1 scrollbar-thin scrollbar-thumb-green-300 scrollbar-track-transparent"
-                    :class="dragOverDisponibles ? 'border-green-500 bg-green-50' : 'border-green-300'"
-                    @dragover.prevent="dragOverDisponibles = true" @dragleave.prevent="dragOverDisponibles = false"
-                    @drop.prevent="dropSegmentoEnDisponibles">
-                    <div v-for="segmento in segmentosDisponiblesFiltrados" :key="segmento._tempId" draggable="true"
-                      @dragstart="iniciarDragSegmento(segmento, 'disponibles')" @dragend="finalizarDrag"
-                      @dblclick="agregarSegmentoARuta(segmento)"
-                      class="p-1 mb-1 bg-green-100 border border-green-300 rounded cursor-pointer hover:bg-green-200 hover:shadow transition-all text-xs flex items-center justify-between group">
-                      <div class="flex items-center">
-                        <i class="fas fa-grip-vertical text-green-600 mr-1 text-xs"></i>
-                        <span>{{ segmento.nombre }}</span>
-                      </div>
-                      <i
-                        class="fas fa-arrow-right text-green-600 opacity-0 group-hover:opacity-100 transition-opacity"></i>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Segmentos en ruta y controles -->
-                <div
-                  class="w-1/2 bg-blue-50 rounded-xl border border-blue-200 flex flex-col p-3 shadow-sm overflow-hidden">
-                  <h3 class="font-semibold mb-2 flex items-center text-sm text-blue-700 flex-shrink-0">
-                    <i class="fas fa-route mr-2 text-blue-600"></i>En la Ruta ({{ segmentosRuta.length }})
-                  </h3>
-
-                  <!-- Editor compacto -->
-                  <div v-if="segmentoSeleccionado"
-                    class="bg-yellow-50 rounded-lg p-2 mb-2 border border-yellow-300 flex flex-col gap-1 flex-shrink-0">
-                    <div class="flex items-center justify-between mb-1">
-                      <span class="text-xs font-semibold text-gray-700">✏ Editando: <span class="text-yellow-700">{{
-                        segmentoSeleccionado.nombre }}</span></span>
-                      <button @click="segmentoSeleccionado = null"
-                        class="text-gray-600 hover:text-gray-800 text-xs p-1 rounded" type="button">
-                        <i class="fas fa-times"></i>
-                      </button>
-                    </div>
-                    <div class="grid grid-cols-2 gap-1">
-                      <div>
-                        <label maxlength="500" class="text-[10px] font-semibold text-gray-700 block">Mensaje</label>
-                        <input type="text" v-model="segmentoSeleccionado.mensaje" placeholder="Velocidad máxima"
-                          class="w-full border border-yellow-400 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-yellow-400 focus:outline-none" />
-                      </div>
-                      <div>
-                        <label class="text-[10px] font-semibold text-gray-700 block">Velocidad</label>
-                        <input type="number" v-model.number="segmentoSeleccionado.velocidad" placeholder="00" min="0"
-                          max="200" step="1" @input="segmentoSeleccionado.velocidad = segmentoSeleccionado.velocidad
-                            ? Math.min(Math.max(Math.trunc(segmentoSeleccionado.velocidad), 0), 200)
-                            : 0"
-                          class="w-full border border-yellow-400 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-yellow-400 focus:outline-none" />
-                      </div>
-
-                    </div>
-                  </div>
-
-                  <!-- Lista de segmentos en ruta -->
-                  <div
-                    class="border-2 border-dashed rounded-lg p-1.5 bg-white overflow-y-auto flex-1 scrollbar-thin scrollbar-thumb-blue-300 scrollbar-track-transparent"
-                    :class="dragOverRuta ? 'border-blue-500 bg-blue-50' : 'border-blue-300'"
-                    @dragover.prevent="dragOverRuta = true" @dragleave.prevent="dragOverRuta = false"
-                    @drop.prevent="dropSegmentoEnRuta">
-                    <div v-for="(segmento, idx) in segmentosRuta" :key="segmento._tempId" draggable="true"
-                      @dragstart="iniciarDragSegmento(segmento, 'ruta')" @dragend="finalizarDrag"
-                      @dragover.prevent="setDragToIndex(idx)" @drop.prevent="dropSobreSegmento(idx)"
-                      @click="() => { seleccionarSegmento(segmento); centrarEnSegmento(segmento); }"
-                      class="p-1 mb-1 rounded cursor-move transition-all border-l-4 text-xs"
-                      :class="isSelected(segmento) ? 'bg-blue-200 border-blue-600 shadow-md' : 'bg-blue-100 border-blue-400 hover:bg-blue-150 hover:shadow-sm'">
-                      <div class="flex items-center justify-between">
-                        <div class="flex items-center">
-                          <i class="fas fa-grip-vertical text-blue-600 mr-1 text-xs"></i>
-                          <span class="font-semibold mr-1">{{ idx + 1 }}.</span>
-                          <span>{{ segmento.nombre }}</span>
-                        </div>
-                        <span v-if="segmento.velocidad" class="text-[10px] text-blue-700">{{ segmento.velocidad }}
-                          km/h</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Botones y validaciones -->
-                  <div class="mt-2 flex flex-col gap-2">
-                    <div class="flex gap-2">
-                      <button @click="eliminarSeleccionado" :disabled="!segmentoSeleccionado"
-                        class="flex-1 py-1.5 rounded bg-red-500 hover:bg-red-600 disabled:bg-gray-300 text-white text-xs font-semibold transition-all">
-                        <i class="fas fa-trash mr-1"></i>Eliminar
-                      </button>
-                      <button @click="limpiarSegmentos" :disabled="segmentosRuta.length === 0"
-                        class="flex-1 py-1.5 rounded bg-yellow-500 hover:bg-yellow-600 disabled:bg-gray-300 text-white text-xs font-semibold transition-all">
-                        <i class="fas fa-broom mr-1"></i>Limpiar
-                      </button>
-                    </div>
-                    <div class="border-t border-gray-300 pt-1 text-xs space-y-1">
+                    <!-- Segmentos disponibles -->
+                    <div
+                      class="w-1/2 bg-green-50 rounded-xl border border-green-200 flex flex-col p-3 shadow-sm overflow-hidden">
+                      <h3 class="font-semibold mb-2 flex items-center text-sm text-green-700 flex-shrink-0">
+                        <i class="fas fa-list mr-2 text-green-600"></i>Disponibles ({{
+                          segmentosDisponiblesFiltrados.length
+                        }})
+                      </h3>
+                      <input type="text" v-model="filtroSegmentos" placeholder="Buscar..."
+                        class="w-full px-2 py-1 border border-green-300 rounded-lg mb-2 text-sm focus:ring-2 focus:ring-green-400 focus:outline-none flex-shrink-0" />
                       <div
-                        v-if="segmentoSeleccionado && (!segmentoSeleccionado.mensaje || !segmentoSeleccionado.velocidad)"
-                        class="p-1 rounded-lg bg-yellow-100 border border-yellow-300 text-yellow-800">
-                        Completa los campos
+                        class="border-2 border-dashed rounded-lg p-1.5 bg-white overflow-y-auto flex-1 scrollbar-thin scrollbar-thumb-green-300 scrollbar-track-transparent"
+                        :class="dragOverDisponibles ? 'border-green-500 bg-green-50' : 'border-green-300'"
+                        @dragover.prevent="dragOverDisponibles = true" @dragleave.prevent="dragOverDisponibles = false"
+                        @drop.prevent="dropSegmentoEnDisponibles">
+                        <div v-for="segmento in segmentosDisponiblesFiltrados" :key="segmento._tempId" draggable="true"
+                          @dragstart="iniciarDragSegmento(segmento, 'disponibles')" @dragend="finalizarDrag"
+                          @dblclick="agregarSegmentoARuta(segmento)"
+                          class="p-1 mb-1 bg-green-100 border border-green-300 rounded cursor-pointer hover:bg-green-200 hover:shadow transition-all text-xs flex items-center justify-between group">
+                          <div class="flex items-center">
+                            <i class="fas fa-grip-vertical text-green-600 mr-1 text-xs"></i>
+                            <span>{{ segmento.nombre }}</span>
+                          </div>
+                          <i
+                            class="fas fa-arrow-right text-green-600 opacity-0 group-hover:opacity-100 transition-opacity"></i>
+                        </div>
                       </div>
-                      <div v-else-if="segmentoSeleccionado"
-                        class="p-1 rounded-lg bg-green-100 border border-green-300 text-green-800">
-                        Segmento completo
+                    </div>
+
+                    <!-- Segmentos en ruta y controles -->
+                    <div
+                      class="w-1/2 bg-blue-50 rounded-xl border border-blue-200 flex flex-col p-3 shadow-sm overflow-hidden">
+                      <h3 class="font-semibold mb-2 flex items-center text-sm text-blue-700 flex-shrink-0">
+                        <i class="fas fa-route mr-2 text-blue-600"></i>En la Ruta ({{ segmentosRuta.length }})
+                      </h3>
+
+                      <!-- Editor compacto -->
+                      <div v-if="segmentoSeleccionado"
+                        class="bg-yellow-50 rounded-lg p-2 mb-2 border border-yellow-300 flex flex-col gap-1 flex-shrink-0">
+                        <div class="flex items-center justify-between mb-1">
+                          <span class="text-xs font-semibold text-gray-700">✏ Editando: <span class="text-yellow-700">{{
+                            segmentoSeleccionado.nombre }}</span></span>
+                          <button @click="segmentoSeleccionado = null"
+                            class="text-gray-600 hover:text-gray-800 text-xs p-1 rounded" type="button">
+                            <i class="fas fa-times"></i>
+                          </button>
+                        </div>
+                        <div class="grid grid-cols-2 gap-1">
+                          <div>
+                            <label maxlength="500" class="text-[10px] font-semibold text-gray-700 block">Mensaje</label>
+                            <input type="text" v-model="segmentoSeleccionado.mensaje" placeholder="Velocidad máxima"
+                              class="w-full border border-yellow-400 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-yellow-400 focus:outline-none" />
+                          </div>
+                          <div>
+                            <label class="text-[10px] font-semibold text-gray-700 block">Velocidad</label>
+                            <input type="number" v-model.number="segmentoSeleccionado.velocidad" placeholder="00"
+                              min="0" max="200" step="1" @input="segmentoSeleccionado.velocidad = segmentoSeleccionado.velocidad
+                                ? Math.min(Math.max(Math.trunc(segmentoSeleccionado.velocidad), 0), 200)
+                                : 0"
+                              class="w-full border border-yellow-400 rounded px-2 py-1 text-xs focus:ring-1 focus:ring-yellow-400 focus:outline-none" />
+                          </div>
+
+                        </div>
                       </div>
+
+                      <!-- Lista de segmentos en ruta -->
+                      <div
+                        class="border-2 border-dashed rounded-lg p-1.5 bg-white overflow-y-auto flex-1 scrollbar-thin scrollbar-thumb-blue-300 scrollbar-track-transparent"
+                        :class="dragOverRuta ? 'border-blue-500 bg-blue-50' : 'border-blue-300'"
+                        @dragover.prevent="dragOverRuta = true" @dragleave.prevent="dragOverRuta = false"
+                        @drop.prevent="dropSegmentoEnRuta">
+                        <div v-for="(segmento, idx) in segmentosRuta" :key="segmento._tempId" draggable="true"
+                          @dragstart="iniciarDragSegmento(segmento, 'ruta')" @dragend="finalizarDrag"
+                          @dragover.prevent="setDragToIndex(idx)" @drop.prevent="dropSobreSegmento(idx)"
+                          @click="() => { seleccionarSegmento(segmento); centrarEnSegmento(segmento); }"
+                          class="p-1 mb-1 rounded cursor-move transition-all border-l-4 text-xs"
+                          :class="isSelected(segmento) ? 'bg-blue-200 border-blue-600 shadow-md' : 'bg-blue-100 border-blue-400 hover:bg-blue-150 hover:shadow-sm'">
+                          <div class="flex items-center justify-between">
+                            <div class="flex items-center">
+                              <i class="fas fa-grip-vertical text-blue-600 mr-1 text-xs"></i>
+                              <span class="font-semibold mr-1">{{ idx + 1 }}.</span>
+                              <span>{{ segmento.nombre }}</span>
+                            </div>
+                            <span v-if="segmento.velocidad" class="text-[10px] text-blue-700">{{ segmento.velocidad }}
+                              km/h</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Botones y validaciones -->
+                      <div class="mt-2 flex flex-col gap-2">
+                        <div class="flex gap-2">
+                          <button @click="eliminarSeleccionado" :disabled="!segmentoSeleccionado"
+                            class="flex-1 py-1.5 rounded bg-red-500 hover:bg-red-600 disabled:bg-gray-300 text-white text-xs font-semibold transition-all">
+                            <i class="fas fa-trash mr-1"></i>Eliminar
+                          </button>
+                          <button @click="limpiarSegmentos" :disabled="segmentosRuta.length === 0"
+                            class="flex-1 py-1.5 rounded bg-yellow-500 hover:bg-yellow-600 disabled:bg-gray-300 text-white text-xs font-semibold transition-all">
+                            <i class="fas fa-broom mr-1"></i>Limpiar
+                          </button>
+                        </div>
+                        <div class="border-t border-gray-300 pt-1 text-xs space-y-1">
+                          <div
+                            v-if="segmentoSeleccionado && (!segmentoSeleccionado.mensaje || !segmentoSeleccionado.velocidad)"
+                            class="p-1 rounded-lg bg-yellow-100 border border-yellow-300 text-yellow-800">
+                            Completa los campos
+                          </div>
+                          <div v-else-if="segmentoSeleccionado"
+                            class="p-1 rounded-lg bg-green-100 border border-green-300 text-green-800">
+                            Segmento completo
+                          </div>
+                        </div>
+                      </div>
+
                     </div>
                   </div>
 
                 </div>
+
+                <!-- Panel derecho: Mapa -->
+                <div class="lg:w-1/2 p-3 flex flex-col">
+                  <div class="flex flex-col items-center mb-3">
+                    <h3 class="font-semibold text-center text-base flex items-center justify-center text-gray-700 mb-1">
+                      <i class="fas fa-map-marked-alt mr-2 text-blue-600 text-lg"></i>
+                      Vista de la Ruta
+                    </h3>
+                    <div class="w-2/3 border-t-2 border-blue-400"></div>
+                  </div>
+                  <LMap ref="mapaRef" :zoom="zoom" :center="center"
+                    style="height: calc(100% - 40px); width: 100%; border-radius: 12px; overflow: hidden;">
+
+                    <!-- Capa de Google Maps -->
+                    <LTileLayer :url="'https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}'"
+                      :subdomains="['mt0', 'mt1', 'mt2', 'mt3']" :attribution="'© Google'" />
+
+                    <!-- Polígonos y markers de segmentos -->
+                    <template v-for="segmento in segmentosRuta" :key="segmento.id || segmento._tempId">
+                      <LPolygon v-if="segmento.cordenadas?.length" :lat-lngs="segmento.cordenadas.map(c => [c.y, c.x])"
+                        :color="convertirColorConAlpha(segmento.color || '#0000ff', 1)"
+                        :fill-color="convertirColorConAlpha(segmento.color || '#0000ff', 0.4)" :fill-opacity="0.4"
+                        :weight="3" />
+
+
+                      <LMarker v-if="segmento.cordenadas?.length" :lat-lng="calcularCentro(segmento.cordenadas)"
+                        :icon="crearCardIcon(segmento.nombre)" />
+                    </template>
+                  </LMap>
+
+                </div>
+
+              </div>
+
+              <!-- Footer -->
+              <div class="border-t bg-gray-50 px-6 py-4 flex flex-col md:flex-row justify-end gap-3">
+                <button @click="cerrarFormulario" type="button"
+                  class="px-6 py-2 border rounded-lg hover:bg-gray-100 transition-all font-medium w-full md:w-auto text-sm">
+                  <i class="fas fa-times mr-1"></i>Cancelar
+                </button>
+                <button @click="guardarRuta()" type="button"
+                  class="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-all font-medium shadow-md hover:shadow-lg w-full md:w-auto flex items-center justify-center gap-2 text-sm">
+                  <i class="fas fa-save mr-1"></i> Guardar Ruta
+                </button>
               </div>
 
             </div>
-
-            <!-- Panel derecho: Mapa -->
-            <div class="lg:w-1/2 p-3 flex flex-col">
-              <div class="flex flex-col items-center mb-3">
-                <h3 class="font-semibold text-center text-base flex items-center justify-center text-gray-700 mb-1">
-                  <i class="fas fa-map-marked-alt mr-2 text-blue-600 text-lg"></i>
-                  Vista de la Ruta
-                </h3>
-                <div class="w-2/3 border-t-2 border-blue-400"></div>
-              </div>
-              <LMap ref="mapaRef" :zoom="zoom" :center="center"
-                style="height: calc(100% - 40px); width: 100%; border-radius: 12px; overflow: hidden;">
-
-                <!-- Capa de Google Maps -->
-                <LTileLayer :url="'https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}'"
-                  :subdomains="['mt0', 'mt1', 'mt2', 'mt3']" :attribution="'© Google'" />
-
-                <!-- Polígonos y markers de segmentos -->
-                <template v-for="segmento in segmentosRuta" :key="segmento.id || segmento._tempId">
-                  <LPolygon v-if="segmento.cordenadas?.length" :lat-lngs="segmento.cordenadas.map(c => [c.y, c.x])"
-                    :color="convertirColorConAlpha(segmento.color || '#0000ff', 1)"
-                    :fill-color="convertirColorConAlpha(segmento.color || '#0000ff', 0.4)" :fill-opacity="0.4"
-                    :weight="3" />
-
-
-                  <LMarker v-if="segmento.cordenadas?.length" :lat-lng="calcularCentro(segmento.cordenadas)"
-                    :icon="crearCardIcon(segmento.nombre)" />
-                </template>
-              </LMap>
-
-            </div>
-
           </div>
+        </transition>
 
-          <!-- Footer -->
-          <div class="border-t bg-gray-50 px-6 py-4 flex flex-col md:flex-row justify-end gap-3">
-            <button @click="cerrarFormulario" type="button"
-              class="px-6 py-2 border rounded-lg hover:bg-gray-100 transition-all font-medium w-full md:w-auto text-sm">
-              <i class="fas fa-times mr-1"></i>Cancelar
-            </button>
-            <button @click="guardarRuta()" type="button"
-              class="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-all font-medium shadow-md hover:shadow-lg w-full md:w-auto flex items-center justify-center gap-2 text-sm">
-              <i class="fas fa-save mr-1"></i> Guardar Ruta
-            </button>
-          </div>
-
-        </div>
       </div>
-    </transition>
-
-  </div>
-     </div>
+    </div>
   </div>
 </template>
 
@@ -774,7 +798,7 @@ async function cargarSegmentos() {
     if (error.code === 'ECONNABORTED') {
       errorCarga.value = "Timeout: El servidor tardó demasiado en responder";
     } else if (error.message === 'Network Error') {
-      errorCarga.value = "Error de red: Verifique que el servidor está corriendo en http://localhost:8000";
+      errorCarga.value = "Error de red: Verifique su conexion al servidor ";
     } else {
       errorCarga.value = `Error: ${error.message}`;
     }
@@ -883,7 +907,7 @@ const props = defineProps<{
   ruta?: { limite?: number | null };
 }>();
 
-const limiteEditado = ref(false);
+
 const limiteBD = ref<number | null>(null);
 const velocidadesOriginalesBD = ref<number[]>([]);
 
@@ -893,77 +917,44 @@ const velocidadPromedio = computed(() => {
   return Math.min(Math.round(suma / segmentosRuta.value.length), 200);
 });
 
-const promedioBD = computed(() => {
-  if (velocidadesOriginalesBD.value.length === 0) return limiteBD.value ?? 0;
-  const suma = velocidadesOriginalesBD.value.reduce((acc, v) => acc + v, 0);
-  return Math.min(Math.round(suma / velocidadesOriginalesBD.value.length), 200);
-});
 
-const limiteAMostrar = computed(() => {
-  if (!nuevaRuta.limite || nuevaRuta.limite === 0) {
-    return velocidadPromedio.value;
+
+
+
+const velocidadElegida = ref(null);
+
+
+
+const limiteEditado = ref(false);
+
+// --- WATCH PARA CAMBIO DE RADIO ---
+watch(velocidadElegida, (opcion) => {
+  if (opcion === "bd") {
+    nuevaRuta.limite = Rutadb.limite;
   }
 
-  if (velocidadPromedio.value !== promedioBD.value) {
-    return velocidadPromedio.value;
+  if (opcion === "actual") {
+    nuevaRuta.limite = velocidadPromedio.value;
   }
-
-  return nuevaRuta.limite;
 });
 
-const huboCambios = computed(() => {
-  return velocidadPromedio.value !== promedioBD.value;
-});
-
-const comparativaLimite = computed(() => {
-  return {
-    limiteBD: limiteBD.value,
-    limiteActual: nuevaRuta.limite,
-    promedioOriginal: promedioBD.value,
-    promedioActual: velocidadPromedio.value,
-    cambio: velocidadPromedio.value - promedioBD.value
-  };
-});
-
-function inicializarLimite(valorBase: number | null | undefined) {
-  if (!nuevaRuta) return;
-
-  limiteBD.value = valorBase ?? null;
-  velocidadesOriginalesBD.value = segmentosRuta.value.map(s => s.velocidad ?? 0);
-  nuevaRuta.limite = limiteAMostrar.value;
-  limiteEditado.value = false;
-}
-
-watch(
-  () => Rutadb, 
-  (nuevoValor) => {
-    Object.assign(nuevaRuta, nuevoValor);
-    inicializarLimite(nuevoValor.limite);
-  },
-  { immediate: true }
-);
-
-watch(
-  segmentosRuta,
-  () => {
-    if (!limiteEditado.value && nuevaRuta) {
-      nuevaRuta.limite = limiteAMostrar.value;
-    }
-  },
-  { deep: true }
-);
-
-function onLimiteInput() {
-  if (!nuevaRuta) return;
-
+// --- INPUT MANUAL DEL USUARIO ---
+const onLimiteInput = () => {
   limiteEditado.value = true;
 
+  // Limpia el radio seleccionado porque el usuario escribe manualmente
+  velocidadElegida.value = null;
+
   if (nuevaRuta.limite != null) {
-    nuevaRuta.limite = Math.min(Math.max(Math.trunc(nuevaRuta.limite), 0), 200);
+    nuevaRuta.limite = Math.min(
+      Math.max(Math.trunc(nuevaRuta.limite), 0),
+      200
+    );
   } else {
     nuevaRuta.limite = 0;
   }
-}
+};
+
 
 
 
@@ -978,13 +969,13 @@ watch(filtro, () => {
 });
 
 onMounted(async () => {
-   loading.value = true
+  loading.value = true
 
   await cargarSegmentos();
   await cargarRutas();
   calcularRegistrosPorPantalla();
   window.addEventListener('resize', calcularRegistrosPorPantalla);
- loading.value = false
+  loading.value = false
 
 });
 onUnmounted(() => {
@@ -1226,9 +1217,9 @@ async function guardarRuta() {
     formData.append("icono", nuevaRuta.logoFile);
   }
 
-  let url = "http://localhost:8000/api/rutas";
+  let url = "api/rutas";
   if (nuevaRuta.id) {
-    url = `http://localhost:8000/api/rutas/${nuevaRuta.id}`;
+    url = `api/rutas/${nuevaRuta.id}`;
     formData.append("_method", "PUT");
   }
 
@@ -1291,7 +1282,7 @@ async function editarRuta(id?: number) {
       cordenadas: Array.isArray(d.cordenadas) ? d.cordenadas : [], // siempre array
     }));
 
-    const icono = ruta.icono ? 'http://localhost:8000/storage/' + ruta.icono : "";
+    const icono = ruta.icono ? 'storage/' + ruta.icono : "";
 
 
     const logoPreviewUrl = icono || "";
@@ -1383,7 +1374,7 @@ async function duplicarRuta(rutaId: number, invertida = false): Promise<any> {
 
   try {
     // Obtener la ruta completa desde la API
-    const { data: ruta } = await axios.get(`http://localhost:8000/api/rutasid/${rutaId}`, { timeout: 10000 });
+    const { data: ruta } = await axios.get(`api/rutasid/${rutaId}`, { timeout: 10000 });
 
     if (!ruta || !ruta.nombre) throw new Error("No se encontró la ruta o no tiene datos válidos");
 
@@ -1411,7 +1402,7 @@ async function duplicarRuta(rutaId: number, invertida = false): Promise<any> {
     };
 
     const { data: rutaGuardada } = await axios.post(
-      "http://localhost:8000/api/duplicar",
+      "api/duplicar",
       datosRuta,
       { headers: { "Content-Type": "application/json" } }
     );
@@ -1502,7 +1493,7 @@ async function eliminarRuta(id?: number) {
 
     // 4) Eliminar ruta
     const { data } = await axios.delete(
-      `http://localhost:8000/api/rutas/${id}`
+      `api/rutas/${id}`
     );
 
     rutas.value = rutas.value.filter((r) => r.id !== id);

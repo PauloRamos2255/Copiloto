@@ -62,18 +62,23 @@ Route::get('/asignacion/{id}', [AsignacionController::class, 'obtenerRutasPorUsu
 Route::get('/asignacion_segmen', [AsignacionController::class, 'obtenerTodasLasRutas']);
 Route::post('/asignacion_save', [AsignacionController::class, 'guardarAsignaciones']);
 Route::put('/asignacion_update', [AsignacionController::class, 'editarAsignaciones']);
+Route::delete('/asignacion_delete/{id}', [AsignacionController::class, 'eliminarAsignacionesUsuario']);
 Route::get('/asignacion_get/{id}', [AsignacionController::class, 'obtenerRutasPorConductor']);
 Route::get('/conductor_sin_ruta', [AsignacionController::class, 'conductoresSinRutas']);
+Route::get('/asignacion_activo/{id}', [AsignacionController::class, 'validarAsignacionActivaPorUsuario']);
 
 
 //Movil
 Route::post('/conductor_login', [MovilUsuarioController::class, 'loginConductor']);
+Route::post('/validar_usuario', [MovilUsuarioController::class, 'validarUsuario']);
 Route::get('/obtener_rutas_conductor/{id}', [MovilUsuarioController::class, 'obtenerRutasConductor']);
 Route::post('/actualizacion_save', [ActualizacionController::class, 'registrar']);
 Route::put('actualizacion_update', [ActualizacionController::class, 'actualizarPorId']);
 Route::put('actualizacion_error/{usuarioId}', [ActualizacionController::class, 'finalizarActualizacionPorUsuario']);
 Route::post('/logout/{id}', [MovilUsuarioController::class, 'logoutConductor']);
 Route::get('/obtenerrutas/{idRuta}', [MovilUsuarioController::class, 'obtenerSegmentos']);
+Route::post('/historicoViaje_save', [MovilUsuarioController::class, 'insertarViaje']);
+Route::put('/historicoViaje_update', [MovilUsuarioController::class, 'actualizarViaje']);
 
 
 

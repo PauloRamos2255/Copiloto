@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Asignacion;
+use App\Models\HistoricoViaje;
 use App\Models\Ruta;
 use App\Models\Usuario;
 use Illuminate\Http\Request;
@@ -99,60 +100,60 @@ class AsignacionController extends Controller
     }
 
 
-   public function obtenerRutasPorUsuario($idUsuario)
-{
-    $rows = DB::table('ruta as r')
-        ->join('detalleRuta as d', 'd.ruta_codruta', '=', 'r.codruta')
-        ->join('segmento as s', 's.codsegmento', '=', 'd.segmento_codsegmento')
-        ->join('asignacion as a', 'a.ruta_codruta', '=', 'r.codruta')
-        ->join('usuario as u', 'u.codusuario', '=', 'a.usuario_codusuario') // 🔥 AGREGADO
-        ->where('a.usuario_codusuario', $idUsuario)
-        ->select(
-            'r.codruta as idRuta',
-            'r.nombre as nombreRuta',
-            's.nombre',
-            's.color',
-            's.codsegmento as idSegmento',
-            's.cordenadas',
-            's.bounds',
-            'u.nombre as nombreConductor' // 🔥 AGREGADO
-        )
-        ->orderBy('r.codruta')
-        ->get();
+    public function obtenerRutasPorUsuario($idUsuario)
+    {
+        $rows = DB::table('ruta as r')
+            ->join('detalleRuta as d', 'd.ruta_codruta', '=', 'r.codruta')
+            ->join('segmento as s', 's.codsegmento', '=', 'd.segmento_codsegmento')
+            ->join('asignacion as a', 'a.ruta_codruta', '=', 'r.codruta')
+            ->join('usuario as u', 'u.codusuario', '=', 'a.usuario_codusuario') // 🔥 AGREGADO
+            ->where('a.usuario_codusuario', $idUsuario)
+            ->select(
+                'r.codruta as idRuta',
+                'r.nombre as nombreRuta',
+                's.nombre',
+                's.color',
+                's.codsegmento as idSegmento',
+                's.cordenadas',
+                's.bounds',
+                'u.nombre as nombreConductor' // 🔥 AGREGADO
+            )
+            ->orderBy('r.codruta')
+            ->get();
 
-    $rutas = [];
-    $nombreConductor = null;
+        $rutas = [];
+        $nombreConductor = null;
 
-    foreach ($rows as $row) {
+        foreach ($rows as $row) {
 
-        // Guardamos el nombre del conductor 1 sola vez
-        if ($nombreConductor === null) {
-            $nombreConductor = $row->nombreConductor;
-        }
+            // Guardamos el nombre del conductor 1 sola vez
+            if ($nombreConductor === null) {
+                $nombreConductor = $row->nombreConductor;
+            }
 
-        if (!isset($rutas[$row->idRuta])) {
-            $rutas[$row->idRuta] = [
-                'id' => $row->idRuta,
-                'nombre' => $row->nombreRuta,
-                'segmentos' => []
+            if (!isset($rutas[$row->idRuta])) {
+                $rutas[$row->idRuta] = [
+                    'id' => $row->idRuta,
+                    'nombre' => $row->nombreRuta,
+                    'segmentos' => []
+                ];
+            }
+
+            $rutas[$row->idRuta]['segmentos'][] = [
+                'id' => $row->idSegmento,
+                'nombre' => $row->nombre,
+                'color' => $row->color,
+                'cordenadas' => $row->cordenadas,
+                'bounds' => $row->bounds
             ];
         }
 
-        $rutas[$row->idRuta]['segmentos'][] = [
-            'id' => $row->idSegmento,
-            'nombre' => $row->nombre,
-            'color' => $row->color,
-            'cordenadas' => $row->cordenadas,
-            'bounds' => $row->bounds
-        ];
+        return response()->json([
+            'status' => true,
+            'conductor' => $nombreConductor,
+            'rutas' => array_values($rutas)
+        ]);
     }
-
-    return response()->json([
-        'status' => true,
-        'conductor' => $nombreConductor, 
-        'rutas' => array_values($rutas)
-    ]);
-}
 
 
     public function obtenerRutasPorConductor($idUsuario)
@@ -245,4 +246,43 @@ class AsignacionController extends Controller
             return response()->json(['error' => 'Ocurrió un error al procesar las asignaciones: ' . $e->getMessage()], 500);
         }
     }
+
+
+    public function eliminarAsignacionesUsuario($usuarioId)
+    {
+        try {
+            $eliminadas = Asignacion::where('usuario_codusuario', $usuarioId)->delete();
+            return response()->json([
+                'message' => "Se eliminaron $eliminadas asignaciones del usuario $usuarioId."
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => "Ocurrió un error al eliminar asignaciones: " . $e->getMessage()
+            ], 500);
+        }
+    }
+
+
+    public function validarAsignacionActivaPorUsuario($usuarioId)
+{
+    $existe = Historicoviaje::whereHas('asignacion', function($query) use ($usuarioId) {
+        $query->where('usuario_codusuario', $usuarioId);
+    })
+    ->where('estado', 'I')
+    ->exists();
+
+    if ($existe) {
+        return [
+            'activo' => true,
+            'mensaje' => 'El usuario tiene asignaciones activas en un viaje.'
+        ];
+    } else {
+        return [
+            'activo' => false,
+            'mensaje' => 'El usuario no tiene viajes activos.'
+        ];
+    }
+}
+
+
 }

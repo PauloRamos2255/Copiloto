@@ -263,6 +263,9 @@ import Header from "@/pages/Header.vue";
 import Loader from "@/pages/Loader.vue";
 import axios from "axios";
 import ModalAsignarRuta from "@/components/ModalAsignarRuta.vue";
+// Al inicio de tu script
+import Swal from "sweetalert2";
+
 
 const nombreUsuario = "Paulo Ramos";
 const conductores = ref([]);
@@ -279,6 +282,10 @@ const registrosPorPagina = 10;
 const filaExpandida = ref(null);
 const rutasDetalle = ref([]);
 const rutasDetalleCache = ref({});
+
+const estaActiva = ref(false);
+const mensajeAsignacion = ref("");
+const error = ref(null);
 
 const loading = ref(true)
 
@@ -361,10 +368,47 @@ const cambiarPagina = n => {
 
 watch(filtroBusqueda, () => paginaActual.value = 1);
 
-const abrirModalAsignarRuta = (conductor = null) => {
+const abrirModalAsignarRuta = async (conductor = null) => {
   conductorSeleccionado.value = conductor ? { ...conductor } : null;
-  modalVisible.value = true;
+
+  // Mostrar Swal de "verificando rutas activas"
+  Swal.fire({
+    title: "Verificando rutas activas...",
+    allowOutsideClick: false,
+    didOpen: () => Swal.showLoading(),
+  });
+
+  try {
+    // Llamada a la API para validar asignaciones activas
+    const activa = await validarAsignacionActiva(conductor.codusuario);
+
+    Swal.close(); // Cerrar loading
+
+    if (activa) {
+      // Mostrar mensaje si tiene asignaciones activas
+      await Swal.fire({
+        icon: "warning",
+        title: "Asignación activa",
+        text: "Este conductor tiene asignaciones activas en un viaje y no se puede editar."
+      });
+      return; // No abrir modal
+    }
+
+    // Si no tiene asignaciones activas, abrir modal
+    modalVisible.value = true;
+
+  } catch (error) {
+    Swal.close(); // Cerrar loading si ocurre un error
+    console.error("Error validando asignación:", error);
+    await Swal.fire({
+      icon: "error",
+      title: "Error",
+      text: "No se pudo verificar las rutas activas del conductor."
+    });
+  }
 };
+
+
 
 const cerrarModal = () => {
   modalVisible.value = false;
@@ -377,14 +421,27 @@ const actualizarTabla = async () => {
   cerrarModal();
 };
 
-const confirmarEliminar = async conductor => {
-  if (confirm(`¿Eliminar a ${conductor.identificador}?`)) {
-    try {
-      await axios.delete(`/api/conductores/${conductor.id}`);
-      conductores.value = conductores.value.filter(c => c.id !== conductor.id);
-    } catch (error) {
-      alert("No se pudo eliminar.");
-    }
+const validarAsignacionActiva = async (usuarioId) => {
+  cargando.value = true;
+  error.value = null;
+
+  try {
+    const response = await axios.get(`/api/asignacion_activo/${usuarioId}`);
+    // Guardamos el valor activo
+    estaActiva.value = response.data.activo;
+    // Guardamos el mensaje
+    mensajeAsignacion.value = response.data.mensaje || "";
+
+    console.log(response.data.activo)
+    return estaActiva.value;
+  } catch (err) {
+    console.error("Error validando asignación:", err);
+    error.value = "No se pudo validar la asignación";
+    estaActiva.value = false;
+    mensajeAsignacion.value = "";
+    return false;
+  } finally {
+    cargando.value = false;
   }
 };
 </script>

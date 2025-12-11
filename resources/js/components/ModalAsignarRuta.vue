@@ -44,7 +44,7 @@
                   <option :value="conductorId">{{ nombreConductor }}</option>
                 </select>
 
-            
+
               </div>
             </div>
 
@@ -192,7 +192,7 @@
             class="px-6 py-2 border rounded-lg hover:bg-gray-100 transition-all font-medium w-full md:w-auto text-sm">
             <i class="fas fa-times mr-1"></i>Cancelar
           </button>
-          <button @click="guardarAsignacion" type="button"
+          <button  v-if="!conductorData" @click="guardarAsignacion" type="button"
             :disabled="!conductorId || rutasAsignadas.length === 0 || procesando"
             class="px-6 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-all font-medium shadow-md hover:shadow-lg w-full md:w-auto flex items-center justify-center gap-2 text-sm">
             <svg v-if="procesando" class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none"
@@ -202,6 +202,20 @@
             </svg>
             <i class="fas fa-save" :class="{ 'mr-1': !procesando }"></i> Guardar Asignación
           </button>
+
+
+          <button v-else @click="guardarAsignacion" type="button"
+            class="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-all font-medium shadow-md hover:shadow-lg w-full md:w-auto flex items-center justify-center gap-2 text-sm">
+
+            <svg v-if="procesando" class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none"
+              viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
+            </svg>
+
+            <i class="fas fa-edit" :class="{ 'mr-1': !procesando }"></i> Editar Asignación
+          </button>
+
         </div>
 
       </div>
@@ -475,65 +489,79 @@ const isSelectedRuta = (ruta) => {
 
 // Save operation
 const guardarAsignacion = async () => {
-  if (procesando.value) return; 
-  
-  if (!conductorId.value || rutasAsignadas.value.length === 0) {
-    toast.error("Seleccione un conductor y al menos una ruta");
+  if (procesando.value) return;
+
+  const usuarioId = conductorId.value;
+  const rutasIds = rutasAsignadas.value.map(r => r.id);
+
+  if (!usuarioId) {
+    toast.error("Seleccione un conductor");
     return;
   }
 
-  const totalRutas = props.conductorData?.total_rutas || 0;
-  const rutasIds = rutasAsignadas.value.map(r => r.id);
-
-  procesando.value = true; 
-
+  procesando.value = true;
 
   Swal.fire({
-    title: totalRutas > 0 ? "Actualizando..." : "Guardando...",
+    title: rutasIds.length > 0 ? "Guardando..." : "Eliminando asignaciones...",
     allowOutsideClick: false,
     didOpen: () => Swal.showLoading()
   });
 
   try {
-    if (totalRutas > 0) {
-      await axios.put("/api/asignacion_update", {
-        usuario: conductorId.value,
-        rutas: rutasIds
+    if (rutasIds.length > 0) {
+      // Si hay rutas, hacemos POST o PUT según corresponda
+      const totalRutas = props.conductorData?.total_rutas || 0;
+      if (totalRutas > 0) {
+        await axios.put("/api/asignacion_update", {
+          usuario: usuarioId,
+          rutas: rutasIds
+        });
+      } else {
+        await axios.post("/api/asignacion_save", {
+          usuario: usuarioId,
+          rutas: rutasIds
+        });
+      }
+
+      Swal.close();
+      await Swal.fire({
+        icon: "success",
+        title: totalRutas > 0 ? "Actualizado" : "Asignado",
+        text: totalRutas > 0 ? "Rutas actualizadas correctamente" : "Rutas asignadas correctamente",
+        timer: 1400,
+        showConfirmButton: false
       });
+
     } else {
-      await axios.post("/api/asignacion_save", {
-        usuario: conductorId.value,
-        rutas: rutasIds
+      // Si no hay rutas, eliminamos todas las asignaciones del usuario
+      await axios.delete(`/api/asignacion_delete/${usuarioId}`);
+
+      Swal.close();
+      await Swal.fire({
+        icon: "success",
+        title: "Asignaciones eliminadas",
+        text: "Todas las rutas del usuario fueron eliminadas",
+        timer: 1400,
+        showConfirmButton: false
       });
     }
-
-    Swal.close(); 
-
-    await Swal.fire({
-      icon: "success",
-      title: totalRutas > 0 ? "Actualizado" : "Asignado",
-      text: totalRutas > 0 ? "Rutas actualizadas correctamente" : "Rutas asignadas correctamente",
-      timer: 1400,
-      showConfirmButton: false
-    });
 
     emit("saved");
     cerrar();
 
   } catch (error) {
-    Swal.close(); // ✅ Cerrar loading
+    Swal.close();
     console.error("Error en la asignación:", error);
-
-    // ✅ MOSTRAR ERROR
     await Swal.fire({
       icon: "error",
       title: "Error",
-      text: error.response?.data?.message || "Ocurrió un error al guardar la asignación"
+      text: error.response?.data?.message || "Ocurrió un error al procesar la asignación"
     });
-
+  } finally {
     procesando.value = false;
   }
 };
+
 
 
 
@@ -570,7 +598,7 @@ const cerrar = async () => {
   filtroRutasDisponibles.value = "";
   dragOverDisponibles.value = false;
   dragOverRuta.value = false;
-  nombreConductor.value=""
+  nombreConductor.value = ""
 
   // NO establecer mapa.value a null aquí, dejar que vue-leaflet lo maneje
   // mapa.value = null;

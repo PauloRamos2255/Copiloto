@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Moviapi;
 
 use App\Http\Controllers\Controller;
 use App\Models\Actualizacion;
+use App\Models\HistoricoViaje;
 use App\Models\Ruta;
 use App\Models\Usuario;
 use Illuminate\Support\Facades\DB;
@@ -247,6 +248,27 @@ class MovilUsuarioController extends Controller
         ]);
     }
 
+    public function validarSesionActiva($usuarioId)
+    {
+        // Buscar si existe alguna actualización activa para este usuario
+        $existe = Actualizacion::where('usuario_codusuario', $usuarioId)
+            ->where('estado', 'I')
+            ->exists();
+
+        if ($existe) {
+            return response()->json([
+                'activo' => true,
+                'mensaje' => 'El usuario tiene una sesión o actualización activa.'
+            ]);
+        } else {
+            return response()->json([
+                'activo' => false,
+                'mensaje' => 'El usuario no tiene sesiones activas.'
+            ]);
+        }
+    }
+
+
 
     public function obtenerSegmentos($idRuta)
     {
@@ -265,5 +287,106 @@ class MovilUsuarioController extends Controller
         }
 
         return response()->json($segmentosTotales, 200);
+    }
+
+    public function insertarViaje(Request $request)
+    {
+        try {
+            // Validación estricta
+            $request->validate([
+                'codhistorioViaje' => 'required|integer',
+                'asignacion_codAsignacion' => 'required|integer',
+                'inicio' => 'required|date',
+                'estado' => 'required|string|max:1',
+            ]);
+
+            // Crear registro usando create()
+            $historico = HistoricoViaje::create([
+                'codhistorioViaje' => $request->codhistorioViaje,
+                'asignacion_codAsignacion' => $request->asignacion_codAsignacion,
+                'inicio' => $request->inicio,
+                'estado' => $request->estado,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Registro creado correctamente',
+                'data' => $historico
+            ], 201);
+        } catch (\Exception $e) {
+
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+
+    public function actualizarViaje(Request $request)
+    {
+        try {
+
+            // Validar que lleguen los datos necesarios
+            $request->validate([
+                'codhistorioViaje' => 'required|integer',
+                'fin' => 'required|date',
+                'estado' => 'required|string'
+            ]);
+
+            // Buscar el histórico por ID
+            $historico = HistoricoViaje::find($request->codhistorioViaje);
+
+            if (!$historico) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Histórico no encontrado con ID: ' . $request->codhistorioViaje
+                ], 404);
+            }
+
+            // Actualizar valores permitidos
+            $historico->update([
+                'fin' => $request->fin,
+                'estado' => $request->estado
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Histórico actualizado correctamente',
+                'data' => $historico
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+
+    public function validarUsuario(Request $request)
+    {
+        $request->validate([
+            'nombre' => 'required|string',
+            'usuario_id' => 'required|integer',
+        ]);
+
+        // Buscar usuario por nombre y ID
+        $usuario = Usuario::where('codusuario', $request->usuario_id)
+            ->where('nombre', $request->nombre)
+            ->first();
+
+        if (!$usuario) {
+            return response()->json([
+                'success' => false,
+                'mensaje' => 'Usuario no encontrado o datos no coinciden'
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'mensaje' => 'Datos del usuario correctos',
+            'usuario_id' => $usuario->codusuario
+        ]);
     }
 }

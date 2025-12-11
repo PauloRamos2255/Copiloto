@@ -217,6 +217,10 @@ const registrosPorPagina = 10;
 const modalVisible = ref(false);
 const usuarioSeleccionado = ref(null);
 
+const estaActiva = ref(false);
+const mensajeAsignacion = ref("");
+const error = ref(null);
+
 /* ----------------------------- CACHÉ CON SESSIONSTORAGE ----------------------------- */
 
 const CACHE_KEY = "usuarios_cache";
@@ -282,13 +286,51 @@ const cargarEmpresas = async () => {
 
 /* ----------------------------- MODAL ----------------------------- */
 
-const abrirModalUsuario = (usuario = null) => {
+const abrirModalUsuario = async (usuario = null) => {
   usuarioSeleccionado.value = usuario
     ? { ...usuario }
     : { codusuario: null, nombre: "", tipo: "U", empresa_codempresa: 1 };
 
-  modalVisible.value = true;
+  // Mostrar Swal de verificación
+  Swal.fire({
+    title: "Verificando rutas activas...",
+    allowOutsideClick: false,
+    didOpen: () => {
+      Swal.showLoading();
+    }
+  });
+
+  try {
+    const activa = await validarAsignacionActiva(usuarioSeleccionado.value.codusuario);
+    console.log("activa -", activa);
+
+    Swal.close(); // cerrar el loading
+
+    if (activa) {
+      // Mostrar mensaje de advertencia
+      await Swal.fire({
+        icon: "warning",
+        title: "Asignación activa",
+        text: "Este conductor tiene asignaciones activas en un viaje y no se puede editar."
+      });
+      return; // Salimos sin abrir modal
+    }
+
+    // Si no está activa, abrimos el modal
+    modalVisible.value = true;
+
+  } catch (error) {
+    Swal.close();
+    console.error("Error validando asignación:", error);
+    await Swal.fire({
+      icon: "error",
+      title: "Error",
+      text: "No se pudo validar la asignación del conductor."
+    });
+  }
 };
+
+
 
 /* ----------------------------- ACTUALIZAR LISTA ----------------------------- */
 
@@ -316,32 +358,47 @@ const actualizarLista = (respuestaApi) => {
 /* ----------------------------- ELIMINAR ----------------------------- */
 
 const confirmarEliminar = async (usuario) => {
+  // Si no es conductor, eliminamos directo
   if (usuario.tipo !== "C") return eliminarDirecto(usuario);
 
+  // Mostrar Swal de verificación
   Swal.fire({
     title: "Verificando usuario...",
     allowOutsideClick: false,
     didOpen: () => Swal.showLoading(),
   });
 
-  const { data: verificar } = await axios.get(
-    `/api/verificar_usuario/${usuario.codusuario}`
-  );
+  try {
+    const { data: verificar } = await axios.get(
+      `/api/verificar_usuario/${usuario.codusuario}`
+    );
 
-  Swal.close();
+    Swal.close(); // Cerrar loading
 
-  if (verificar.success) {
+    if (verificar.success) {
+      await Swal.fire({
+        icon: "warning",
+        title: "No se puede eliminar",
+        text: "El usuario tiene rutas asignadas.",
+        confirmButtonText: "Aceptar",
+      });
+      return; // Salimos sin eliminar
+    }
+
+    // Si no tiene rutas asignadas, eliminamos
+    return eliminarDirecto(usuario);
+
+  } catch (error) {
+    Swal.close();
+    console.error("Error verificando usuario:", error);
     await Swal.fire({
-      icon: "warning",
-      title: "No se puede eliminar",
-      text: "El usuario tiene rutas asignadas.",
-      confirmButtonText: "Aceptar",
+      icon: "error",
+      title: "Error",
+      text: "No se pudo verificar al usuario.",
     });
-    return;
   }
-
-  return eliminarDirecto(usuario);
 };
+
 
 const eliminarDirecto = async (usuario) => {
   const result = await Swal.fire({
@@ -421,6 +478,30 @@ const cambiarPagina = (n) => {
   if (n < 1) return;
   if (n > totalPaginas.value) return;
   paginaActual.value = n;
+};
+
+const validarAsignacionActiva = async (usuarioId) => {
+  cargando.value = true;
+  error.value = null;
+
+  try {
+    const response = await axios.get(`/api/asignacion_activo/${usuarioId}`);
+    // Guardamos el valor activo
+    estaActiva.value = response.data.activo;
+    // Guardamos el mensaje
+    mensajeAsignacion.value = response.data.mensaje || "";
+
+    console.log(estaActiva.value )
+    return estaActiva.value;
+  } catch (err) {
+    console.error("Error validando asignación:", err);
+    error.value = "No se pudo validar la asignación";
+    estaActiva.value = false;
+    mensajeAsignacion.value = "";
+    return false;
+  } finally {
+    cargando.value = false;
+  }
 };
 
 /* ----------------------------- UTILIDADES ----------------------------- */

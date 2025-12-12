@@ -78,8 +78,8 @@ Route::put('actualizacion_error/{usuarioId}', [ActualizacionController::class, '
 Route::post('/logout/{id}', [MovilUsuarioController::class, 'logoutConductor']);
 Route::get('/obtenerrutas/{idRuta}', [MovilUsuarioController::class, 'obtenerSegmentos']);
 Route::post('/historicoViaje_save', [MovilUsuarioController::class, 'insertarViaje']);
-Route::put('/historicoViaje_update', [MovilUsuarioController::class, 'actualizarViaje']);
-
+Route::put('/historicoViaje_update', [MovilUsuarioController::class, 'actualizarViajePorAsignacion']);
+Route::put('/updatehistorico_estado', [MovilUsuarioController::class, 'actualizarEstadoPorAsignacion']);
 
 
 

@@ -29,7 +29,7 @@ class WialonController extends Controller
 
 
     if (isset($data['error'])) {
-        return response()->json(['success' => false, 'error' => '⚠️ Error desde Wialon.', 'details' => $data]);
+        return response()->json(['success' => false, 'error' => 'Error desde Wialon.', 'details' => $data]);
     }
 
     if (empty($data)) {

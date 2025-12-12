@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -10,10 +11,11 @@ class Usuario extends Authenticatable
 {
     use HasFactory, Notifiable;
 
-    protected $table = 'usuario'; // <- nombre correcto de la tabla
-    protected $primaryKey = 'codusuario'; // ⚠️ reemplaza por tu clave primaria real
-    public $incrementing = false; // si no es autoincremental
-    protected $keyType = 'string'; // o 'int' según el tipo
+    protected $table = 'usuario'; 
+    protected $primaryKey = 'codusuario'; 
+    public $incrementing = true; 
+   protected $keyType = 'int';
+    public $timestamps = false;
 
     protected $fillable = [
         'codusuario',
@@ -31,4 +33,15 @@ class Usuario extends Authenticatable
     {
         return $this->clave;
     }
+
+    public function empresa()
+    {
+        return $this->belongsTo(Empresa::class, 'empresa_codempresa', 'codempresa');
+    }
+
+     public function asignaciones(): HasMany
+    {
+        return $this->hasMany(Asignacion::class, 'usuario_codusuario', 'codusuario');
+    }
+
 }

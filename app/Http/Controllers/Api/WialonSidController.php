@@ -16,7 +16,7 @@ class WialonSidController extends Controller
             $cacheKey = 'wialon_sid';
             $cacheTime = 180; // 3 minutos
 
-            // ✅ 1️⃣ Si ya está cacheado el SID, lo devolvemos
+
             if (Cache::has($cacheKey)) {
                 return response()->json([
                     'success' => true,
@@ -25,21 +25,19 @@ class WialonSidController extends Controller
                 ]);
             }
 
-            // ✅ 2️⃣ Obtener nuevo SID desde la API de Wialon
             $url = "https://hst-api.wialon.com/wialon/ajax.html";
             $params = [
                 'svc' => 'token/login',
                 'params' => json_encode(['token' => $token]),
             ];
 
-            // ⚠️ Desactivar verificación SSL solo en desarrollo
+
             $response = Http::withOptions([
                 'verify' => false
             ])->asForm()->post($url, $params);
 
             $data = $response->json();
 
-            // ✅ 3️⃣ Verificar si la API devolvió el SID
             if (isset($data['eid'])) {
                 $sid = $data['eid'];
                 Cache::put($cacheKey, $sid, $cacheTime); // Guardar en cache

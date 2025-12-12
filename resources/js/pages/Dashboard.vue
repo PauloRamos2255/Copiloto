@@ -1,47 +1,22 @@
-<script setup lang="ts">
-import AppLayout from '@/layouts/AppLayout.vue';
-import { dashboard } from '@/routes';
-import { type BreadcrumbItem } from '@/types';
-import { Head } from '@inertiajs/vue3';
-import PlaceholderPattern from '../components/PlaceholderPattern.vue';
-
-const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'Dashboard',
-        href: dashboard().url,
-    },
-];
-</script>
-
 <template>
-    <Head title="Dashboard" />
+  <div class="min-h-screen bg-gray-100 font-sans">
 
-    <AppLayout :breadcrumbs="breadcrumbs">
-        <div
-            class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4"
-        >
-            <div class="grid auto-rows-min gap-4 md:grid-cols-3">
-                <div
-                    class="relative aspect-video overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border"
-                >
-                    <PlaceholderPattern />
-                </div>
-                <div
-                    class="relative aspect-video overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border"
-                >
-                    <PlaceholderPattern />
-                </div>
-                <div
-                    class="relative aspect-video overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border"
-                >
-                    <PlaceholderPattern />
-                </div>
-            </div>
-            <div
-                class="relative min-h-[100vh] flex-1 rounded-xl border border-sidebar-border/70 md:min-h-min dark:border-sidebar-border"
-            >
-                <PlaceholderPattern />
-            </div>
-        </div>
-    </AppLayout>
+    <!-- Header -->
+    <Header :nombreUsuario="nombreUsuario" />
+
+    <main class="p-4 md:p-6">
+      <div class="bg-white shadow-lg rounded-2xl p-6 border border-gray-200 text-center">
+        <i class="fas fa-tachometer-alt text-6xl text-blue-400 mb-4"></i>
+        <h1 class="text-3xl font-bold text-gray-800 mb-2">Dashboard en Desarrollo</h1>
+        <p class="text-gray-500">Aquí se mostrarán los indicadores y estadísticas cuando esté listo.</p>
+      </div>
+    </main>
+
+  </div>
 </template>
+
+<script setup>
+import Header from '@/pages/Header.vue';
+
+const nombreUsuario = 'Paulo Ramos';
+</script>

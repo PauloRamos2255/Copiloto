@@ -289,59 +289,62 @@ class MovilUsuarioController extends Controller
         return response()->json($segmentosTotales, 200);
     }
 
-    public function insertarViaje(Request $request)
-    {
-        try {
-            // Validación estricta
-            $request->validate([
-                'asignacion_codAsignacion' => 'required|integer',
-                'inicio' => 'required|date',
-                'estado' => 'required|string|max:1',
-            ]);
+   public function insertarViaje(Request $request)
+{
+    try {
+        // Validación estricta
+        $request->validate([
+            'asignacion_codAsignacion' => 'required|integer',
+            'inicio' => 'required|date',
+            'estado' => 'required|string|max:1',
+            'fin' => 'nullable|date', // Fecha fin opcional
+        ]);
 
-            // Crear registro usando create()
-            $historico = HistoricoViaje::create([
-                'asignacion_codAsignacion' => $request->asignacion_codAsignacion,
-                'inicio' => $request->inicio,
-                'estado' => $request->estado,
-            ]);
+        // Crear registro usando create()
+        $historico = HistoricoViaje::create([
+            'asignacion_codAsignacion' => $request->asignacion_codAsignacion,
+            'inicio' => $request->inicio,
+            'estado' => $request->estado,
+            'fin' => $request->fin ?? null, // Si no viene, se deja en null
+        ]);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Registro creado correctamente',
-                'data' => $historico
-            ], 201);
-        } catch (\Exception $e) {
+        return response()->json([
+            'success' => true,
+            'message' => 'Registro creado correctamente',
+            'data' => $historico
+        ], 201);
+    } catch (\Exception $e) {
 
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage()
-            ], 500);
-        }
+        return response()->json([
+            'success' => false,
+            'message' => $e->getMessage()
+        ], 500);
     }
+}
 
 
-    public function actualizarViajePorAsignacion(Request $request)
+
+    public function actualizarViajePorId(Request $request)
 {
     try {
         // Validar datos
         $request->validate([
-            'asignacion_codAsignacion' => 'required|integer',
+            'codhistorioViaje' => 'required|integer',
             'fin' => 'required|date',
             'estado' => 'required|string'
         ]);
 
-        // Buscar histórico por asignación
-        $historico = HistoricoViaje::where('asignacionCodAsignacion', $request->asignacion_codAsignacion)->first();
+        // Buscar histórico por id
+        $historico = HistoricoViaje::find($request->codhistorioViaje);
 
         if (!$historico) {
             return response()->json([
                 'success' => false,
-                'message' => 'Histórico no encontrado para la asignación: ' . $request->asignacion_codAsignacion
+                'message' => 'Histórico no encontrado para el id: ' . $request->codhistorioViaje
             ], 404);
         }
 
-        // Actualizar
+        // Actualizar fecha fin y estado
         $historico->update([
             'fin' => $request->fin,
             'estado' => $request->estado
@@ -363,41 +366,50 @@ class MovilUsuarioController extends Controller
 
 
 
-    public function actualizarEstadoPorAsignacion(Request $request)
-    {
-        try {
-            // Validar datos
-            $request->validate([
-                'asignacion_codAsignacion' => 'required|integer',
-                'estado' => 'required|string'
-            ]);
 
-            // Buscar histórico por asignación
-            $historico = HistoricoViaje::where('asignacion_codAsignacion', $request->asignacion_codAsignacion)->first();
+   public function actualizarEstadoPorViaje(Request $request)
+{
+    try {
+        // Validar datos
+        $request->validate([
+            'codhistorioViaje' => 'required|integer',
+            'estado' => 'required|string',
+            'fin' => 'nullable|date'
+        ]);
 
-            if (!$historico) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Histórico no encontrado para la asignación: ' . $request->asignacion_codAsignacion
-                ], 404);
-            }
+        // Buscar histórico por cod de viaje
+        $historico = HistoricoViaje::find($request->codhistorioViaje);
 
-            // Actualizar solo el estado
-            $historico->estado = $request->estado;
-            $historico->save();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Estado actualizado correctamente',
-                'data' => $historico
-            ], 200);
-        } catch (\Exception $e) {
+        if (!$historico) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage()
-            ], 500);
+                'message' => 'Histórico no encontrado para el viaje: ' . $request->codhistorioViaje
+            ], 404);
         }
+
+        // Actualizar estado
+        $historico->estado = $request->estado;
+        
+        // Actualizar fin solo si se envió en la request
+        if ($request->has('fin') && !empty($request->fin)) {
+            $historico->fin = $request->fin; // Cambiado a 'fin'
+        }
+        
+        $historico->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Estado actualizado correctamente',
+            'data' => $historico
+        ], 200);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error: ' . $e->getMessage()
+        ], 500);
     }
+}
+
 
 
 

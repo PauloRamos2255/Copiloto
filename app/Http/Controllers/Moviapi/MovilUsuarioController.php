@@ -4,12 +4,15 @@ namespace App\Http\Controllers\Moviapi;
 
 use App\Http\Controllers\Controller;
 use App\Models\Actualizacion;
+use App\Models\Evento;
 use App\Models\HistoricoViaje;
 use App\Models\Ruta;
 use App\Models\Usuario;
+use Dotenv\Exception\ValidationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Log;
 
 class MovilUsuarioController extends Controller
 {
@@ -129,15 +132,15 @@ class MovilUsuarioController extends Controller
             if (!isset($resultado[$rutaKey])) {
                 $resultado[$rutaKey] = [
                     'asignacion' => [
-                        'codasignacion' => (int)$row->codasignacion,
-                        'ruta_codruta' => (int)$row->rutaId,
-                        'usuario_codusuario' => (int)$row->usuario_codusuario,
+                        'codasignacion' => (int) $row->codasignacion,
+                        'ruta_codruta' => (int) $row->rutaId,
+                        'usuario_codusuario' => (int) $row->usuario_codusuario,
                         'ultimaActualizacion' => \Carbon\Carbon::parse($row->ultimaActualizacion)->toISOString()
                     ],
                     'ruta' => [
-                        'codruta' => (int)$row->codruta,
+                        'codruta' => (int) $row->codruta,
                         'nombre' => $row->rutaNombre,
-                        'limiteGeneral' => (int)$row->limiteGeneral,
+                        'limiteGeneral' => (int) $row->limiteGeneral,
                         'fechaCreacion' => \Carbon\Carbon::parse($row->fechaCreacion)->toISOString(),
                         'icono' => $row->icono,
                         'tipo' => $row->tipo
@@ -155,13 +158,13 @@ class MovilUsuarioController extends Controller
                 $bounds = $this->limpiarJsonArray($row->bounds);
 
                 $detalle = [
-                    'coddetalle' => (int)$row->iddetalleRuta,
-                    'ruta_codruta' => (int)$row->rutaId,
-                    'segmento_codsegmento' => (int)$row->segmento_codsegmento,
-                    'velocidadPermitida' => (int)$row->velocidadPermitida,
+                    'coddetalle' => (int) $row->iddetalleRuta,
+                    'ruta_codruta' => (int) $row->rutaId,
+                    'segmento_codsegmento' => (int) $row->segmento_codsegmento,
+                    'velocidadPermitida' => (int) $row->velocidadPermitida,
                     'mensaje' => $row->detalleMensaje ?? '',
                     'segmento' => $row->segmentoId ? [
-                        'codsegmento' => (int)$row->segmentoId,
+                        'codsegmento' => (int) $row->segmentoId,
                         'nombre' => $row->segmentoNombre,
                         'color' => $row->color,
                         'cordenadas' => $cordenadas,
@@ -174,7 +177,7 @@ class MovilUsuarioController extends Controller
                 // → Guardar segmentos sin repetidos
                 if ($row->segmentoId && !isset($resultado[$rutaKey]['segmentos'][$row->segmentoId])) {
                     $resultado[$rutaKey]['segmentos'][$row->segmentoId] = [
-                        'codsegmento' => (int)$row->segmentoId,
+                        'codsegmento' => (int) $row->segmentoId,
                         'nombre' => $row->segmentoNombre,
                         'color' => $row->color,
                         'cordenadas' => $cordenadas,
@@ -438,4 +441,67 @@ class MovilUsuarioController extends Controller
             'usuario_id' => $usuario->codusuario
         ]);
     }
+
+
+
+    public function EventoStore(Request $request)
+{
+    $request->validate([
+        'nombre' => 'required|string|max:10',
+        'inicio' => 'required|date',
+        'fin' => 'nullable|date|after_or_equal:inicio',
+        'tipo' => 'required|string|in:I,F,P|max:1',
+        'historicoViaje_codhistorioViaje' => 'required|exists:historicoViaje,codhistorioViaje',
+    ]);
+
+    $evento = Evento::create([
+        'nombre' => $request->nombre,
+        'inicio' => $request->inicio,
+        'fin' => $request->fin, // puede ser null
+        'tipo' => $request->tipo,
+        'historicoViaje_codhistorioViaje' => $request->historicoViaje_codhistorioViaje,
+    ]);
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Evento creado correctamente',
+        'data' => $evento
+    ], 201);
+}
+
+
+
+
+
+
+
+
+
+    public function EnvertoUpdate(Request $request, int $codevento)
+    {
+        $request->validate([
+            'nombre' => 'sometimes|string|max:10',
+            'inicio' => 'sometimes|date',
+            'fin' => 'nullable|date|after_or_equal:inicio',
+            'tipo' => 'sometimes|string|size:1'
+        ]);
+
+        // Buscar evento por ID
+        $evento = Evento::where('codevento', $codevento)->firstOrFail();
+
+        // Actualizar solo los campos enviados
+        $evento->update([
+            'nombre' => $request->nombre ?? $evento->nombre,
+            'inicio' => $request->inicio ?? $evento->inicio,
+            'fin' => $request->fin ?? $evento->fin,
+            'tipo' => $request->tipo ?? $evento->tipo,
+        ]);
+
+        return response()->json([
+            'mensaje' => 'Evento actualizado correctamente',
+            'evento' => $evento
+        ], 200);
+    }
+
+
 }

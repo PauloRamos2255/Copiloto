@@ -292,126 +292,126 @@ class MovilUsuarioController extends Controller
         return response()->json($segmentosTotales, 200);
     }
 
-   public function insertarViaje(Request $request)
-{
-    try {
-        // Validación estricta
-        $request->validate([
-            'asignacion_codAsignacion' => 'required|integer',
-            'inicio' => 'required|date',
-            'estado' => 'required|string|max:1',
-            'fin' => 'nullable|date', // Fecha fin opcional
-        ]);
+    public function insertarViaje(Request $request)
+    {
+        try {
+            // Validación estricta
+            $request->validate([
+                'asignacion_codAsignacion' => 'required|integer',
+                'inicio' => 'required|date',
+                'estado' => 'required|string|max:1',
+                'fin' => 'nullable|date', // Fecha fin opcional
+            ]);
 
-        // Crear registro usando create()
-        $historico = HistoricoViaje::create([
-            'asignacion_codAsignacion' => $request->asignacion_codAsignacion,
-            'inicio' => $request->inicio,
-            'estado' => $request->estado,
-            'fin' => $request->fin ?? null, // Si no viene, se deja en null
-        ]);
+            // Crear registro usando create()
+            $historico = HistoricoViaje::create([
+                'asignacion_codAsignacion' => $request->asignacion_codAsignacion,
+                'inicio' => $request->inicio,
+                'estado' => $request->estado,
+                'fin' => $request->fin ?? null, // Si no viene, se deja en null
+            ]);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Registro creado correctamente',
-            'data' => $historico
-        ], 201);
-    } catch (\Exception $e) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Registro creado correctamente',
+                'data' => $historico
+            ], 201);
+        } catch (\Exception $e) {
 
-        return response()->json([
-            'success' => false,
-            'message' => $e->getMessage()
-        ], 500);
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
     }
-}
 
 
 
     public function actualizarViajePorId(Request $request)
-{
-    try {
-        // Validar datos
-        $request->validate([
-            'codhistorioViaje' => 'required|integer',
-            'fin' => 'required|date',
-            'estado' => 'required|string'
-        ]);
+    {
+        try {
+            // Validar datos
+            $request->validate([
+                'codhistorioViaje' => 'required|integer',
+                'fin' => 'required|date',
+                'estado' => 'required|string'
+            ]);
 
-        // Buscar histórico por id
-        $historico = HistoricoViaje::find($request->codhistorioViaje);
+            // Buscar histórico por id
+            $historico = HistoricoViaje::find($request->codhistorioViaje);
 
-        if (!$historico) {
+            if (!$historico) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Histórico no encontrado para el id: ' . $request->codhistorioViaje
+                ], 404);
+            }
+
+            // Actualizar fecha fin y estado
+            $historico->update([
+                'fin' => $request->fin,
+                'estado' => $request->estado
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Histórico actualizado correctamente',
+                'data' => $historico
+            ], 200);
+
+        } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Histórico no encontrado para el id: ' . $request->codhistorioViaje
-            ], 404);
+                'message' => 'Error: ' . $e->getMessage()
+            ], 500);
         }
-
-        // Actualizar fecha fin y estado
-        $historico->update([
-            'fin' => $request->fin,
-            'estado' => $request->estado
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Histórico actualizado correctamente',
-            'data' => $historico
-        ], 200);
-
-    } catch (\Exception $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Error: ' . $e->getMessage()
-        ], 500);
     }
-}
 
 
 
 
-   public function actualizarEstadoPorViaje(Request $request)
-{
-    try {
-        // Validar datos
-        $request->validate([
-            'codhistorioViaje' => 'required|integer',
-            'estado' => 'required|string',
-            'fin' => 'nullable|date'
-        ]);
+    public function actualizarEstadoPorViaje(Request $request)
+    {
+        try {
+            // Validar datos
+            $request->validate([
+                'codhistorioViaje' => 'required|integer',
+                'estado' => 'required|string',
+                'fin' => 'nullable|date'
+            ]);
 
-        // Buscar histórico por cod de viaje
-        $historico = HistoricoViaje::find($request->codhistorioViaje);
+            // Buscar histórico por cod de viaje
+            $historico = HistoricoViaje::find($request->codhistorioViaje);
 
-        if (!$historico) {
+            if (!$historico) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Histórico no encontrado para el viaje: ' . $request->codhistorioViaje
+                ], 404);
+            }
+
+            // Actualizar estado
+            $historico->estado = $request->estado;
+
+            // Actualizar fin solo si se envió en la request
+            if ($request->has('fin') && !empty($request->fin)) {
+                $historico->fin = $request->fin; // Cambiado a 'fin'
+            }
+
+            $historico->save();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Estado actualizado correctamente',
+                'data' => $historico
+            ], 200);
+        } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Histórico no encontrado para el viaje: ' . $request->codhistorioViaje
-            ], 404);
+                'message' => 'Error: ' . $e->getMessage()
+            ], 500);
         }
-
-        // Actualizar estado
-        $historico->estado = $request->estado;
-        
-        // Actualizar fin solo si se envió en la request
-        if ($request->has('fin') && !empty($request->fin)) {
-            $historico->fin = $request->fin; // Cambiado a 'fin'
-        }
-        
-        $historico->save();
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Estado actualizado correctamente',
-            'data' => $historico
-        ], 200);
-    } catch (\Exception $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Error: ' . $e->getMessage()
-        ], 500);
     }
-}
 
 
 
@@ -444,64 +444,66 @@ class MovilUsuarioController extends Controller
 
 
 
-    public function EventoStore(Request $request)
-{
-    $request->validate([
-        'nombre' => 'required|string|max:10',
-        'inicio' => 'required|date',
-        'fin' => 'nullable|date|after_or_equal:inicio',
-        'tipo' => 'required|string|in:I,F,P|max:1',
-        'historicoViaje_codhistorioViaje' => 'required|exists:historicoViaje,codhistorioViaje',
-    ]);
+    public function insertarEvento(Request $request)
+    {
+        try {
+            // Validación estricta
+            $request->validate([
+                'nombre' => 'required|string|max:30',
+                'inicio' => 'required|date',
+                'tipo' => 'required|string|max:1',
+                'historicoViaje_codhistorioViaje' => 'required|integer',
+                'fin' => 'nullable|date', // Fecha fin opcional
+            ]);
 
-    $evento = Evento::create([
-        'nombre' => $request->nombre,
-        'inicio' => $request->inicio,
-        'fin' => $request->fin, // puede ser null
-        'tipo' => $request->tipo,
-        'historicoViaje_codhistorioViaje' => $request->historicoViaje_codhistorioViaje,
-    ]);
+            // Crear registro usando create()
+            $evento = Evento::create([
+                'nombre' => $request->nombre,
+                'inicio' => $request->inicio,
+                'tipo' => $request->tipo,
+                'historicoViaje_codhistorioViaje' => $request->historicoViaje_codhistorioViaje,
+                'fin' => $request->fin ?? null, // Si no viene, se deja en null
+            ]);
 
-    return response()->json([
-        'success' => true,
-        'message' => 'Evento creado correctamente',
-        'data' => $evento
-    ], 201);
-}
+            return response()->json([
+                'success' => true,
+                'message' => 'Evento creado correctamente',
+                'data' => $evento
+            ], 201);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
 
 
 
 
 
-
-
-
-
-    public function EnvertoUpdate(Request $request, int $codevento)
+    public function EventoUpdateFin(Request $request)
     {
         $request->validate([
-            'nombre' => 'sometimes|string|max:10',
-            'inicio' => 'sometimes|date',
-            'fin' => 'nullable|date|after_or_equal:inicio',
-            'tipo' => 'sometimes|string|size:1'
+            'codevento' => 'required|integer|exists:evento,codevento',
+            'fin' => 'required|date'
         ]);
 
-        // Buscar evento por ID
-        $evento = Evento::where('codevento', $codevento)->firstOrFail();
+        $evento = Evento::findOrFail($request->codevento);
 
-        // Actualizar solo los campos enviados
         $evento->update([
-            'nombre' => $request->nombre ?? $evento->nombre,
-            'inicio' => $request->inicio ?? $evento->inicio,
-            'fin' => $request->fin ?? $evento->fin,
-            'tipo' => $request->tipo ?? $evento->tipo,
+            'fin' => $request->fin
         ]);
 
         return response()->json([
-            'mensaje' => 'Evento actualizado correctamente',
-            'evento' => $evento
-        ], 200);
+            'success' => true,
+            'message' => 'Fecha fin actualizada correctamente',
+            'data' => $evento
+        ]);
     }
+
+
 
 
 }

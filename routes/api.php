@@ -79,8 +79,8 @@ Route::post('/logout/{id}', [MovilUsuarioController::class, 'logoutConductor']);
 Route::get('/obtenerrutas/{idRuta}', [MovilUsuarioController::class, 'obtenerSegmentos']);
 Route::post('/historicoViaje_save', [MovilUsuarioController::class, 'insertarViaje']);
 Route::put('/historicoViaje_update', [MovilUsuarioController::class, 'actualizarViaje']);
-Route::post('/evento_save', [MovilUsuarioController::class, 'EventoStore']);
-Route::put('/evento_update', [MovilUsuarioController::class, 'EnvertoUpdate']);
+Route::post('/evento_save', [MovilUsuarioController::class, 'insertarEvento']);
+Route::put('/evento_update', [MovilUsuarioController::class, 'EventoUpdateFin']);
 
 
 

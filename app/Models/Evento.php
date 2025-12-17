@@ -12,6 +12,7 @@ class Evento extends Model
     public $timestamps = false;
 
     protected $fillable = [
+        'codevento',
         'nombre',
         'inicio',
         'fin',

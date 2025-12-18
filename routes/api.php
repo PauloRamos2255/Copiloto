@@ -29,6 +29,7 @@ Route::get('/verificar_usuario/{id}', [UsuarioController::class, 'verificarUsuar
 Route::post('/usuarios', [UsuarioController::class, 'store']);
 Route::put('/usuarios/{id}', [UsuarioController::class, 'update']);
 Route::delete('/usuarios/{id}', [UsuarioController::class, 'destroy']);
+Route::get( 'actualizacion/pendiente/{codusuario}',[UsuarioController::class, 'tieneActualizacionPendiente']);
 Route::get('/segmentos', [SegmentoController::class, 'index']);
 Route::get('/segmentos/{id}', [SegmentoController::class, 'show']);
 Route::put('/segmentos/{id}', [SegmentoController::class, 'update']);        
@@ -81,6 +82,7 @@ Route::post('/historicoViaje_save', [MovilUsuarioController::class, 'insertarVia
 Route::put('/historicoViaje_update', [MovilUsuarioController::class, 'actualizarEstadoPorViaje']);
 Route::post('/evento_save', [MovilUsuarioController::class, 'insertarEvento']);
 Route::put('/evento_update', [MovilUsuarioController::class, 'EventoUpdateFin']);
+
 
 
 

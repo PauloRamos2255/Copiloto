@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Log;
+use Carbon\Carbon;
 
 class MovilUsuarioController extends Controller
 {
@@ -358,7 +359,6 @@ class MovilUsuarioController extends Controller
                 'message' => 'Histórico actualizado correctamente',
                 'data' => $historico
             ], 200);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -416,14 +416,16 @@ class MovilUsuarioController extends Controller
 
 
 
+
+
     public function validarUsuario(Request $request)
     {
         $request->validate([
             'nombre' => 'required|string',
             'usuario_id' => 'required|integer',
+            'ultimoIngreso_cliente' => 'required|date',
         ]);
 
-        // Buscar usuario por nombre y ID
         $usuario = Usuario::where('codusuario', $request->usuario_id)
             ->where('nombre', $request->nombre)
             ->first();
@@ -431,16 +433,29 @@ class MovilUsuarioController extends Controller
         if (!$usuario) {
             return response()->json([
                 'success' => false,
-                'mensaje' => 'Usuario no encontrado o datos no coinciden'
-            ], 404);
+                'mensaje' => 'Usuario no encontrado o datos no coinciden',
+                'usuario_id' => null
+            ]);
         }
 
+        // Convertir fechas a la misma zona horaria
+        $ultimoCliente = Carbon::parse($request->ultimoIngreso_cliente)->setTimezone('America/Lima');
+        $ultimoServidor = Carbon::parse($usuario->ultimoIngreso)->setTimezone('America/Lima');
+        $fechasCoinciden = $ultimoCliente->diffInSeconds($ultimoServidor) <= 1;
+
+        // Validar las 3 condiciones
+       $valido = $usuario->codusuario == $request->usuario_id &&
+          $usuario->nombre === $request->nombre &&
+          $fechasCoinciden;
+
         return response()->json([
-            'success' => true,
-            'mensaje' => 'Datos del usuario correctos',
-            'usuario_id' => $usuario->codusuario
+            'success' => $valido,
+            'mensaje' => $valido ? 'Datos del usuario correctos' : 'Datos no válidos o desactualizados',
+            'usuario_id' => $valido ? $usuario->codusuario : null
         ]);
     }
+
+
 
 
 
@@ -470,7 +485,6 @@ class MovilUsuarioController extends Controller
                 'message' => 'Evento creado correctamente',
                 'data' => $evento
             ], 201);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -502,8 +516,4 @@ class MovilUsuarioController extends Controller
             'data' => $evento
         ]);
     }
-
-
-
-
 }

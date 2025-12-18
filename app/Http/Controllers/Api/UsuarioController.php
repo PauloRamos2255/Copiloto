@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Actualizacion;
 use App\Models\Asignacion;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -12,6 +13,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Redis;
 
 class UsuarioController extends Controller
 {
@@ -280,4 +283,21 @@ class UsuarioController extends Controller
 
         return redirect()->route('login');
     }
+
+
+    
+
+public function tieneActualizacionPendiente(int $codusuario)
+{
+    // Versión optimizada sin cache
+    $sesionActiva = Actualizacion::where('usuario_codusuario', $codusuario)
+        ->where('estado', 'I')
+        ->exists();
+    
+    return response()->json([
+        'sesion_activa' => $sesionActiva,
+        'estado' => $sesionActiva ? 'I' : 'F',
+        'timestamp' => now()->toISOString()
+    ]);
+}
 }

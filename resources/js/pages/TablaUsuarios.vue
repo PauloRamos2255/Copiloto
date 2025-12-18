@@ -1,6 +1,6 @@
 <template>
-  <Loader v-if="loading"/>
-  <div v-else  class="min-h-screen bg-gray-100 font-sans">
+  <Loader v-if="loading" />
+  <div v-else class="min-h-screen bg-gray-100 font-sans">
 
     <!-- Header -->
     <Header :nombreUsuario="nombreUsuario" />
@@ -72,7 +72,7 @@
 
 
       <!-- Tabla -->
-      <div  class="bg-white shadow-lg rounded-2xl overflow-hidden border border-gray-200">
+      <div class="bg-white shadow-lg rounded-2xl overflow-hidden border border-gray-200">
         <div class="overflow-x-auto">
           <table class="min-w-full text-sm text-gray-800">
             <thead
@@ -131,16 +131,29 @@
                 </td>
 
                 <td class="px-6 py-4 text-center space-x-2">
+                  <!-- Editar -->
                   <button class="p-2 rounded-full bg-yellow-50 text-yellow-600 hover:bg-yellow-100 transition-colors"
                     @click="abrirModalUsuario(usuario)" title="Editar usuario">
                     <i class="fas fa-edit"></i>
                   </button>
 
+                  <!-- Eliminar -->
                   <button class="p-2 rounded-full bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
                     @click="confirmarEliminar(usuario)" title="Eliminar usuario">
                     <i class="fas fa-trash"></i>
                   </button>
+
+                  <!-- Cerrar sesión -->
+                  <button v-if="usuario.tipo === 'C'" class="p-2 rounded-full transition-colors" :class="usuario.estado === 'I'
+                    ? 'bg-red-50 text-red-600 hover:bg-red-100'
+                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'" :disabled="usuario.estado !== 'I'" :title="usuario.estado === 'I'
+      ? 'Cerrar sesión'
+      : 'El usuario no tiene sesión activa'" @click="cerrarSesion(usuario)">
+                    <i class="fas fa-sign-out-alt"></i>
+                  </button>
+
                 </td>
+
               </tr>
 
               <tr v-if="usuariosFiltrados.length === 0">
@@ -197,11 +210,8 @@ import ModalUsuario from "@/components/ModalUsuario.vue";
 import axios from "axios";
 import Swal from "sweetalert2";
 
-const randomWidth = () => `${Math.floor(Math.random() * 12 + 20)}ch`;
-const randomWidthSmall = () => `${Math.floor(Math.random() * 8 + 12)}ch`;
-
-const loading = ref(true)
-
+// Removí las funciones no utilizadas
+const loading = ref(true);
 const nombreUsuario = "Paulo Ramos";
 const usuarios = ref([]);
 const empresas = ref([]);
@@ -217,15 +227,10 @@ const registrosPorPagina = 10;
 const modalVisible = ref(false);
 const usuarioSeleccionado = ref(null);
 
-const estaActiva = ref(false);
-const mensajeAsignacion = ref("");
-const error = ref(null);
-
 /* ----------------------------- CACHÉ CON SESSIONSTORAGE ----------------------------- */
 
 const CACHE_KEY = "usuarios_cache";
 
-// Guardar cache hasta que se cierre el navegador
 const guardarCacheUsuarios = (lista) => {
   const payload = {
     usuarios: lista,
@@ -234,13 +239,13 @@ const guardarCacheUsuarios = (lista) => {
   sessionStorage.setItem(CACHE_KEY, JSON.stringify(payload));
 };
 
-// Obtener cache (solo dura mientras la pestaña esté abierta)
 const obtenerCacheUsuarios = () => {
   const raw = sessionStorage.getItem(CACHE_KEY);
   if (!raw) return null;
 
   try {
     const data = JSON.parse(raw);
+    // Opcional: podrías añadir una validación de tiempo de caché aquí
     return data.usuarios || null;
   } catch {
     return null;
@@ -253,6 +258,8 @@ const cargarUsuariosConCache = async () => {
   if (cache) {
     usuarios.value = cache;
     cargando.value = false;
+    // Verificar sesiones de usuarios en caché
+    await Promise.all(cache.map(usuario => verificarSesion(usuario)));
     return;
   }
 
@@ -264,12 +271,29 @@ const cargarUsuariosConCache = async () => {
 const cargarUsuarios = async () => {
   try {
     const { data } = await axios.get("/api/usuarios");
-    usuarios.value = data;
 
-    // Guardar en sessionStorage
-    guardarCacheUsuarios(data);
+    // Inicializar usuarios con estado por defecto
+    usuarios.value = data.map(u => ({
+      ...u,
+      estado: "F", // valor por defecto
+      sesion_activa: false
+    }));
+
+    cargando.value = false;
+
+    // Verificar sesión para cada usuario
+    await Promise.all(
+      usuarios.value
+        .filter(usuario => usuario.tipo === 'C')
+        .map(usuario => verificarSesion(usuario))
+    );
+
+
+    guardarCacheUsuarios(usuarios.value);
+
   } catch (error) {
     console.error("Error al cargar usuarios:", error);
+    // Opcional: mostrar mensaje de error al usuario
   } finally {
     cargando.value = false;
   }
@@ -278,59 +302,68 @@ const cargarUsuarios = async () => {
 const cargarEmpresas = async () => {
   try {
     const { data } = await axios.get("/api/empresas");
-    empresas.value = data.empresas;
+    empresas.value = data.empresas || [];
   } catch (error) {
     console.error("Error al cargar empresas:", error);
   }
 };
 
-/* ----------------------------- MODAL ----------------------------- */
+/* ----------------------------- VALIDACIÓN Y MODAL ----------------------------- */
 
-const abrirModalUsuario = async (usuario = null) => {
-  usuarioSeleccionado.value = usuario
-    ? { ...usuario }
-    : { codusuario: null, nombre: "", tipo: "U", empresa_codempresa: 1 };
-
-  // Mostrar Swal de verificación
-  Swal.fire({
-    title: "Verificando rutas activas...",
-    allowOutsideClick: false,
-    didOpen: () => {
-      Swal.showLoading();
-    }
-  });
+const validarAsignacionActiva = async (usuarioId) => {
+  if (!usuarioId) return false; // Si es usuario nuevo
 
   try {
-    const activa = await validarAsignacionActiva(usuarioSeleccionado.value.codusuario);
-    console.log("activa -", activa);
-
-    Swal.close(); // cerrar el loading
-
-    if (activa) {
-      // Mostrar mensaje de advertencia
-      await Swal.fire({
-        icon: "warning",
-        title: "Asignación activa",
-        text: "Este conductor tiene asignaciones activas en un viaje y no se puede editar."
-      });
-      return; // Salimos sin abrir modal
-    }
-
-    // Si no está activa, abrimos el modal
-    modalVisible.value = true;
-
-  } catch (error) {
-    Swal.close();
-    console.error("Error validando asignación:", error);
-    await Swal.fire({
-      icon: "error",
-      title: "Error",
-      text: "No se pudo validar la asignación del conductor."
-    });
+    const response = await axios.get(`/api/asignacion_activo/${usuarioId}`);
+    return response.data.activo || false;
+  } catch (err) {
+    console.error("Error validando asignación:", err);
+    return false;
   }
 };
 
+const abrirModalUsuario = async (usuario = null) => {
+  // Preparar usuario para el modal
+  usuarioSeleccionado.value = usuario
+    ? { ...usuario }
+    : {
+      codusuario: null,
+      nombre: "",
+      tipo: "U",
+      empresa_codempresa: empresas.value[0]?.codempresa || 1
+    };
 
+  // Si es usuario existente y es conductor, validar asignación
+  if (usuario && usuario.tipo === "C") {
+    Swal.fire({
+      title: "Verificando asignaciones activas...",
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading(),
+    });
+
+    try {
+      const activa = await validarAsignacionActiva(usuario.codusuario);
+      Swal.close();
+
+      if (activa) {
+        await Swal.fire({
+          icon: "warning",
+          title: "Asignación activa",
+          text: "Este conductor tiene asignaciones activas y no se puede editar.",
+          confirmButtonText: "Entendido"
+        });
+        return; // No abrir modal
+      }
+    } catch (error) {
+      Swal.close();
+      console.error("Error en validación:", error);
+      // Continuar con la apertura del modal aunque falle la validación
+    }
+  }
+
+  // Si pasa todas las validaciones o no es conductor, abrir modal
+  modalVisible.value = true;
+};
 
 /* ----------------------------- ACTUALIZAR LISTA ----------------------------- */
 
@@ -338,7 +371,9 @@ const actualizarLista = (respuestaApi) => {
   const usuario = {
     ...respuestaApi.usuario,
     codusuario: respuestaApi.usuario.codusuario,
-    empresa_nombre: respuestaApi.empresa_nombre ?? "Sin empresa",
+    empresa_nombre: respuestaApi.empresa_nombre || "Sin empresa",
+    estado: "F", // Por defecto
+    sesion_activa: false
   };
 
   const index = usuarios.value.findIndex(
@@ -347,21 +382,24 @@ const actualizarLista = (respuestaApi) => {
 
   if (index !== -1) {
     usuarios.value[index] = { ...usuario };
+    // Verificar estado de sesión después de actualizar
+    verificarSesion(usuarios.value[index]);
   } else {
     usuarios.value.push(usuario);
   }
 
-  // actualizar sessionStorage
+  // Actualizar caché
   guardarCacheUsuarios(usuarios.value);
 };
 
 /* ----------------------------- ELIMINAR ----------------------------- */
 
 const confirmarEliminar = async (usuario) => {
-  // Si no es conductor, eliminamos directo
-  if (usuario.tipo !== "C") return eliminarDirecto(usuario);
+  // Si no es conductor, eliminar directamente
+  if (usuario.tipo !== "C") {
+    return eliminarDirecto(usuario);
+  }
 
-  // Mostrar Swal de verificación
   Swal.fire({
     title: "Verificando usuario...",
     allowOutsideClick: false,
@@ -373,7 +411,7 @@ const confirmarEliminar = async (usuario) => {
       `/api/verificar_usuario/${usuario.codusuario}`
     );
 
-    Swal.close(); // Cerrar loading
+    Swal.close();
 
     if (verificar.success) {
       await Swal.fire({
@@ -382,11 +420,11 @@ const confirmarEliminar = async (usuario) => {
         text: "El usuario tiene rutas asignadas.",
         confirmButtonText: "Aceptar",
       });
-      return; // Salimos sin eliminar
+      return;
     }
 
-    // Si no tiene rutas asignadas, eliminamos
-    return eliminarDirecto(usuario);
+    // Si no tiene rutas, proceder con eliminación
+    eliminarDirecto(usuario);
 
   } catch (error) {
     Swal.close();
@@ -398,7 +436,6 @@ const confirmarEliminar = async (usuario) => {
     });
   }
 };
-
 
 const eliminarDirecto = async (usuario) => {
   const result = await Swal.fire({
@@ -415,14 +452,14 @@ const eliminarDirecto = async (usuario) => {
   if (!result.isConfirmed) return;
 
   try {
-    await axios.delete(
-      `/api/usuarios/${usuario.codusuario}`
-    );
+    await axios.delete(`/api/usuarios/${usuario.codusuario}`);
 
+    // Eliminar de la lista local
     usuarios.value = usuarios.value.filter(
       u => u.codusuario !== usuario.codusuario
     );
 
+    // Actualizar caché
     guardarCacheUsuarios(usuarios.value);
 
     Swal.fire({
@@ -435,7 +472,6 @@ const eliminarDirecto = async (usuario) => {
 
   } catch (error) {
     console.error(error);
-
     Swal.fire({
       title: "Error",
       text: "No se pudo eliminar el usuario.",
@@ -452,12 +488,12 @@ const usuariosFiltrados = computed(() => {
   const empresa = filtroEmpresa.value;
 
   return usuarios.value.filter(u => {
-    const nombre = (u.nombre ?? "").toLowerCase();
-    const empresaUsuario = String(u.empresa_codempresa ?? "");
+    const nombre = (u.nombre || "").toLowerCase();
+    const empresaUsuario = String(u.empresa_codempresa || "");
 
-    const coincideNombre = buscar === "" ? true : nombre.includes(buscar);
-    const coincideTipo = tipo === "" ? true : u.tipo === tipo;
-    const coincideEmpresa = empresa === "" ? true : empresaUsuario === String(empresa);
+    const coincideNombre = buscar === "" || nombre.includes(buscar);
+    const coincideTipo = tipo === "" || u.tipo === tipo;
+    const coincideEmpresa = empresa === "" || empresaUsuario === String(empresa);
 
     return coincideNombre && coincideTipo && coincideEmpresa;
   });
@@ -466,7 +502,7 @@ const usuariosFiltrados = computed(() => {
 /* ----------------------------- PAGINACIÓN ----------------------------- */
 
 const totalPaginas = computed(() =>
-  Math.ceil(usuariosFiltrados.value.length / registrosPorPagina)
+  Math.max(1, Math.ceil(usuariosFiltrados.value.length / registrosPorPagina))
 );
 
 const usuariosPaginados = computed(() => {
@@ -475,55 +511,118 @@ const usuariosPaginados = computed(() => {
 });
 
 const cambiarPagina = (n) => {
-  if (n < 1) return;
-  if (n > totalPaginas.value) return;
+  if (n < 1 || n > totalPaginas.value) return;
   paginaActual.value = n;
 };
 
-const validarAsignacionActiva = async (usuarioId) => {
-  cargando.value = true;
-  error.value = null;
+/* ----------------------------- SESIONES ----------------------------- */
+
+const verificarSesion = async (usuario) => {
+  if (!usuario?.codusuario) return;
 
   try {
-    const response = await axios.get(`/api/asignacion_activo/${usuarioId}`);
-    // Guardamos el valor activo
-    estaActiva.value = response.data.activo;
-    // Guardamos el mensaje
-    mensajeAsignacion.value = response.data.mensaje || "";
+    const { data } = await axios.get(
+      `/api/actualizacion/pendiente/${usuario.codusuario}`
+    );
 
-    console.log(estaActiva.value )
-    return estaActiva.value;
-  } catch (err) {
-    console.error("Error validando asignación:", err);
-    error.value = "No se pudo validar la asignación";
-    estaActiva.value = false;
-    mensajeAsignacion.value = "";
-    return false;
-  } finally {
-    cargando.value = false;
+    usuario.sesion_activa = data.sesion_activa || false;
+    usuario.estado = data.estado || "F";
+
+  } catch (error) {
+    console.error("Error verificando sesión:", error);
+    usuario.sesion_activa = false;
+    usuario.estado = "F";
   }
 };
+
+const cerrarSesion = async (usuario) => {
+  if (usuario.estado !== "I") return;
+
+  const confirm = await Swal.fire({
+    title: "Cerrar sesión",
+    text: `¿Deseas cerrar la sesión de ${usuario.nombre}?`,
+    icon: "warning",
+    showCancelButton: true,
+    confirmButtonText: "Sí, cerrar",
+    cancelButtonText: "Cancelar",
+  });
+
+  if (!confirm.isConfirmed) return;
+
+  Swal.fire({
+    title: "Cerrando sesión...",
+    text: "Por favor espera",
+    allowOutsideClick: false,
+    allowEscapeKey: false,
+    didOpen: () => {
+      Swal.showLoading();
+    }
+  });
+
+  try {
+    await axios.post(`/api/logout/${usuario.codusuario}`);
+
+    // Actualizar estado local
+    usuario.estado = "F";
+    usuario.sesion_activa = false;
+
+    // Actualizar caché
+    guardarCacheUsuarios(usuarios.value);
+
+    Swal.fire({
+      icon: "success",
+      title: "Sesión cerrada",
+      timer: 1200,
+      showConfirmButton: false,
+    });
+
+  } catch (error) {
+    console.error("Error cerrando sesión:", error);
+
+    Swal.fire({
+      icon: "error",
+      title: "Error",
+      text: "No se pudo cerrar la sesión",
+    });
+  }
+};
+
 
 /* ----------------------------- UTILIDADES ----------------------------- */
 
 const tipoBadge = (tipo) => {
-  if (tipo === "A") return "px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold";
-  if (tipo === "U") return "px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold";
-  if (tipo === "C") return "px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold";
-  return "";
+  const clases = {
+    "A": "px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold",
+    "U": "px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold",
+    "C": "px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold"
+  };
+  return clases[tipo] || "";
 };
 
 const mostrarTipo = (tipo) => {
-  if (tipo === "A") return "Administrador";
-  if (tipo === "U") return "Usuario";
-  if (tipo === "C") return "Conductor";
-  return "";
+  const tipos = {
+    "A": "Administrador",
+    "U": "Usuario",
+    "C": "Conductor"
+  };
+  return tipos[tipo] || "Desconocido";
 };
 
+const obtenerNombreEmpresa = (codempresa) => {
+  const empresa = empresas.value.find(e => e.codempresa === codempresa);
+  return empresa ? empresa.nombre : "Sin empresa";
+};
+
+// Observador para resetear página cuando cambian los filtros
 watch(usuariosFiltrados, () => {
   if (paginaActual.value > totalPaginas.value) {
     paginaActual.value = 1;
   }
+});
+
+// Observador para resetear filtros
+watch([filtroNombre, filtroTipo, filtroEmpresa], () => {
+  paginaActual.value = 1;
 });
 
 /* ----------------------------- MOUNT ----------------------------- */
@@ -531,14 +630,15 @@ watch(usuariosFiltrados, () => {
 onMounted(async () => {
   loading.value = true;
 
-  await Promise.all([
-    cargarUsuariosConCache(),
-    cargarEmpresas()
-  ]);
-
-  loading.value = false;
+  try {
+    await Promise.all([
+      cargarUsuariosConCache(),
+      cargarEmpresas()
+    ]);
+  } catch (error) {
+    console.error("Error inicializando:", error);
+  } finally {
+    loading.value = false;
+  }
 });
-
 </script>
-
-

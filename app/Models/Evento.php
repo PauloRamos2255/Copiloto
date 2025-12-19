@@ -17,6 +17,7 @@ class Evento extends Model
         'inicio',
         'fin',
         'tipo',
+        'detalle',
         'historicoViaje_codhistorioViaje'
     ];
 

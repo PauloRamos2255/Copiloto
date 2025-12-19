@@ -444,9 +444,9 @@ class MovilUsuarioController extends Controller
         $fechasCoinciden = $ultimoCliente->diffInSeconds($ultimoServidor) <= 1;
 
         // Validar las 3 condiciones
-       $valido = $usuario->codusuario == $request->usuario_id &&
-          $usuario->nombre === $request->nombre &&
-          $fechasCoinciden;
+        $valido = $usuario->codusuario == $request->usuario_id &&
+            $usuario->nombre === $request->nombre &&
+            $fechasCoinciden;
 
         return response()->json([
             'success' => $valido,
@@ -468,7 +468,8 @@ class MovilUsuarioController extends Controller
                 'inicio' => 'required|date',
                 'tipo' => 'required|string|max:1',
                 'historicoViaje_codhistorioViaje' => 'required|integer',
-                'fin' => 'nullable|date', // Fecha fin opcional
+                'fin' => 'nullable|date',
+                'detalle' => 'nullable|string|max:500', // AGREGAR ESTO
             ]);
 
             // Crear registro usando create()
@@ -477,7 +478,8 @@ class MovilUsuarioController extends Controller
                 'inicio' => $request->inicio,
                 'tipo' => $request->tipo,
                 'historicoViaje_codhistorioViaje' => $request->historicoViaje_codhistorioViaje,
-                'fin' => $request->fin ?? null, // Si no viene, se deja en null
+                'fin' => $request->fin ?? null,
+                'detalle' => $request->detalle ?? null, // AGREGAR ESTO
             ]);
 
             return response()->json([

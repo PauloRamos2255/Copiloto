@@ -210,6 +210,7 @@ class AsignacionController extends Controller
     }
 
 
+
     public function editarAsignaciones(Request $request)
     {
         $usuarioId = $request->input('usuario');
@@ -219,33 +220,49 @@ class AsignacionController extends Controller
             return response()->json(['error' => 'Datos de entrada inválidos.'], 422);
         }
 
-        try {
-            Asignacion::where('usuario_codusuario', $usuarioId)->delete();
+        DB::beginTransaction();
 
-            $asignacionesAInsertar = [];
+        try {
             $fechaActual = now();
 
+            // Rutas ya asignadas al usuario
+            $rutasActuales = Asignacion::where('usuario_codusuario', $usuarioId)
+                ->pluck('ruta_codruta')
+                ->toArray();
+
             foreach ($nuevasRutas as $rutaId) {
-                $asignacionesAInsertar[] = [
-                    'usuario_codusuario' => $usuarioId,
-                    'ruta_codruta' => $rutaId,
-                    'ultimaActualizacion' => $fechaActual,
-                    'created_at' => $fechaActual,
-                    'updated_at' => $fechaActual,
-                ];
+
+                if (in_array($rutaId, $rutasActuales)) {
+                    // SOLO actualizar fecha
+                    Asignacion::where('usuario_codusuario', $usuarioId)
+                        ->where('ruta_codruta', $rutaId)
+                        ->update([
+                            'ultimaActualizacion' => $fechaActual
+                        ]);
+                } else {
+                    // Insertar nueva asignación
+                    Asignacion::create([
+                        'usuario_codusuario' => $usuarioId,
+                        'ruta_codruta' => $rutaId,
+                        'ultimaActualizacion' => $fechaActual,
+                    ]);
+                }
             }
 
-            if (!empty($asignacionesAInsertar)) {
-                Asignacion::insert($asignacionesAInsertar);
-            }
+            DB::commit();
 
             return response()->json([
-                'message' => 'Asignaciones editadas y reemplazadas correctamente.',
-            ]);
-        } catch (\Exception $e) {
-            return response()->json(['error' => 'Ocurrió un error al procesar las asignaciones: ' . $e->getMessage()], 500);
+                'message' => 'Asignaciones actualizadas correctamente'
+            ], 200);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'error' => 'Error al actualizar asignaciones: ' . $e->getMessage()
+            ], 500);
         }
     }
+
 
 
     public function eliminarAsignacionesUsuario($usuarioId)
@@ -264,25 +281,23 @@ class AsignacionController extends Controller
 
 
     public function validarAsignacionActivaPorUsuario($usuarioId)
-{
-    $existe = Historicoviaje::whereHas('asignacion', function($query) use ($usuarioId) {
-        $query->where('usuario_codusuario', $usuarioId);
-    })
-    ->where('estado', 'I')
-    ->exists();
+    {
+        $existe = Historicoviaje::whereHas('asignacion', function ($query) use ($usuarioId) {
+            $query->where('usuario_codusuario', $usuarioId);
+        })
+            ->where('estado', 'I')
+            ->exists();
 
-    if ($existe) {
-        return [
-            'activo' => true,
-            'mensaje' => 'El usuario tiene asignaciones activas en un viaje.'
-        ];
-    } else {
-        return [
-            'activo' => false,
-            'mensaje' => 'El usuario no tiene viajes activos.'
-        ];
+        if ($existe) {
+            return [
+                'activo' => true,
+                'mensaje' => 'El usuario tiene asignaciones activas en un viaje.'
+            ];
+        } else {
+            return [
+                'activo' => false,
+                'mensaje' => 'El usuario no tiene viajes activos.'
+            ];
+        }
     }
-}
-
-
 }

@@ -55,7 +55,6 @@ class ActualizacionController extends Controller
         $request->validate([
             'codactualizacion' => 'required|integer',
             'estado' => 'required|in:A,C,E',
-            'fin' => 'required|numeric',
             'usuario_codusuario' => 'required|integer'
         ]);
 

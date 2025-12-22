@@ -369,8 +369,23 @@ const cambiarPagina = n => {
 watch(filtroBusqueda, () => paginaActual.value = 1);
 
 const abrirModalAsignarRuta = async (conductor = null) => {
+  console.log('🔍 [DEBUG] Función llamada');
+  console.log('🔍 [DEBUG] Conductor recibido:', conductor);
+  console.log('🔍 [DEBUG] Tiene codusuario?:', conductor?.codusuario);
+  
+  // Guardar conductor si existe
   conductorSeleccionado.value = conductor ? { ...conductor } : null;
-
+  
+  // CASO 1: CREAR (sin conductor)
+  if (!conductor || !conductor.codusuario) {
+    console.log('✅ Modo CREAR: Abriendo modal directamente');
+    modalVisible.value = true;
+    return;
+  }
+  
+  // CASO 2: MODIFICAR (con conductor)
+  console.log('✅ Modo MODIFICAR: Verificando rutas activas para:', conductor.codusuario);
+  
   // Mostrar Swal de "verificando rutas activas"
   Swal.fire({
     title: "Verificando rutas activas...",

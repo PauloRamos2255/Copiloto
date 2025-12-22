@@ -142,11 +142,14 @@ class MovilUsuarioController extends Controller
             ->first();
 
         // Y UN SOLO evento para TODAS las asignaciones
+        $ultimoEventoGeneral = null;
+    if ($ultimoHistoricoGeneral) {
         $ultimoEventoGeneral = DB::table('evento as e')
             ->join('historicoViaje as hv', 'e.historicoViaje_codhistorioViaje', '=', 'hv.codhistorioViaje')
             ->join('asignacion as a', 'hv.asignacion_codAsignacion', '=', 'a.codasignacion')
             ->where('a.usuario_codusuario', $codusuario)
             ->whereNull('e.fin')
+            ->where('hv.codhistorioViaje', $ultimoHistoricoGeneral->codhistorioViaje) // Solo eventos de este histórico
             ->orderBy('e.inicio', 'desc')
             ->select(
                 'e.codevento',
@@ -157,8 +160,7 @@ class MovilUsuarioController extends Controller
                 'hv.codhistorioViaje'
             )
             ->first();
-
-        $resultado = [];
+    }
 
         foreach ($rutas as $codruta => $rows) {
             $firstRow = $rows->first();

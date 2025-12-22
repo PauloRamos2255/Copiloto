@@ -96,6 +96,7 @@ class MovilUsuarioController extends Controller
 
     public function obtenerRutasConductor($codusuario)
     {
+        // Primero obtenemos las rutas normalmente
         $rutas = DB::table('asignacion as a')
             ->join('ruta as r', 'a.ruta_codruta', '=', 'r.codruta')
             ->leftJoin('detalleRuta as d', 'r.codruta', '=', 'd.ruta_codruta')
@@ -122,77 +123,128 @@ class MovilUsuarioController extends Controller
                 's.cordenadas',
                 's.bounds'
             )
-            ->get();
+            ->get()
+            ->groupBy('codruta');
+
+        // Ahora obtenemos UN SOLO histórico para TODAS las asignaciones
+        $ultimoHistoricoGeneral = DB::table('historicoViaje as hv')
+            ->join('asignacion as a', 'hv.asignacion_codAsignacion', '=', 'a.codasignacion')
+            ->where('a.usuario_codusuario', $codusuario)
+            ->where('hv.estado', '!=', 'F')
+            ->orderBy('hv.inicio', 'desc')
+            ->select(
+                'hv.codhistorioViaje',
+                'hv.inicio as historicoInicio',
+                'hv.fin as historicoFin',
+                'hv.estado as historicoEstado',
+                'a.codasignacion'
+            )
+            ->first();
+
+        // Y UN SOLO evento para TODAS las asignaciones
+        $ultimoEventoGeneral = DB::table('evento as e')
+            ->join('historicoViaje as hv', 'e.historicoViaje_codhistorioViaje', '=', 'hv.codhistorioViaje')
+            ->join('asignacion as a', 'hv.asignacion_codAsignacion', '=', 'a.codasignacion')
+            ->where('a.usuario_codusuario', $codusuario)
+            ->whereNull('e.fin')
+            ->orderBy('e.inicio', 'desc')
+            ->select(
+                'e.codevento',
+                'e.nombre as eventoNombre',
+                'e.inicio as eventoInicio',
+                'e.fin as eventoFin',
+                'e.tipo as eventoTipo',
+                'hv.codhistorioViaje'
+            )
+            ->first();
 
         $resultado = [];
 
-        foreach ($rutas as $row) {
-            $rutaKey = $row->codruta;
+        foreach ($rutas as $codruta => $rows) {
+            $firstRow = $rows->first();
 
-            // Crear estructura base por ruta
-            if (!isset($resultado[$rutaKey])) {
-                $resultado[$rutaKey] = [
-                    'asignacion' => [
-                        'codasignacion' => (int) $row->codasignacion,
-                        'ruta_codruta' => (int) $row->rutaId,
-                        'usuario_codusuario' => (int) $row->usuario_codusuario,
-                        'ultimaActualizacion' => \Carbon\Carbon::parse($row->ultimaActualizacion)->toISOString()
-                    ],
-                    'ruta' => [
-                        'codruta' => (int) $row->codruta,
-                        'nombre' => $row->rutaNombre,
-                        'limiteGeneral' => (int) $row->limiteGeneral,
-                        'fechaCreacion' => \Carbon\Carbon::parse($row->fechaCreacion)->toISOString(),
-                        'icono' => $row->icono,
-                        'tipo' => $row->tipo
-                    ],
-                    'detalles' => [],
-                    'segmentos' => [] // ← nuevos segmentos únicos
+            $resultado[$codruta] = [
+                'asignacion' => [
+                    'codasignacion' => (int) $firstRow->codasignacion,
+                    'ruta_codruta' => (int) $firstRow->rutaId,
+                    'usuario_codusuario' => (int) $firstRow->usuario_codusuario,
+                    'ultimaActualizacion' => \Carbon\Carbon::parse($firstRow->ultimaActualizacion)->toISOString()
+                ],
+                'ruta' => [
+                    'codruta' => (int) $firstRow->codruta,
+                    'nombre' => $firstRow->rutaNombre,
+                    'limiteGeneral' => (int) $firstRow->limiteGeneral,
+                    'fechaCreacion' => \Carbon\Carbon::parse($firstRow->fechaCreacion)->toISOString(),
+                    'icono' => $firstRow->icono,
+                    'tipo' => $firstRow->tipo
+                ],
+                'ultimoHistoricoViaje' => null,
+                'ultimoEvento' => null,
+                'detalles' => [],
+            ];
+
+            // Asignar el mismo histórico general a todas las rutas
+            if ($ultimoHistoricoGeneral) {
+                $resultado[$codruta]['ultimoHistoricoViaje'] = [
+                    'codhistorioViaje' => (int) $ultimoHistoricoGeneral->codhistorioViaje,
+                    'inicio' => $ultimoHistoricoGeneral->historicoInicio ? \Carbon\Carbon::parse($ultimoHistoricoGeneral->historicoInicio)->toISOString() : null,
+                    'fin' => $ultimoHistoricoGeneral->historicoFin ? \Carbon\Carbon::parse($ultimoHistoricoGeneral->historicoFin)->toISOString() : null,
+                    'estado' => $ultimoHistoricoGeneral->historicoEstado
                 ];
             }
 
-            // Procesar detalle
-            if ($row->iddetalleRuta) {
+            // Asignar el mismo evento general a todas las rutas
+            if ($ultimoEventoGeneral) {
+                $resultado[$codruta]['ultimoEvento'] = [
+                    'codevento' => (int) $ultimoEventoGeneral->codevento,
+                    'nombre' => $ultimoEventoGeneral->eventoNombre,
+                    'inicio' => $ultimoEventoGeneral->eventoInicio ? \Carbon\Carbon::parse($ultimoEventoGeneral->eventoInicio)->toISOString() : null,
+                    'fin' => $ultimoEventoGeneral->eventoFin ? \Carbon\Carbon::parse($ultimoEventoGeneral->eventoFin)->toISOString() : null,
+                    'tipo' => $ultimoEventoGeneral->eventoTipo
+                ];
+            }
 
-                // → Limpiar coordenadas y bounds
-                $cordenadas = $this->limpiarJsonArray($row->cordenadas);
-                $bounds = $this->limpiarJsonArray($row->bounds);
+            // Procesar detalles únicos
+            $detallesUnicos = $rows->where('iddetalleRuta', '!=', null)
+                ->unique('iddetalleRuta');
+
+            foreach ($detallesUnicos as $detalleRow) {
+                $cordenadas = $this->limpiarJsonArray($detalleRow->cordenadas);
+                $bounds = $this->limpiarJsonArray($detalleRow->bounds);
 
                 $detalle = [
-                    'coddetalle' => (int) $row->iddetalleRuta,
-                    'ruta_codruta' => (int) $row->rutaId,
-                    'segmento_codsegmento' => (int) $row->segmento_codsegmento,
-                    'velocidadPermitida' => (int) $row->velocidadPermitida,
-                    'mensaje' => $row->detalleMensaje ?? '',
-                    'segmento' => $row->segmentoId ? [
-                        'codsegmento' => (int) $row->segmentoId,
-                        'nombre' => $row->segmentoNombre,
-                        'color' => $row->color,
+                    'coddetalle' => (int) $detalleRow->iddetalleRuta,
+                    'ruta_codruta' => (int) $detalleRow->rutaId,
+                    'segmento_codsegmento' => (int) $detalleRow->segmento_codsegmento,
+                    'velocidadPermitida' => (int) $detalleRow->velocidadPermitida,
+                    'mensaje' => $detalleRow->detalleMensaje ?? '',
+                    'segmento' => $detalleRow->segmentoId ? [
+                        'codsegmento' => (int) $detalleRow->segmentoId,
+                        'nombre' => $detalleRow->segmentoNombre,
+                        'color' => $detalleRow->color,
                         'cordenadas' => $cordenadas,
                         'bounds' => $bounds
                     ] : null
                 ];
 
-                $resultado[$rutaKey]['detalles'][] = $detalle;
-
-                // → Guardar segmentos sin repetidos
-                if ($row->segmentoId && !isset($resultado[$rutaKey]['segmentos'][$row->segmentoId])) {
-                    $resultado[$rutaKey]['segmentos'][$row->segmentoId] = [
-                        'codsegmento' => (int) $row->segmentoId,
-                        'nombre' => $row->segmentoNombre,
-                        'color' => $row->color,
-                        'cordenadas' => $cordenadas,
-                        'bounds' => $bounds
-                    ];
-                }
+                $resultado[$codruta]['detalles'][] = $detalle;
             }
         }
 
         return response()->json([
             'success' => true,
-            'rutas' => array_values($resultado)
+            'rutas' => array_values($resultado),
+            'historicoGeneral' => $ultimoHistoricoGeneral ? [
+                'codhistorioViaje' => (int) $ultimoHistoricoGeneral->codhistorioViaje,
+                'asignacion_codAsignacion' => (int) $ultimoHistoricoGeneral->codasignacion
+            ] : null,
+            'eventoGeneral' => $ultimoEventoGeneral ? [
+                'codevento' => (int) $ultimoEventoGeneral->codevento,
+                'historicoViaje_codhistorioViaje' => (int) $ultimoEventoGeneral->codhistorioViaje
+            ] : null
         ], 200, [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
+
 
     private function limpiarJsonArray($valor)
     {

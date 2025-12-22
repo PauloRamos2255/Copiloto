@@ -1,5 +1,7 @@
 import { AppPageProps } from '@/types/index';
 
+
+declare module 'shadcn-ui';
 // Extend ImportMeta interface for Vite...
 declare module 'vite/client' {
     interface ImportMetaEnv {

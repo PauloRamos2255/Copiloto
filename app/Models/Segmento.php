@@ -6,24 +6,45 @@ use Illuminate\Database\Eloquent\Model;
 
 class Segmento extends Model
 {
-    protected $table = 'segmento'; // nombre exacto de la tabla
+    protected $table = 'segmento'; 
+    protected $primaryKey = 'codsegmento'; 
+    public $incrementing = false;          
+    protected $keyType = 'int';            
 
-    protected $primaryKey = 'codsegmento'; // clave primaria personalizada
-    public $incrementing = false;          // no autoincremental
-    protected $keyType = 'int';            // tipo de clave primaria
-
-    public $timestamps = false;            // si no usas created_at/updated_at
+ 
+    public $timestamps = true;
 
     protected $fillable = [
         'codsegmento',
         'nombre',
         'color',
         'cordenadas',
-        'bounds'
+        'bounds',
     ];
 
+
     protected $casts = [
-        'cordenadas' => 'array', // automáticamente convierte JSON a array
+        'cordenadas' => 'array',
         'bounds' => 'array',
     ];
+
+    public function getCordenadasAttribute($value)
+    {
+        return json_decode($value, true) ?? [];
+    }
+
+    public function getBoundsAttribute($value)
+    {
+        return json_decode($value, true) ?? [];
+    }
+
+    public function setCordenadasAttribute($value)
+    {
+        $this->attributes['cordenadas'] = json_encode($value);
+    }
+
+    public function setBoundsAttribute($value)
+    {
+        $this->attributes['bounds'] = json_encode($value);
+    }
 }

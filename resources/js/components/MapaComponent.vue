@@ -32,9 +32,9 @@ export default {
           ? data
           : data.segmentos || [];
 
-        console.log("✅ Segmentos cargados:", this.segmentos);
+        console.log(" Segmentos cargados:", this.segmentos);
       } catch (error) {
-        console.error("❌ Error al cargar los segmentos:", error);
+        console.error(" Error al cargar los segmentos:", error);
         this.segmentos = [];
       }
     },
@@ -52,7 +52,7 @@ export default {
       if (this.segmentos && this.segmentos.length) {
         this.dibujarSegmentos();
       } else {
-        console.warn("⚠️ No hay segmentos para mostrar en el mapa");
+        console.warn(" No hay segmentos para mostrar en el mapa");
       }
     },
 

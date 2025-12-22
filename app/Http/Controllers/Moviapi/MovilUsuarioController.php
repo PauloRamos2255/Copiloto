@@ -168,13 +168,13 @@ class MovilUsuarioController extends Controller
                     'codasignacion' => (int) $firstRow->codasignacion,
                     'ruta_codruta' => (int) $firstRow->rutaId,
                     'usuario_codusuario' => (int) $firstRow->usuario_codusuario,
-                    'ultimaActualizacion' => \Carbon\Carbon::parse($firstRow->ultimaActualizacion)->toISOString()
+                    'ultimaActualizacion' => Carbon::parse($firstRow->ultimaActualizacion)->toISOString()
                 ],
                 'ruta' => [
                     'codruta' => (int) $firstRow->codruta,
                     'nombre' => $firstRow->rutaNombre,
                     'limiteGeneral' => (int) $firstRow->limiteGeneral,
-                    'fechaCreacion' => \Carbon\Carbon::parse($firstRow->fechaCreacion)->toISOString(),
+                    'fechaCreacion' => Carbon::parse($firstRow->fechaCreacion)->toISOString(),
                     'icono' => $firstRow->icono,
                     'tipo' => $firstRow->tipo
                 ],
@@ -187,8 +187,8 @@ class MovilUsuarioController extends Controller
             if ($ultimoHistoricoGeneral) {
                 $resultado[$codruta]['ultimoHistoricoViaje'] = [
                     'codhistorioViaje' => (int) $ultimoHistoricoGeneral->codhistorioViaje,
-                    'inicio' => $ultimoHistoricoGeneral->historicoInicio ? \Carbon\Carbon::parse($ultimoHistoricoGeneral->historicoInicio)->toISOString() : null,
-                    'fin' => $ultimoHistoricoGeneral->historicoFin ? \Carbon\Carbon::parse($ultimoHistoricoGeneral->historicoFin)->toISOString() : null,
+                    'inicio' => $ultimoHistoricoGeneral->historicoInicio ? Carbon::parse($ultimoHistoricoGeneral->historicoInicio)->toISOString() : null,
+                    'fin' => $ultimoHistoricoGeneral->historicoFin ? Carbon::parse($ultimoHistoricoGeneral->historicoFin)->toISOString() : null,
                     'estado' => $ultimoHistoricoGeneral->historicoEstado
                 ];
             }
@@ -198,8 +198,8 @@ class MovilUsuarioController extends Controller
                 $resultado[$codruta]['ultimoEvento'] = [
                     'codevento' => (int) $ultimoEventoGeneral->codevento,
                     'nombre' => $ultimoEventoGeneral->eventoNombre,
-                    'inicio' => $ultimoEventoGeneral->eventoInicio ? \Carbon\Carbon::parse($ultimoEventoGeneral->eventoInicio)->toISOString() : null,
-                    'fin' => $ultimoEventoGeneral->eventoFin ? \Carbon\Carbon::parse($ultimoEventoGeneral->eventoFin)->toISOString() : null,
+                    'inicio' => $ultimoEventoGeneral->eventoInicio ? Carbon::parse($ultimoEventoGeneral->eventoInicio)->toISOString() : null,
+                    'fin' => $ultimoEventoGeneral->eventoFin ? Carbon::parse($ultimoEventoGeneral->eventoFin)->toISOString() : null,
                     'tipo' => $ultimoEventoGeneral->eventoTipo
                 ];
             }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Actualizacion;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 
 class ActualizacionController extends Controller
@@ -31,7 +32,7 @@ class ActualizacionController extends Controller
         }
 
 
-        $inicioDate = \Carbon\Carbon::now('America/Lima');
+        $inicioDate = Carbon::now('America/Lima');
 
         $actualizacion = Actualizacion::create([
             'inicio' => $inicioDate,
@@ -78,7 +79,7 @@ class ActualizacionController extends Controller
             ], 400);
         }
 
-        $finDate = \Carbon\Carbon::now('America/Lima');
+        $finDate = Carbon::now('America/Lima');
 
         $actualizacion->update([
             'fin' => $finDate,
@@ -119,7 +120,7 @@ class ActualizacionController extends Controller
         }
 
         // Marcar la actualización como finalizada con ERROR
-        $finDate = \Carbon\Carbon::now('America/Lima');
+        $finDate = Carbon::now('America/Lima');
 
         $actualizacion->update([
             'fin' => $finDate,
